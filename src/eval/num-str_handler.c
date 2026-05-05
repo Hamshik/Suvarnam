@@ -1,6 +1,12 @@
 #include "eval/eval.h"
 
 TypedValue handle_num(ASTNode_t *node, TypedValue v) {
+  if (!node || !node->literal.raw) {
+    panic(&file, node ? node->loc : (TQLocation){0}, RT_NUM_LITERAL_UNSUPPORTED,
+          "Numeric literal missing raw string value");
+    return (TypedValue){0};
+  }
+  
   switch (node->datatype) {
   case I8:
     v.val.i8 = (int8_t)strtol(node->literal.raw, NULL, 10);

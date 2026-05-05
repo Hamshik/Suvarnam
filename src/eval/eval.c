@@ -114,7 +114,8 @@ TypedValue ast_eval(ASTNode_t *node) {
 
   case AST_BOOL:
     return (TypedValue){.type = BOOL,
-                        .val = node->literal.raw[0] == 't'
+                        // Ensure raw is a valid pointer before dereferencing
+                        .val = (node->literal.raw && node->literal.raw[0] == 't')
                                    ? (TQValue){.bval = true}
                                    : (TQValue){.bval = false}};
 

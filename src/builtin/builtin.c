@@ -35,8 +35,8 @@ static void TQwrite_i128(FILE *out, __int128 x) {
 
 static void TQwrite_value(FILE *out,  TQValue v, DataTypes_t t) {
     switch (t) {
-        case I8:        fprintf(out, "%zu", (int)v.i8); break;
-        case I32:       fprintf(out, "%zu", v.i32); break;
+        case I8:        fprintf(out, "%d", (int)v.i8); break;
+        case I32:       fprintf(out, "%d", v.i32); break;
         case I16:       fprintf(out, "%hd", v.i16); break;
         case I128:      TQwrite_i128(out, v.i128); break;
         case U8:        fprintf(out, "%u", (unsigned)v.u8); break;
