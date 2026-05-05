@@ -1,10 +1,8 @@
-#include "taca.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include "SymbolTable/SymbolTable.hpp"
+#include "eval/eval.h"
+#include "shared/structs.h"
 
 extern file_t file;
+ASTNode_t *root = NULL; // This is the single correct place for the definition
 static int g_returning = 0;
 static TypedValue g_return_value = (TypedValue){0};
 
@@ -15,10 +13,12 @@ TypedValue ast_eval_main(ASTNode_t *root) {
     ast_eval(root); /* ast_eval registers functions on AST_FN */
   ASTNode_t *main_fn = TQruntime_fn_lookup("main");
   if (!main_fn) {
-    panic(&file, 1, 1, 0, SEM_CALL_UNDEF_FN, "main");
+    panic(&file,
+      (TQLocation){1, 1, 0, 0, 0, 0}
+      , SEM_CALL_UNDEF_FN, "main");
     return (TypedValue){0};
   }
-  ASTNode_t *call = new_fn_call("main", NULL, 0, 0);
+  ASTNode_t *call = new_fn_call("main", NULL, (TQLocation){0});
   TypedValue ret = ast_eval(call);
   ast_free(call);
   return ret;
@@ -28,7 +28,7 @@ static void fn_register_runtime(ASTNode_t *fn) {
   if (!fn || fn->kind != AST_FN)
     return;
   if (!TQruntime_fn_register(fn)) {
-    panic(&file, fn->line, fn->col, fn->pos, SEM_FN_REDECL, fn->fn_def.name);
+    panic(&file, fn->loc, SEM_FN_REDECL, fn->fn_def.name);
   }
 }
 
@@ -54,9 +54,7 @@ TypedValue ast_eval(ASTNode_t *node) {
 
   case AST_VAR:
     return (TypedValue){.type = node->datatype,
-                        .val = TQruntime_env_get(node->var, node->datatype,
-                                                 node->line, node->col,
-                                                 node->pos)};
+                        .val = TQruntime_env_get(node->var, node->datatype, node->loc)};
 
   case AST_BINOP:
     return eval_binop(node, v);
@@ -68,14 +66,14 @@ TypedValue ast_eval(ASTNode_t *node) {
     if (node->assign.op == OP_ASSIGN && node->assign.is_declaration) {
       TypedValue rt0 = ast_eval(node->assign.rhs);
       TypedValue rt =
-          TQcast_typed(rt0, node->datatype, node->line, node->col, node->pos);
+          TQcast_typed(rt0, node->datatype);
       TQruntime_env_set_current(node->assign.lhs->var, &rt.val, node->datatype);
       return (TypedValue){.val = rt.val, .type = node->datatype};
     }
 
     TQValue val =
         eval_assign(node->assign.lhs, node->assign.rhs, node->assign.op,
-                    node->datatype, node->line, node->col, node->pos);
+                    node->datatype, node->loc);
     return (TypedValue){.val = val, .type = node->datatype};
   }
 
@@ -156,8 +154,15 @@ TypedValue ast_eval(ASTNode_t *node) {
 
   case AST_INDEX: {
     // 1. Get the list head from the target variable
-    // This returns the TypedValue containing the pointer to the first AST_SEQ
-    TypedValue target = ast_eval(node->index.target);
+    // We force the type to LIST here because the variable holding the sequence
+    // is always a LIST, even if the elements are of another type.
+    TypedValue target = {0};
+    if (node->index.target->kind == AST_VAR) {
+      target.type = LIST;
+      target.val = TQruntime_env_get(node->index.target->var, LIST, node->loc);
+    } else {
+      target = ast_eval(node->index.target);
+    }
 
     // 2. Get the integer index
     TypedValue idx_val = ast_eval(node->index.index);
@@ -169,12 +174,13 @@ TypedValue ast_eval(ASTNode_t *node) {
 
     // 4. Walk the list
     for (int i = 0; i < target_idx; i++) {
-      // In a standard SEQ chain: seq.a is the item, seq.b is the next SEQ node
-      if (current && current->kind == AST_SEQ) {
+      // Ensure we only step if the current node is a valid sequence node
+      if (current && current->kind == AST_SEQ && current->seq.b) {
         current = current->seq.b;
       } else {
-        // Safety fallback (though semantic should have caught this)
-        return (TypedValue){0};
+        // Index out of bounds
+        panic(&file, node->loc, RT_UNKNOWN_AST, "List index out of bounds");
+        return (TypedValue){.type = UNKNOWN};
       }
     }
 
@@ -193,8 +199,7 @@ TypedValue ast_eval(ASTNode_t *node) {
   }
 
   default:
-    panic(&file, node ? node->line : 0, node ? node->col : 0,
-          node ? node->pos : 0, RT_UNKNOWN_AST, NULL);
+    panic(&file, node ? (TQLocation){0} : node->loc, RT_UNKNOWN_AST, NULL);
     return (TypedValue){0};
   }
 }

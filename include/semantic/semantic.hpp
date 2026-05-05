@@ -1,15 +1,14 @@
-#ifndef SEMANTIC_H
-#define SEMANTIC_H
+#pragma once
 
+#include "shared/structs.h"
+#include "SymbolTable/SymbolTable.hpp"
 
 #ifdef __cplusplus
 
 #include <llvm-22/llvm/IR/DerivedTypes.h>
 #include <stdbool.h>
-#include "taca.hpp"
 extern "C" {
 #endif
-
 
 void semantic_check(ASTNode_t *root);
 bool is_numeric(DataTypes_t t);
@@ -17,30 +16,18 @@ bool is_numeric(DataTypes_t t);
 #ifdef __cplusplus
 }
 
-#ifndef TACA_MODULE_TYPES_DEFINED
-#define TACA_MODULE_TYPES_DEFINED
-typedef enum {
-    MOD_NEW,
-    MOD_LOADING,
-    MOD_LOADED
-} ModuleState_t;
-
-typedef struct module {
-    char *path;
-    ASTNode_t *ast;
-    bool parsed;
-    bool semantic_done;
-    UT_hash_handle hh;
-    ModuleState_t state;
-} Module_t;
-#endif
-
 extern "C" {
     DataTypes_t check_expr(ASTNode_t *n, DataTypes_t type = UNKNOWN);
     DataTypes_t semantic_index_handle(ASTNode_t *n);
     DataTypes_t list_handle(ASTNode_t *n, DataTypes_t type = UNKNOWN);
     bool islist(ASTNode_t *target);
 }
+
+extern bool isError;
+extern size_t err_no;
+extern size_t warn_no;
+extern bool isWarning;
+extern ASTNode_t *root;
 
 void type_error(ASTNode_t *n, const char *msg);
 bool is_integer(DataTypes_t t);
@@ -69,5 +56,5 @@ bool is_integer(DataTypes_t t);
 int numeric_bits(DataTypes_t t);
 
 void ensure_semantic(Module_t *m);
-#endif
+
 #endif

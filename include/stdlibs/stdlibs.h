@@ -1,5 +1,7 @@
-#ifndef LIBS_H
-#define LIBS_H
+#pragma once
+
+#include "codegen/codegen.hpp"
+#include "shared/structs.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -9,7 +11,6 @@ extern "C" {
 }
 #endif
 #ifdef __cplusplus
-#include "taca.hpp"
 
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
@@ -31,6 +32,4 @@ llvm::Value *get_exit(Module *m,LLVMContext &ctx ,argvec args, IRBuilder<> &b);
 Value* get_type(ASTNode_t* n, IRBuilder<> &b);
 
 Function *emit_TQconcat(Module &m, LLVMContext &ctx);
-#endif
-
 #endif

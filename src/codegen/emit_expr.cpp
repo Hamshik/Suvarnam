@@ -1,8 +1,6 @@
-#include "ast/ASTNode.h"
-#include "taca.hpp"
+#include "codegen/codegen.hpp"
 
-
-llvm::Value *emit_expr(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
+Value *emit_expr(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
                        IRBuilder<> &entryBuilder, LocalMap &locals) {
   if (!n)
     return nullptr;
@@ -13,77 +11,29 @@ llvm::Value *emit_expr(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
   case AST_FN:
     // function bodies handled separately
     return nullptr;
+
   case AST_NUM:
     return emit_number(n, ctx);
   case AST_BOOL:
     return ConstantInt::get(Type::getInt1Ty(ctx), n->datatype == BOOL ? 1 : 0);
 
-  case AST_STR: {
-    auto module = b.GetInsertBlock()->getModule();
-    auto &ctx = b.getContext();
+  case AST_STR:
+    return emit_strs(n, ctx, b);
 
-    const char *data = n->literal.raw ? n->literal.raw : "";
-    size_t len = n->literal.len;
-
-    if (len == 0)
-      len = strlen(data);
-
-    // ✅ BEST PRACTICE: LLVM string constant
-    llvm::Constant *strConst =
-        llvm::ConstantDataArray::getString(ctx, data, true); // null terminated
-
-    static int id = 0;
-    std::string name = "strlit." + std::to_string(id++);
-
-    auto global = new llvm::GlobalVariable(*module, strConst->getType(), true,
-                                           llvm::GlobalValue::PrivateLinkage,
-                                           strConst, name);
-
-    // ✅ Correct GEP: from pointer, NOT array type
-    llvm::Value *zero = llvm::ConstantInt::get(llvm::Type::getInt32Ty(ctx), 0);
-
-    llvm::Value *ptr = b.CreateInBoundsGEP(global->getValueType(), global,
-                                           {b.getInt32(0), b.getInt32(0)});
-
-    return b.CreateBitCast(
-        ptr, llvm::PointerType::getUnqual(llvm::Type::getInt8Ty(ctx)));
-  }
-
-  case AST_CHAR: {
-    if (!n->literal.raw) {
-      panic(&file, n->line, n->col, n->pos, INVAILD_UTF8_CHAR, nullptr);
-      return nullptr;
-    }
-
-    size_t len = 0;
-    Utf8Error err = Utf8Error::None;
-    uint32_t codepoint =
-        decode_utf8(n->literal.raw, n->literal.len, &len, &err);
-
-    // Error Handling
-    if (err != Utf8Error::None) {
-      const char *msg = nullptr;
-      if (err == Utf8Error::MultiCharacter)
-        msg = "Character literal must be a single UTF-8 character (e.g., 'a' "
-              "or 'π')";
-      else if (err == Utf8Error::Empty)
-        msg = "Character literal cannot be empty";
-
-      else if (err == Utf8Error::InvalidUtf8)
-        msg = n->literal.raw;
-
-      panic(&file, n->line, n->col, n->pos, INVAILD_UTF8_CHAR,
-            msg ? msg : "unknown");
-      return nullptr;
-    }
-
-    // This now receives a single uint32_t, which LLVM ConstantInt accepts
-    return ConstantInt::get(ir_type(CHARACTER, ctx), codepoint);
-  }
+  case AST_CHAR:
+    return emit_char(n, ctx, b);
 
   case AST_VAR: {
     auto it = locals.find(n->var ? n->var : "");
+	
     if (it != locals.end()) {
+      llvm::AllocaInst *alloca_inst =
+          llvm::dyn_cast<llvm::AllocaInst>(it->second);
+
+      if (alloca_inst) {
+        return b.CreateLoad(alloca_inst->getAllocatedType(), alloca_inst, n->var);
+      }
+
       return b.CreateLoad(ir_type(n->datatype, ctx), it->second, n->var);
     }
 
@@ -99,6 +49,7 @@ llvm::Value *emit_expr(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
 
   case AST_UNOP:
     return emit_unop(n, ctx, b, entryBuilder, locals);
+
   case AST_BINOP:
     return emit_binop(n, ctx, b, entryBuilder, locals);
 
@@ -115,6 +66,7 @@ llvm::Value *emit_expr(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
 
   case NODE_IF:
     return emit_if(n, ctx, b, entryBuilder, locals);
+
   case AST_SEQ: {
     emit_expr(n->seq.a, ctx, b, entryBuilder, locals);
 
@@ -126,7 +78,7 @@ llvm::Value *emit_expr(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
   }
 
   case AST_RETURN: {
-    llvm::Value *v = emit_expr(n->ret_stmt.value, ctx, b, entryBuilder, locals);
+    Value *v = emit_expr(n->ret_stmt.value, ctx, b, entryBuilder, locals);
 
     if (!blockTerminated(b)) {
       if (v)
@@ -145,7 +97,11 @@ llvm::Value *emit_expr(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
   case AST_LIST:
     return generateList(n, ctx, b, entryBuilder, locals);
 
+  case AST_INDEX:
+    return generateListAccess(n, ctx, b, entryBuilder, locals);
+
   default:
+    printf("Warning: Unhandled AST node kind in codegen\n");
     return nullptr;
   }
 }

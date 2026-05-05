@@ -2,11 +2,12 @@ If:
   PathMatch: .*\.c
   
 CompileFlags:
-  Add: [-Isrc]
+  Add: 
+    - "-I/usr/lib/llvm-22/include"
+    - "-Ibuild"
+    - "-Iinclude"
 
-
-  Remove:
-    - -w
+  CompilationDatabase: "build"
 
 Diagnostics:
   UnusedIncludes: None

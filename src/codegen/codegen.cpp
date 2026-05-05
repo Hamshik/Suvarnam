@@ -1,4 +1,10 @@
-#include "taca.hpp"
+#include "codegen/codegen.hpp"
+#include "SymbolTable/SymbolTable.hpp"
+#include "stdlibs/stdlibs.h"
+#include "utils/colors.h"
+#include <iostream>
+#include <unordered_set>
+#include "stdlibs/stdlibs.h"
 
 using namespace llvm;
 

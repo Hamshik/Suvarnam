@@ -1,4 +1,7 @@
-#include "../../taca.h"
+#include "utils/error_handler/error.h"
+#include "shared/structs.h"
+#include "utils/colors.h"
+
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,7 +15,7 @@ bool isWarning = false;
 bool error_fatal = true;
 
 
-void panic(file_t *file, int err_line, int err_col, int ini_pos, errc_t code, const char *detail)
+void panic(file_t *file, TQLocation loc, errc_t code, const char *detail)
 {
     const char *filename = (file && file->filename) ? file->filename : "<input>";
     const char *base = errc_msg(code);
@@ -30,7 +33,7 @@ void panic(file_t *file, int err_line, int err_col, int ini_pos, errc_t code, co
     } else {
         fprintf(stderr, TACA_BOLD TACA_RED "error[TQ%04d]: %s\n" TACA_RESET, (int)code, base);
     }
-    fprintf(stderr, TACA_BOLD TACA_DIM " --> %s:%d:%d\n" TACA_RESET, filename, err_line, err_col);
+    fprintf(stderr, TACA_BOLD TACA_DIM " --> %s:%d:%d\n" TACA_RESET, filename, (int)loc.first_line, (int)loc.first_column);
 
     if (!src || src_len == 0) {
         free(src);
@@ -39,7 +42,7 @@ void panic(file_t *file, int err_line, int err_col, int ini_pos, errc_t code, co
         return;
     }
 
-    size_t pos = (ini_pos < 0) ? 0u : (size_t)ini_pos;
+    size_t pos = (loc.first_pos < 0) ? 0u : (size_t)loc.first_pos;
     if (pos >= src_len) pos = src_len - 1;
 
     size_t line_start = pos;
@@ -48,10 +51,10 @@ void panic(file_t *file, int err_line, int err_col, int ini_pos, errc_t code, co
     size_t line_end = pos;
     while (line_end < src_len && src[line_end] != '\n' && src[line_end] != '\0') line_end++;
 
-    int ln_width = digits_int(err_line);
+    int ln_width = digits_int(loc.first_line);
 
     fprintf(stderr, TACA_BOLD TACA_DIM "%*s |\n" TACA_RESET, ln_width, "");
-    fprintf(stderr, TACA_BOLD TACA_DIM "%*d | " TACA_RESET, ln_width, err_line);
+    fprintf(stderr, TACA_BOLD TACA_DIM "%*d | " TACA_RESET, ln_width, (int)loc.first_line);
     fwrite(src + line_start, 1, line_end - line_start, stderr);
     fputc('\n', stderr);
 
@@ -67,7 +70,7 @@ void panic(file_t *file, int err_line, int err_col, int ini_pos, errc_t code, co
     if (error_fatal) exit(EXIT_FAILURE);
 }
 
-void warn(file_t *file, int warn_line, int warn_col, int ini_pos, warnc_t code, const char *detail)
+void warn(file_t *file, TQLocation loc, warnc_t code, const char *detail)
 {
     const char *filename = (file && file->filename) ? file->filename : "<input>";
     const char *base = warnc_msg(code);
@@ -85,7 +88,7 @@ void warn(file_t *file, int warn_line, int warn_col, int ini_pos, warnc_t code, 
     } else {
         fprintf(stderr, TACA_BOLD TACA_YELLOW "warning[TQ%04d]: %s\n" TACA_RESET, (int)code, base);
     }
-    fprintf(stderr, TACA_BOLD TACA_DIM " --> %s:%d:%d\n" TACA_RESET, filename, warn_line, warn_col);
+    fprintf(stderr, TACA_BOLD TACA_DIM " --> %s:%d:%d\n" TACA_RESET, filename, (int)loc.first_line, (int)loc.first_column);
 
     if (!src || src_len == 0) {
         free(src);
@@ -93,7 +96,7 @@ void warn(file_t *file, int warn_line, int warn_col, int ini_pos, warnc_t code, 
         return;
     }
 
-    size_t pos = (ini_pos < 0) ? 0u : (size_t)ini_pos;
+    size_t pos = (loc.first_pos < 0) ? 0u : (size_t)loc.first_pos;
     if (pos >= src_len) pos = src_len - 1;
 
     size_t line_start = pos;
@@ -102,10 +105,10 @@ void warn(file_t *file, int warn_line, int warn_col, int ini_pos, warnc_t code, 
     size_t line_end = pos;
     while (line_end < src_len && src[line_end] != '\n' && src[line_end] != '\0') line_end++;
 
-    int ln_width = digits_int(warn_line);
+    int ln_width = digits_int(loc.first_line);
 
     fprintf(stderr, TACA_BOLD TACA_DIM "%*s |\n" TACA_RESET, ln_width, "");
-    fprintf(stderr, TACA_BOLD TACA_DIM "%*d | " TACA_RESET, ln_width, warn_line);
+    fprintf(stderr, TACA_BOLD TACA_DIM "%*d | " TACA_RESET, ln_width, (int)loc.first_line);
     fwrite(src + line_start, 1, line_end - line_start, stderr);
     fputc('\n', stderr);
 

@@ -1,7 +1,11 @@
-#include "taca.h"
-#include "taca.hpp"
+#include "cmd-exec/cmd-exec.h"
+#include <stdlib.h>
+
 extern FILE *yyin;
 file_t file = {0};
+extern ASTNode_t* root;
+
+int yyparse();
 
 int main(int argc, char **argv) {
     Options opts;

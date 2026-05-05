@@ -1,14 +1,75 @@
-#ifndef ERROR_MSG_H
-#define ERROR_MSG_H
+#pragma once
 
-#include <stdio.h>
-#include <stdbool.h>
-#include <stddef.h>
+/* AST enums*/
 
-typedef struct file_t {
-    char* filename;
-    FILE* source;
-} file_t;
+typedef enum ASTKind {
+    AST_NUM,
+    AST_BINOP,
+    AST_UNOP,
+    AST_VAR,
+    AST_BOOL,
+    AST_ASSIGN,
+    AST_SEQ,
+    AST_NULL,
+    NODE_IF,
+    NODE_FOR,
+    AST_STR,
+    AST_CHAR,
+    AST_WHILE,
+    AST_FN,
+    AST_CALL,
+    AST_RETURN,
+    AST_IMPORT,
+    AST_LIST,
+    AST_INDEX
+} ASTKind_t;
+
+typedef enum DataTypes{
+    I8,
+    I16,
+    I32,
+    I64,
+    I128,
+
+    F32,
+    F64,
+    F128,
+
+    UF32,
+    UF64,
+    UF128,
+
+    U8,
+    U16,
+    U32,
+    U64,
+    U128,
+    
+    PTR,
+    LIST,
+
+    BOOL,
+    STRINGS,
+    CHARACTER,
+    VOID,
+    UNKNOWN
+} DataTypes_t;
+
+typedef enum OP_kind {
+    OP_ADD, OP_SUB, OP_MUL, OP_DIV, OP_MOD, OP_POW,
+    OP_AND, OP_OR, OP_NOT,
+    OP_EQ, OP_NEQ, OP_LT, OP_LE, OP_GT, OP_GE,
+    OP_LSHIFT, OP_RSHIFT,
+    OP_BITAND, OP_BITOR, OP_BITXOR, OP_BITNOT,
+    OP_NEG, OP_POS,
+    OP_ASSIGN, OP_PLUS_ASSIGN, OP_MINUS_ASSIGN,
+    OP_MUL_ASSIGN, OP_DIV_ASSIGN, OP_MOD_ASSIGN, OP_POW_ASSIGN,
+    OP_LSHIFT_ASSIGN, OP_RSHIFT_ASSIGN,
+    OP_INC, OP_DEC,
+    OP_ADDR, OP_DEREF
+} OP_kind_t;
+
+/* error/warn enums*/
 
 typedef enum errc {
     /* Lexer */
@@ -90,25 +151,3 @@ typedef enum warnc {
     SEM_TYPE_WIDENED = 1104,
     SEM_UNKNOWN_TYPE = 1199
 } warnc_t;
-
-const char *errc_msg(errc_t code);
-const char *warnc_msg(warnc_t code);
-
-extern file_t file;
-extern size_t err_no;
-extern size_t warn_no;
-extern bool isError;
-extern bool isWarning;
-extern bool error_fatal;
-
-char *logf_msg(const char *fmt, ...);
-int digits_int(int v);
-int starts_with(const char *s, const char *prefix);
-char *read_entire_path(FILE *file, size_t *out_len);
-
-void panic(file_t *file, int err_line, int err_col, int ini_pos, errc_t code, const char *detail);
-void warn(file_t *file, int warn_line, int warn_col, int ini_pos, warnc_t code, const char *detail);
-void syserr(const char *context);
-void syswarn(const char *context);
-
-#endif

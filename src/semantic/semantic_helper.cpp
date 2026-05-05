@@ -1,5 +1,9 @@
 #include <stdio.h>
-#include "taca.hpp"
+#include "semantic/semantic.hpp"
+#include "shared/structs.h"
+#include "typechecker/typecheck.h"
+#include "utils/colors.h"
+#include "utils/error_handler/error.h"
 
 extern file_t file;
 
@@ -7,7 +11,7 @@ extern file_t file;
 void type_error(ASTNode_t *n, const char *msg) {
   if (n)
     n->datatype = UNKNOWN;
-  panic(&file, n ? n->line : 0, n ? n->col : 0, n ? n->pos : 0,
+  panic(&file, n ? (TQLocation){0} : n->loc,
         SEM_BINOP_INVALID, msg ? msg : NULL);
   return;
 }

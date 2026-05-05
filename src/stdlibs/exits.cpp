@@ -1,7 +1,4 @@
-#include "taca.hpp"
-#include <llvm-22/llvm/IR/IRBuilder.h>
-#include <llvm-22/llvm/IR/LLVMContext.h>
-#include <llvm-22/llvm/IR/Module.h>
+#include "stdlibs/stdlibs.h"
 
 Function *get_exit(Module &mod, LLVMContext &ctx) {
   Function *exitFn = mod.getFunction("exit");

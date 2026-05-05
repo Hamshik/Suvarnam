@@ -1,4 +1,4 @@
-#include "taca.h"
+#include "eval/eval.h"
 
 bool TQis_float(DataTypes_t t) {
     return t == F32 || t == F64 || t == F128 || t == UF32 || t == UF64 || t == UF128;
@@ -164,10 +164,7 @@ TQValue TQfrom_u128(unsigned __int128 x, DataTypes_t t) {
     return out;
 }
 
-TypedValue TQcast_typed(TypedValue v, DataTypes_t target, int line, int col, int pos) {
-    (void)line;
-    (void)col;
-    (void)pos;
+TypedValue TQcast_typed(TypedValue v, DataTypes_t target) {
     if (v.type == target) return v;
 
     if (target == BOOL) {

@@ -1,36 +1,34 @@
 {
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
-	    "version": "0.2.0",
-	    "configurations": [
-	        {
-	            "name": "Launch MyComplier",
-	            "type": "cppdbg",
-	            "request": "launch",
-	            "program": "${workspaceFolder}/bin/taca",
-	            "args": [
-					"${workspaceFolder}/source/test.tq",
-					"-o",
-					"${workspaceFolder}/output/test",
-					"--emit-ir",
-					"${workspaceFolder}/output/test.ll",
-				],
-	            "cwd": "${workspaceFolder}",
-	            "stopAtEntry": false,
-	            "externalConsole": false,
-	            "MIMode": "gdb",
-	            "setupCommands": [
-	                
-	                {
-	                        "description": "Enable pretty-printing for gdb",
-	                        "text": "-enable-pretty-printing",
-	                        "ignoreFailures": true
-	                    }
-	            ],
-	            "preLaunchTask": "build the Complier",
-	            "internalConsoleOptions": "neverOpen"
-	        }
-	    ]
+	// Use IntelliSense to learn about possible attributes.
+	// Hover to view descriptions of existing attributes.
+	// For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+	
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug Taca with GDB",
+            "type": "cppdbg",            // Switching to GDB mode
+            "request": "launch",
+            // Use this command to let CMake find your binary automatically
+            "program": "${command:cmake.launchTargetPath}", 
+            "args": [
+                "${workspaceFolder}/source/test.tq",
+                "-o",
+                "${workspaceFolder}/output/test",
+                "--emit-ir",
+                "${workspaceFolder}/output/test.ll"
+            ],
+            "cwd": "${workspaceFolder}",
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "miDebuggerPath": "/usr/bin/gdb" // Ensure this path is correct for your system
+        }
+    ]
 
-	}
+}

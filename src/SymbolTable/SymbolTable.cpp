@@ -1,4 +1,5 @@
-#include "SymbolTableInternal.hpp"
+#include "SymbolTable/SymbolTableInternal.hpp"
+#include "shared/structs.h"
 
 extern "C" {
 
@@ -12,35 +13,29 @@ void TQruntime_env_set(const char *name,  TQValue *val, DataTypes_t datatype) {
  TQ::runtime_symbol_table::env_set(name, val, datatype);
 }
 
-void TQruntime_env_set_current(const char *name,  TQValue *val,
-                                DataTypes_t datatype) {
+void TQruntime_env_set_current(const char *name,  TQValue *val, DataTypes_t datatype) {
  TQ::runtime_symbol_table::env_set_current(name, val, datatype);
 }
 
- TQValue TQruntime_env_get(const char *name, DataTypes_t datatype, int line,
-                          int col, int pos) {
-  return  TQ::runtime_symbol_table::env_get(name, datatype, line, col, pos);
+ TQValue TQruntime_env_get(const char *name, DataTypes_t datatype, TQLocation loc) {
+  return  TQ::runtime_symbol_table::env_get(name, datatype, loc);
 }
 
-TypedValue *  TQruntime_env_get_ref(const char *name, int line, int col,
-                                   int pos) {
-  return  TQ::runtime_symbol_table::env_get_ref(name, line, col, pos);
+TypedValue *  TQruntime_env_get_ref(const char *name, TQLocation loc) {
+  return  TQ::runtime_symbol_table::env_get_ref(name, loc);
 }
 
-int TQruntime_env_frame_id_of(const char *name, int line, int col, int pos) {
-  return  TQ::runtime_symbol_table::env_frame_id_of(name, line, col, pos);
+int TQruntime_env_frame_id_of(const char *name, TQLocation loc) {
+  return  TQ::runtime_symbol_table::env_frame_id_of(name, loc);
 }
 
-TypedValue *  TQruntime_env_get_ref_at(int frame_id, const char *name, int line,
-                                      int col, int pos) {
-  return  TQ::runtime_symbol_table::env_get_ref_at(frame_id, name, line, col,
-                                                  pos);
+TypedValue *  TQruntime_env_get_ref_at(int frame_id, const char *name, TQLocation loc) {
+  return  TQ::runtime_symbol_table::env_get_ref_at(frame_id, name, loc);
 }
 
 void TQruntime_env_set_at(int frame_id, const char *name,  TQValue *val,
-                           DataTypes_t datatype, int line, int col, int pos) {
- TQ::runtime_symbol_table::env_set_at(frame_id, name, val, datatype, line,
-                                       col, pos);
+                           DataTypes_t datatype, TQLocation loc) {
+ TQ::runtime_symbol_table::env_set_at(frame_id, name, val, datatype, loc);
 }
 
 bool TQruntime_fn_register(ASTNode_t *fn) {
@@ -57,23 +52,23 @@ DataTypes_t TQsemantic_lookup(const char *name) {
   return  TQ::semantic_symbol_table::lookup(name);
 }
 
-DataTypes_t TQsemantic_lookup_ptr_to(const char *name) {
-  return  TQ::semantic_symbol_table::lookup_ptr_to(name);
+DataTypes_t TQsemantic_lookup_sub_type(const char *name) {
+  return  TQ::semantic_symbol_table::lookup_sub_type(name);
 }
 
 bool TQsemantic_declare(const char *name, DataTypes_t type,
-                         DataTypes_t ptr_to, bool is_mutable, bool is_list) {
-  return  TQ::semantic_symbol_table::declare(name, type, ptr_to, is_mutable, is_list);
+                         DataTypes_t sub_type, bool is_mutable) {
+  return  TQ::semantic_symbol_table::declare(name, type, sub_type, is_mutable);
 }
 
 exitcode_t TQsemantic_exists(const char *name, DataTypes_t type,
-                              DataTypes_t ptr_to) {
-  return  TQ::semantic_symbol_table::exists(name, type, ptr_to);
+                              DataTypes_t sub_type) {
+  return  TQ::semantic_symbol_table::exists(name, type, sub_type);
 }
 
 exitcode_t TQsemantic_assign_check(const char *name, DataTypes_t rhs_type,
-                                    DataTypes_t rhs_ptr_to) {
-  return  TQ::semantic_symbol_table::assign_check(name, rhs_type, rhs_ptr_to);
+                                    DataTypes_t rhs_sub_type) {
+  return  TQ::semantic_symbol_table::assign_check(name, rhs_type, rhs_sub_type);
 }
 
 bool TQsemantic_is_mutable(const char *name) {

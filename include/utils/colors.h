@@ -1,6 +1,4 @@
-#ifndef COLORS_H
-
-#define COLORS_H
+#pragma once
 
 #define TACA_RESET       "\x1b[0m"
 
@@ -17,6 +15,3 @@
 #define TACA_DIM         "\x1b[2m"
 #define TACA_ITALIC      "\x1b[3m"
 #define TACA_UNDERLINE   "\x1b[4m"
-
-
-#endif

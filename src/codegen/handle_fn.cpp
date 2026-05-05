@@ -1,5 +1,5 @@
-#include "taca.hpp"
-
+#include "codegen/codegen.hpp"
+#include "stdlibs/stdlibs.h"
 
 Function *get_or_create_prototype(ASTNode_t *fn_ast, Module &mod,
                                   LLVMContext &ctx) {

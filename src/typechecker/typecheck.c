@@ -1,4 +1,4 @@
-#include "taca.h"
+#include "typechecker/typecheck.h"
 
 #include <stdlib.h>
 #include <string.h>

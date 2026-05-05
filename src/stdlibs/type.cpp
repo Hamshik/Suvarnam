@@ -1,5 +1,4 @@
-#include "taca.hpp"
-#include <llvm-22/llvm/IR/BasicBlock.h>
+#include "stdlibs/stdlibs.h"
 
 Value* get_type(ASTNode_t* n, IRBuilder<> &b) {
     DataTypes_t t = n->call.args->datatype;

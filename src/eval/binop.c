@@ -1,5 +1,4 @@
-#include "eval.h"
-#include "taca.h"
+#include "eval/eval.h"
 
 TypedValue eval_binop(ASTNode_t *node, TypedValue v) {
   TypedValue l = ast_eval(node->bin.left);
@@ -13,8 +12,8 @@ TypedValue eval_binop(ASTNode_t *node, TypedValue v) {
   }
 
   if (node->bin.op == OP_AND || node->bin.op == OP_OR) {
-    TypedValue lb = TQcast_typed(l, BOOL, node->line, node->col, node->pos);
-    TypedValue rb = TQcast_typed(r, BOOL, node->line, node->col, node->pos);
+    TypedValue lb = TQcast_typed(l, BOOL);
+    TypedValue rb = TQcast_typed(r, BOOL);
     v.type = BOOL;
     v.val = eval_bool(node->bin.op, BOOL, lb.val, rb.val);
     return v;
@@ -22,16 +21,16 @@ TypedValue eval_binop(ASTNode_t *node, TypedValue v) {
 
   if (isBoolOP(node->bin.op) || node->datatype == BOOL) {
     DataTypes_t cmp_t = TQpromote_runtime(l.type, r.type);
-    TypedValue lc = TQcast_typed(l, cmp_t, node->line, node->col, node->pos);
-    TypedValue rc = TQcast_typed(r, cmp_t, node->line, node->col, node->pos);
+    TypedValue lc = TQcast_typed(l, cmp_t);
+    TypedValue rc = TQcast_typed(r, cmp_t);
     v.type = BOOL;
     v.val = eval_bool(node->bin.op, cmp_t, lc.val, rc.val);
     return v;
   }
 
   DataTypes_t op_t = node->datatype;
-  TypedValue lc = TQcast_typed(l, op_t, node->line, node->col, node->pos);
-  TypedValue rc = TQcast_typed(r, op_t, node->line, node->col, node->pos);
+  TypedValue lc = TQcast_typed(l, op_t);
+  TypedValue rc = TQcast_typed(r, op_t);
   v.type = op_t;
   v.val = TQeval_binop_numeric(node->bin.op, op_t, lc.val, rc.val);
   return v;

@@ -1,4 +1,10 @@
-#include "taca.h"
+#include "shared/structs.h"
+#include "eval/eval.h"
+#include "utils/error_handler/error.h"
+#include "shared/structs.h"
+#include "ast/ast.h"
+#include <stdlib.h>
+#include <string.h>
 
 extern file_t file;
 
@@ -36,21 +42,23 @@ void assign_value(DataTypes_t dt,  TQValue *dst,  TQValue src) {
             if (src.ptr.name && !dst->ptr.name) { perror("strdup"); exit(1); }
             break;
         }
+        case LIST:
+            dst->raw = src.raw;
+            break;
         default:
             fprintf(stderr, "Invalid assignment type\n");
             exit(1);
     }
 }
 
- TQValue eval_assign(ASTNode_t *lhs, ASTNode_t *rhs, OP_kind_t op, DataTypes_t datatypes , 
-    int line, int col, int pos) {
+ TQValue eval_assign(ASTNode_t *lhs, ASTNode_t *rhs, OP_kind_t op, DataTypes_t datatypes , TQLocation loc) {
     TypedValue rt0 = ast_eval(rhs);
-    TypedValue rt = TQcast_typed(rt0, datatypes, line, col, pos);
+    TypedValue rt = TQcast_typed(rt0, datatypes);
     TQValue r = rt.val;
     TQValue v = {0};
 
     if (!lhs) {
-        panic(&file, line, col, pos, RT_ASSIGN_TARGET_NOT_VAR, NULL);
+        panic(&file, loc, RT_ASSIGN_TARGET_NOT_VAR, NULL);
         return ( TQValue){0};
     }
 
@@ -61,7 +69,7 @@ void assign_value(DataTypes_t dt,  TQValue *dst,  TQValue src) {
             return r;
         }
 
-       TQValue cur = getvar(lhs->var, datatypes, line, col, pos);
+       TQValue cur = getvar(lhs->var, datatypes, loc);
         OP_kind_t operation = get_assign_op(op);
         switch (datatypes) {
             case I8: case I16: case I32: case I128:
@@ -80,10 +88,10 @@ void assign_value(DataTypes_t dt,  TQValue *dst,  TQValue src) {
                 v.chars = r.chars;
                 break;
             case PTR:
-                panic(&file, line, col, pos, RT_ASSIGN_UNSUPPORTED, "pointer compound assignment not supported");
+                panic(&file, loc, RT_ASSIGN_UNSUPPORTED, "pointer compound assignment not supported");
                 return ( TQValue){0};
             default:
-                panic(&file, line, col, pos, RT_ASSIGN_UNSUPPORTED, NULL);
+                panic(&file, loc, RT_ASSIGN_UNSUPPORTED, NULL);
                 return ( TQValue){0};
         }
         set_var(lhs->var, &v, datatypes);
@@ -96,13 +104,13 @@ void assign_value(DataTypes_t dt,  TQValue *dst,  TQValue src) {
     if (lhs->kind == AST_UNOP && lhs->unop.op == OP_DEREF) {
         TypedValue pv = ast_eval(lhs->unop.operand);
         if (pv.type != PTR || pv.val.ptr.name == NULL) {
-            panic(&file, line, col, pos, RT_DANGLING_PTR, NULL);
+            panic(&file, loc, RT_DANGLING_PTR, NULL);
             return ( TQValue){0};
         }
-        TypedValue *target = getvar_ref_at(pv.val.ptr.frame_id, pv.val.ptr.name, line, col, pos);
+        TypedValue *target = getvar_ref_at(pv.val.ptr.frame_id, pv.val.ptr.name, loc);
         if (!target) return ( TQValue){0};
         if (target->type != datatypes) {
-            panic(&file, line, col, pos, RT_VAR_TYPE_MISMATCH, pv.val.ptr.name);
+            panic(&file, loc, RT_VAR_TYPE_MISMATCH, pv.val.ptr.name);
             return ( TQValue){0};
         }
 
@@ -121,7 +129,7 @@ void assign_value(DataTypes_t dt,  TQValue *dst,  TQValue src) {
                 v = TQeval_binop_numeric(operation, datatypes, cur, r);
                 break;
             default:
-                panic(&file, line, col, pos, RT_ASSIGN_UNSUPPORTED, "unsupported deref assignment type");
+                panic(&file, loc, RT_ASSIGN_UNSUPPORTED, "unsupported deref assignment type");
                 return ( TQValue){0};
         }
         assign_value(datatypes, &target->val, v);
@@ -130,19 +138,39 @@ void assign_value(DataTypes_t dt,  TQValue *dst,  TQValue src) {
 
     if (lhs->kind == AST_INDEX) {
         // Evaluate the list
-        TypedValue target = ast_eval(lhs->index.target);
+        // Force LIST type lookup to avoid runtime type mismatch errors
+        TypedValue target = {0};
+        if (lhs->index.target->kind == AST_VAR) {
+            target.type = LIST;
+            target.val = TQruntime_env_get(lhs->index.target->var, LIST, loc);
+        } else {
+            target = ast_eval(lhs->index.target);
+        }
+        
         int idx = ast_eval(lhs->index.index).val.i32;
 
         ASTNode_t *curr = (ASTNode_t*)target.val.raw;
         for(int i = 0; i < idx && curr; i++) {
-            curr = curr->seq.b; // Or however your list nodes are linked
+            if (curr->kind == AST_SEQ) curr = curr->seq.b;
+            else curr = NULL;
         }
         
-        return ast_eval(curr).val;
+        if (!curr) {
+            panic(&file, loc, RT_UNKNOWN_AST, "List index out of bounds");
+            return (TQValue){0};
+        }
 
+        // Identify the literal node to update (either the seq element or the tail node)
+        ASTNode_t *target_node = (curr->kind == AST_SEQ) ? curr->seq.a : curr;
+
+        // Perform the actual update on the AST node's internal storage
+        // This ensures the list contents actually change in the interpreter
+        assign_value(datatypes, (TQValue*)&target_node->literal.raw, r);
+
+        return r;
     }
 
 
-    panic(&file, line, col, pos, RT_ASSIGN_TARGET_NOT_VAR, NULL);
+    panic(&file, loc, RT_ASSIGN_TARGET_NOT_VAR, NULL);
     return ( TQValue){0};
 }

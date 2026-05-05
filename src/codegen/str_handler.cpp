@@ -1,4 +1,6 @@
-#include "taca.hpp"
+#include "codegen/codegen.hpp"
+#include "utils/utf-8_lib/utf8/core.h"
+#include "utils/utf-8_lib/utf8/unchecked.h"
 
 uint32_t decode_utf8(const char *raw, size_t raw_len, size_t *byte_len,
                      Utf8Error *error) {
@@ -30,7 +32,7 @@ uint32_t decode_utf8(const char *raw, size_t raw_len, size_t *byte_len,
   return cp;
 }
 
-llvm::Value *to_i8_ptr(llvm::Value *v, IRBuilder<> &b) {
+Value *to_i8_ptr(Value *v, IRBuilder<> &b) {
   auto &ctx = b.getContext();
 
   auto *i8Ty = llvm::Type::getInt8Ty(ctx);
@@ -91,4 +93,65 @@ Value *emit_char_to_string(Value *ch, LLVMContext &ctx, IRBuilder<> &b) {
   b.CreateStore(ConstantInt::get(i8Ty, 0), zeroPtr);
 
   return mem;
+}
+
+Value *emit_char(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b) {
+  if (!n->literal.raw) {
+    panic(&file, n->loc,INVAILD_UTF8_CHAR, nullptr);
+    return nullptr;
+  }
+
+  size_t len = 0;
+  Utf8Error err = Utf8Error::None;
+  uint32_t codepoint = decode_utf8(n->literal.raw, n->literal.len, &len, &err);
+
+  // Error Handling
+  if (err != Utf8Error::None) {
+    const char *msg = nullptr;
+    if (err == Utf8Error::MultiCharacter)
+      msg = "Character literal must be a single UTF-8 character (e.g., 'a' "
+            "or 'π')";
+    else if (err == Utf8Error::Empty)
+      msg = "Character literal cannot be empty";
+
+    else if (err == Utf8Error::InvalidUtf8)
+      msg = n->literal.raw;
+
+    panic(&file, n->loc, INVAILD_UTF8_CHAR,
+          msg ? msg : "unknown");
+    return nullptr;
+  }
+
+  // This now receives a single uint32_t, which LLVM ConstantInt accepts
+  return ConstantInt::get(ir_type(CHARACTER, ctx), codepoint);
+}
+
+Value *emit_strs(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b) {
+  auto module = b.GetInsertBlock()->getModule();
+
+  const char *data = n->literal.raw ? n->literal.raw : "";
+  size_t len = n->literal.len;
+
+  if (len == 0)
+    len = strlen(data);
+
+  // ✅ BEST PRACTICE: LLVM string constant
+  llvm::Constant *strConst =
+      llvm::ConstantDataArray::getString(ctx, data, true); // null terminated
+
+  static int id = 0;
+  std::string name = "strlit." + std::to_string(id++);
+
+  auto global = new llvm::GlobalVariable(*module, strConst->getType(), true,
+                                         llvm::GlobalValue::PrivateLinkage,
+                                         strConst, name);
+
+  // ✅ Correct GEP: from pointer, NOT array type
+  Value *zero = llvm::ConstantInt::get(llvm::Type::getInt32Ty(ctx), 0);
+
+  Value *ptr = b.CreateInBoundsGEP(global->getValueType(), global,
+                                         {b.getInt32(0), b.getInt32(0)});
+
+  return b.CreateBitCast(
+      ptr, llvm::PointerType::getUnqual(llvm::Type::getInt8Ty(ctx)));
 }

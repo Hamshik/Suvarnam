@@ -1,4 +1,8 @@
-#include "taca.h"
+#include "builtin/builtin.h"
+#include "semantic/semantic.hpp"
+#include "shared/structs.h"
+#include <inttypes.h>
+#include <string.h>
 
 extern file_t file;
 extern bool isWarning;
@@ -50,7 +54,7 @@ static void TQwrite_value(FILE *out,  TQValue v, DataTypes_t t) {
         case STRINGS:   fputs(v.str ? v.str : "", out); break;
         case CHARACTER: fputs(v.chars, out); break;
         case PTR:
-            if (v.ptr.name) fprintf(out, "&%s@%d", v.ptr.name, v.ptr.frame_id);
+            if (v.ptr.name) fprintf(out, "&%s@%d", v.ptr.name, (int)v.ptr.frame_id);
             else fputs("<null-ptr>", out);
             break;
         case VOID:      break;
@@ -95,9 +99,7 @@ TypedValue TQstd_call(
     const char *name,
     const TypedValue *argv,
     int argc,
-    int call_line,
-    int call_col,
-    int call_pos,
+    TQLocation loc,
     bool *ok
 ) {
     if (ok) *ok = 0;
@@ -106,7 +108,7 @@ TypedValue TQstd_call(
     if (ok) *ok = 1;
 
     if (argc != sig->param_count) {
-        panic(&file, call_line, call_col, call_pos, RT_ARGC_MISMATCH, name);
+        panic(&file, loc, RT_ARGC_MISMATCH, name);
         return (TypedValue){.type = VOID};
     }
 
@@ -118,7 +120,7 @@ TypedValue TQstd_call(
 
     if (strcmp(sig->name, "alloc") == 0) {
         if (!is_numeric(argv[0].type)) {
-            panic(&file, call_line, call_col, call_pos, SEM_ARG_TYPE_MISMATCH, name);
+            panic(&file, loc, SEM_ARG_TYPE_MISMATCH, name);
             return (TypedValue){.type = VOID};
         }
         size_t sz = (size_t)argv[0].val.u64;
@@ -135,7 +137,7 @@ TypedValue TQstd_call(
 
     if (strcmp(sig->name, "calloc") == 0) {
         if (!is_numeric(argv[0].type) || !is_numeric(argv[1].type)) {
-            panic(&file, call_line, call_col, call_pos, SEM_ARG_TYPE_MISMATCH, name);
+            panic(&file, loc, SEM_ARG_TYPE_MISMATCH, name);
             return (TypedValue){.type = VOID};
         }
         size_t n = (size_t)argv[0].val.u64;
@@ -153,7 +155,7 @@ TypedValue TQstd_call(
 
     if (strcmp(sig->name, "realloc") == 0) {
         if (argv[0].type != PTR || !is_numeric(argv[1].type)) {
-            panic(&file, call_line, call_col, call_pos, SEM_ARG_TYPE_MISMATCH, name);
+            panic(&file, loc, SEM_ARG_TYPE_MISMATCH, name);
             return (TypedValue){.type = VOID};
         }
         size_t sz = (size_t)argv[1].val.u64;
@@ -208,6 +210,6 @@ TypedValue TQstd_call(
         return (TypedValue){.type = VOID};
     }
 
-    panic(&file, call_line, call_col, call_pos, RT_CALL_UNDEF_FN, name);
+    panic(&file, loc, RT_CALL_UNDEF_FN, name);
     return (TypedValue){.type = VOID};
 }

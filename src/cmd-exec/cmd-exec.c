@@ -1,5 +1,7 @@
 #include "cmd-exec/cmd-exec.h"
-
+#include "shared/structs.h"
+#include <stdlib.h>
+#include <string.h>
 
 /* Helper function to execute external commands */
 int run_exec(const char *prog, char *const argv[]) {
@@ -29,11 +31,11 @@ FILE *open_file(const char *filename, char **resolved_path_out) {
 
     FILE *input = fopen(open_path, "rb");
     if (!input) {
-        int saved_errno = errno;
+        int saved_errno = err_no;
         fprintf(stderr, "Failed to open input: %s\n", filename);
         if (open_path != filename)
             fprintf(stderr, "Resolved path: %s\n", open_path);
-        errno = saved_errno;
+        err_no = saved_errno;
         perror("fopen");
         return NULL;
     }

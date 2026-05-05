@@ -1,7 +1,4 @@
-#include "taca.h"
-#include <math.h>
-#include <stdio.h>
-#include "SymbolTable/SymbolTable.hpp"
+#include "eval/eval.h"
 
 TQValue default_step(DataTypes_t type) {
   TQValue step = {0};
@@ -266,7 +263,7 @@ TypedValue eval_for(ASTNode_t *node, bool g_returning, TypedValue g_return_value
   if (!node->fornode.init || node->fornode.init->kind != AST_ASSIGN ||
       node->fornode.init->assign.lhs->kind != AST_VAR ||
       node->fornode.init->assign.op != OP_ASSIGN) {
-    panic(&file, node->line, node->col, node->pos, RT_FOR_INIT_INVALID, NULL);
+    panic(&file, node->loc, RT_FOR_INIT_INVALID, NULL);
     return (TypedValue){0};
   }
 
@@ -274,18 +271,16 @@ TypedValue eval_for(ASTNode_t *node, bool g_returning, TypedValue g_return_value
   DataTypes_t loop_type = node->fornode.init->datatype;
   const char *loop_name = node->fornode.init->assign.lhs->var;
 
-  TypedValue endt = TQcast_typed(ast_eval(node->fornode.end), loop_type,
-                                 node->line, node->col, node->pos);
+  TypedValue endt = TQcast_typed(ast_eval(node->fornode.end), loop_type);
   TQValue endv_cast = endt.val;
   TypedValue stept =
       node->fornode.step
-          ? TQcast_typed(ast_eval(node->fornode.step), loop_type, node->line,
-                         node->col, node->pos)
+          ? TQcast_typed(ast_eval(node->fornode.step), loop_type)
           : (TypedValue){.type = loop_type, .val = default_step(loop_type)};
   TQValue stepv = stept.val;
 
   if (step_is_zero(loop_type, stepv)) {
-    panic(&file, node->line, node->col, node->pos, RT_FOR_STEP_ZERO, NULL);
+    panic(&file, node->loc, RT_FOR_STEP_ZERO, NULL);
     return (TypedValue){0};
   }
 
@@ -293,13 +288,12 @@ TypedValue eval_for(ASTNode_t *node, bool g_returning, TypedValue g_return_value
 
   while (should_continue_for(
       loop_type,
-      TQruntime_env_get(loop_name, loop_type, node->line, node->col, node->pos),
+      TQruntime_env_get(loop_name, loop_type, node->loc),
       endv_cast, stepv)) {
     last = ast_eval(node->fornode.body);
     if (g_returning)
       return g_return_value;
-    TQValue cur = TQruntime_env_get(loop_name, loop_type, node->line, node->col,
-                                    node->pos);
+    TQValue cur = TQruntime_env_get(loop_name, loop_type, node->loc);
     TQValue next = add_step_for(loop_type, cur, stepv);
     TQruntime_env_set(loop_name, &next, loop_type);
   }

@@ -1,4 +1,6 @@
-#include "taca.h"
+#include "lexer/lexer.h"
+#include "shared/structs.h"
+#include <stdint.h>
 
 /* Bison %locations: Flex does not maintain columns for you.
    Track (line, column) ourselves and update it for every match,
@@ -50,10 +52,8 @@ void TQlexer_update_loc(YYLTYPE *loc, const char *text, int len) {
     TQlex_pos = pos;
 }
 
-void TQlexer_get_cursor(int *line, int *col, int *pos) {
-    if (line) *line = TQlex_line;
-    if (col) *col = TQlex_col;
-    if (pos) *pos = TQlex_pos;
+void TQlexer_get_cursor(TQLocation *loc) {
+    if (loc) *loc = (TQLocation){TQlex_line, TQlex_col, TQlex_pos,0,0,0};
 }
 
 bool TQutf8_single(const char *bytes, size_t len)

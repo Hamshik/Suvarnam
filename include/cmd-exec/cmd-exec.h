@@ -1,16 +1,13 @@
 #pragma once
 
-#include "taca.h"
-#include <errno.h>
+#include "shared/structs.h"
+
 #include <limits.h>
 #include <linux/limits.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <sys/wait.h>
 #include <unistd.h>
-
 
 /* Program options structure */
 typedef struct {
@@ -26,3 +23,14 @@ bool parse_arguments(int argc, char **argv, Options *opts);
 bool setup_input_file(const Options *opts, file_t *file);
 int compile_and_execute(ASTNode_t *root, const Options *opts);
 void yyrestart(FILE *input_file);
+
+void semantic_check(ASTNode_t *root);
+TypedValue ast_eval_main(ASTNode_t *root);
+int codegen(ASTNode_t *root, const char *ll_path, char **ir_out);
+void ast_free(ASTNode_t *n);
+void env_clear_all();
+
+/*------------external fn declaration -----------------------------------*/
+void syserr(const char *context);
+void panic(file_t *file, TQLocation loc, errc_t code, const char *detail);
+char* logf_msg(const char *fmt, ...);

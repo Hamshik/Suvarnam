@@ -8,3 +8,7 @@ src/parser/parser.gv
 .reflex
 src/parser/parser.c
 src/parser/parser.h
+TODO.md
+.agents
+.codex
+build/

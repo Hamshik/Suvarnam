@@ -1,20 +1,20 @@
-#ifndef TACA_SYMBOL_TABLE_WRAPPERS_HPP
-#define TACA_SYMBOL_TABLE_WRAPPERS_HPP
+#pragma once
 
+#include "shared/structs.h"
+#include "utils/uhash.h"
 #include <stddef.h>
 #include <stdbool.h>
-
-#include "taca.hpp"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
 extern DataTypes_t g_fn_ret;
 extern int g_in_fn;
 
 typedef struct symboltable{
     DataTypes_t type;
-    DataTypes_t ptr_to; /* for PTR only */
+    DataTypes_t sub_type; /* for PTR only */
     const char* name;
     UT_hash_handle hh;
     DataTypes_t max_type; /* for type inference: has this symbol been assigned a value with a known type yet? */
@@ -69,25 +69,25 @@ void TQruntime_env_pop(void);
 void TQruntime_env_clear_all(void);
 void TQruntime_env_set(const char *name,  TQValue *val, DataTypes_t datatype);
 void TQruntime_env_set_current(const char *name,  TQValue *val, DataTypes_t datatype);
- TQValue TQruntime_env_get(const char *name, DataTypes_t datatype, int line, int col, int pos);
-TypedValue *  TQruntime_env_get_ref(const char *name, int line, int col, int pos);
-int TQruntime_env_frame_id_of(const char *name, int line, int col, int pos);
-TypedValue *  TQruntime_env_get_ref_at(int frame_id, const char *name, int line, int col, int pos);
-void TQruntime_env_set_at(int frame_id, const char *name,  TQValue *val, DataTypes_t datatype, int line, int col, int pos);
+ TQValue TQruntime_env_get(const char *name, DataTypes_t datatype, TQLocation loc);
+TypedValue *  TQruntime_env_get_ref(const char *name, TQLocation loc);
+int TQruntime_env_frame_id_of(const char *name, TQLocation loc);
+TypedValue *  TQruntime_env_get_ref_at(int frame_id, const char *name, TQLocation loc);
+void TQruntime_env_set_at(int frame_id, const char *name,  TQValue *val, DataTypes_t datatype, TQLocation loc);
 
 bool TQruntime_fn_register(ASTNode_t *fn);
 ASTNode_t *  TQruntime_fn_lookup(const char *name);
 void TQruntime_fn_clear(void);
 
 DataTypes_t TQsemantic_lookup(const char *name);
-DataTypes_t TQsemantic_lookup_ptr_to(const char *name);
+DataTypes_t TQsemantic_lookup_sub_type(const char *name);
 
 #ifdef __cplusplus
-bool TQsemantic_declare(const char *name, DataTypes_t type, DataTypes_t ptr_to, bool is_mutable, bool is_list = false);
+bool TQsemantic_declare(const char *name, DataTypes_t type, DataTypes_t sub_type, bool is_mutable);
 #endif
 
-exitcode_t TQsemantic_exists(const char *name, DataTypes_t type, DataTypes_t ptr_to);
-exitcode_t TQsemantic_assign_check(const char *name, DataTypes_t rhs_type, DataTypes_t rhs_ptr_to);
+exitcode_t TQsemantic_exists(const char *name, DataTypes_t type, DataTypes_t sub_type);
+exitcode_t TQsemantic_assign_check(const char *name, DataTypes_t rhs_type, DataTypes_t rhs_sub_type);
 bool TQsemantic_is_mutable(const char *name);
 void TQsemantic_scope_push(void);
 void TQsemantic_scope_pop(void);
@@ -101,6 +101,4 @@ Module_t *  TQsemantic_load_module(const char *path, bool *already_imported);
 
 #ifdef __cplusplus
 }
-#endif
-
 #endif

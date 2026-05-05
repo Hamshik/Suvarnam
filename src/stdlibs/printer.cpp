@@ -1,10 +1,5 @@
-#include "taca.hpp"
-#include <llvm-22/llvm/IR/DerivedTypes.h>
-#include <llvm-22/llvm/IR/Type.h>
-#include <llvm/IR/IRBuilder.h>
-#include <llvm/IR/LLVMContext.h>
-#include <llvm/IR/Module.h>
-#include <string>
+#include "stdlibs/stdlibs.h"
+
 
 using namespace llvm;
 

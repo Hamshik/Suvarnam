@@ -45,13 +45,13 @@
     case OP_DEC: result->field = ((int)operand->field)-1; break;\
     case OP_BITNOT: result->i128 = ~operand->i128; break
   
-#ifndef EVAL_H
-#define EVAL_H
-#include "taca.h"
+#pragma once
 
-#include <math.h>
+#include "shared/structs.h"
 #include <stdbool.h>
-
+#include <stdlib.h>
+#include <math.h>
+#include "SymbolTable/SymbolTable.hpp"
 
 TypedValue ast_eval(ASTNode_t *node);
 TypedValue ast_eval_main(ASTNode_t *root);
@@ -73,7 +73,7 @@ bool should_continue_for(DataTypes_t type, TQValue cur, TQValue end, TQValue ste
 
 /* Numeric helpers (runtime) */
 DataTypes_t TQpromote_runtime(DataTypes_t a, DataTypes_t b);
-TypedValue TQcast_typed(TypedValue v, DataTypes_t target, int line, int col, int pos);
+TypedValue TQcast_typed(TypedValue v, DataTypes_t target);
 
 TQValue TQeval_binop_numeric(OP_kind_t op, DataTypes_t type, TQValue a, TQValue b);
 unsigned __int128  TQparse_u128(const char *s, int *ok);
@@ -101,10 +101,19 @@ TypedValue eval_binop(ASTNode_t *node, TypedValue v);
 TypedValue eval_unop(ASTNode_t *node);
 TypedValue handle_num(ASTNode_t *node, TypedValue v);
 
-TypedValue TQcast_typed(TypedValue v, DataTypes_t target, int line, int col, int pos);
+TypedValue TQcast_typed(TypedValue v, DataTypes_t target);
 
 TypedValue eval_call(ASTNode_t *node, bool g_returning, TypedValue g_return_value);
-
 TypedValue eval_for(ASTNode_t *node, bool g_returning, TypedValue g_return_value);
 
-#endif
+/*------------- external function declaration --------------------*/
+void panic(file_t *file,TQLocation loc, errc_t code, const char *detail);
+
+/*for eval.c*/
+ASTNode_t* new_fn_call(const char *name, ASTNode_t *args, TQLocation loc);
+void ast_free(ASTNode_t *n);
+TQValue eval_assign(ASTNode_t *lhs, ASTNode_t *rhs, OP_kind_t op, DataTypes_t datatypes , TQLocation loc);
+void set_var_current(const char *name, TQValue *val, DataTypes_t datatype);
+
+/*for fn_handler.c*/
+TypedValue TQstd_call(const char *name, const TypedValue *argv, int argc, TQLocation loc, bool *ok);

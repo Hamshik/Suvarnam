@@ -1,16 +1,13 @@
-#include "eval.h"
-#include "taca.h"
-#include "SymbolTable/SymbolTable.hpp"
+#include "eval/eval.h"
 
 TypedValue eval_unop(ASTNode_t *node) {
   if (node->unop.op == OP_ADDR) {
     if (!node->unop.operand || node->unop.operand->kind != AST_VAR) {
-      panic(&file, node->line, node->col, node->pos, RT_UNKNOWN_AST,
+      panic(&file, node->loc, RT_UNKNOWN_AST,
             "address-of requires a variable");
       return (TypedValue){0};
     }
-    int fid = TQruntime_env_frame_id_of(node->unop.operand->var, node->line,
-                                        node->col, node->pos);
+    int fid = TQruntime_env_frame_id_of(node->unop.operand->var, node->loc);
     TQValue pv = {0};
     pv.ptr.frame_id = fid;
     pv.ptr.name = node->unop.operand->var;
@@ -20,11 +17,11 @@ TypedValue eval_unop(ASTNode_t *node) {
   if (node->unop.op == OP_DEREF) {
     TypedValue pv = ast_eval(node->unop.operand);
     if (pv.type != PTR || pv.val.ptr.name == NULL) {
-      panic(&file, node->line, node->col, node->pos, RT_DANGLING_PTR, NULL);
+      panic(&file, node->loc, RT_DANGLING_PTR, NULL);
       return (TypedValue){0};
     }
     TypedValue *ref = TQruntime_env_get_ref_at(
-        pv.val.ptr.frame_id, pv.val.ptr.name, node->line, node->col, node->pos);
+        pv.val.ptr.frame_id, pv.val.ptr.name, node->loc);
     if (!ref)
       return (TypedValue){0};
     return (TypedValue){.type = ref->type, .val = ref->val};
@@ -32,7 +29,7 @@ TypedValue eval_unop(ASTNode_t *node) {
 
   TypedValue r = ast_eval(node->unop.operand);
   TypedValue casted =
-      TQcast_typed(r, node->datatype, node->line, node->col, node->pos);
+      TQcast_typed(r, node->datatype);
   TypedValue out = {.type = node->datatype};
   do_unop_operation(&out.val, &casted.val, node->datatype, node->unop.op);
   return out;

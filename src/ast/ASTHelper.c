@@ -1,10 +1,11 @@
-#include "taca.h"
+#include "shared/structs.h"
+#include <stdlib.h>
 
 ASTNode_t *ast_alloc(void) {
     ASTNode_t *n = calloc(1, sizeof(ASTNode_t));
     if (!n) { perror("malloc"); exit(1); }
     n->datatype = UNKNOWN;
-    n->ptr_to = UNKNOWN;
+    n->sub_type = UNKNOWN;
     return n;
 }
 
