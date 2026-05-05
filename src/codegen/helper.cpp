@@ -96,7 +96,7 @@ Type *ir_type(DataTypes_t t, LLVMContext &ctx) {
   case BOOL:
     return Type::getInt1Ty(ctx);
   case STRINGS:
-    return llvm::PointerType::getUnqual(llvm::Type::getInt32Ty(ctx));
+    return PointerType::getUnqual(ctx);
   case CHARACTER:
     return Type::getInt32Ty(ctx);
   default:

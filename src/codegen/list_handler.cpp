@@ -1,4 +1,5 @@
 #include "codegen/codegen.hpp"
+#include <iostream>
 
 static size_t idx = 0;
 
@@ -7,7 +8,9 @@ Value *generateList(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
   Type *elemType = ir_type(n->sub_type, ctx);
 
   if (!elemType) {
-    printf("Warning: invalid element type for list codegen at line %d, col %d\n", n->loc);
+   std::cerr << "Warning: invalid element type at line " 
+          <<(size_t) n->loc.first_line << ", col " 
+          <<(size_t) n->loc.first_column << std::endl;
     return nullptr;
   }
   
@@ -63,7 +66,8 @@ Value *generateListElementPtr(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b, IR
   }
 
   if (!arrayVal || !allocatedType || !allocatedType->isArrayTy()) {
-    printf("Error: Variable '%s' is not a valid list/array at line %d, col %d\n", name, n->loc);
+    printf("Error: Variable '%s' is not a valid list/array at line %zu, col %zu\n", name, 
+      n->loc.first_line, n->loc.first_column);
     return nullptr;
   }
 
@@ -92,8 +96,8 @@ Value *generateListAccess(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b, IRBuil
   }
   
   if (elementType->isVoidTy()) {
-      printf("Error: Could not determine element type for list access at line %d (Target Subtype: %d, Node Datatype: %d)\n", 
-             n->loc.first_line, (int)n->index.target->sub_type, (int)n->datatype);
+      printf("Error: Could not determine element type for list access at line %zu (Target Subtype: %zu, Node Datatype: %zu)\n", 
+             n->loc.first_line, (size_t)n->index.target->sub_type, (size_t)n->datatype);
       return nullptr;
   }
 

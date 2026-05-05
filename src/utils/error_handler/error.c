@@ -33,7 +33,7 @@ void panic(file_t *file, TQLocation loc, errc_t code, const char *detail)
     } else {
         fprintf(stderr, TACA_BOLD TACA_RED "error[TQ%04d]: %s\n" TACA_RESET, (int)code, base);
     }
-    fprintf(stderr, TACA_BOLD TACA_DIM " --> %s:%d:%d\n" TACA_RESET, filename, (int)loc.first_line, (int)loc.first_column);
+    fprintf(stderr, TACA_BOLD TACA_DIM " --> %s:%zu:%zu\n" TACA_RESET, filename, (int)loc.first_line, (int)loc.first_column);
 
     if (!src || src_len == 0) {
         free(src);
@@ -88,7 +88,7 @@ void warn(file_t *file, TQLocation loc, warnc_t code, const char *detail)
     } else {
         fprintf(stderr, TACA_BOLD TACA_YELLOW "warning[TQ%04d]: %s\n" TACA_RESET, (int)code, base);
     }
-    fprintf(stderr, TACA_BOLD TACA_DIM " --> %s:%d:%d\n" TACA_RESET, filename, (int)loc.first_line, (int)loc.first_column);
+    fprintf(stderr, TACA_BOLD TACA_DIM " --> %s:%zu:%zu\n" TACA_RESET, filename, (int)loc.first_line, (int)loc.first_column);
 
     if (!src || src_len == 0) {
         free(src);

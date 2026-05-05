@@ -42,12 +42,12 @@ llvm::Value *emit_println(ASTNode_t *argNode, llvm::Value *argV,
 
     // ---------------- STRING ----------------
   case STRINGS: {
-    llvm::Type *i8ptr = PointerType::getUnqual(Type::getInt8Ty(ctx));
+    llvm::Type *i8ptr = PointerType::getUnqual(ctx);
 
     if (argV->getType() != i8ptr)
       argV = b.CreateBitCast(argV, i8ptr);
 
-    llvm::Value *fmt = b.CreateGlobalStringPtr("%s\n");
+    llvm::Value *fmt = b.CreateGlobalString("%s\n");
     return b.CreateCall(printfFn, {fmt, argV});
   }
 
@@ -70,7 +70,7 @@ llvm::Value *emit_println(ASTNode_t *argNode, llvm::Value *argV,
     Value *ptr1 = b.CreateGEP(Type::getInt8Ty(ctx), buf, one);
     b.CreateStore(ConstantInt::get(Type::getInt8Ty(ctx), 0), ptr1);
 
-    llvm::Value *fmt = b.CreateGlobalStringPtr("%s\n");
+    llvm::Value *fmt = b.CreateGlobalString("%s\n");
     return b.CreateCall(printfFn, {fmt, buf});
   }
 
@@ -80,8 +80,8 @@ llvm::Value *emit_println(ASTNode_t *argNode, llvm::Value *argV,
 
     llvm::Value *cond = argV;
 
-    llvm::Value *trueStr = b.CreateGlobalStringPtr("true\n");
-    llvm::Value *falseStr = b.CreateGlobalStringPtr("false\n");
+    llvm::Value *trueStr = b.CreateGlobalString("true\n");
+    llvm::Value *falseStr = b.CreateGlobalString("false\n");
 
     llvm::Value *selected = b.CreateSelect(cond, trueStr, falseStr);
 
@@ -96,7 +96,7 @@ llvm::Value *emit_println(ASTNode_t *argNode, llvm::Value *argV,
                          ? b.CreateFPExt(argV, Type::getDoubleTy(ctx))
                          : argV;
 
-    llvm::Value *fmt = b.CreateGlobalStringPtr("%f\n");
+    llvm::Value *fmt = b.CreateGlobalString("%f\n");
     return b.CreateCall(printfFn, {fmt, d});
   }
 
@@ -104,12 +104,12 @@ llvm::Value *emit_println(ASTNode_t *argNode, llvm::Value *argV,
   default:
     if (argV->getType()->isPointerTy()) {
       // treat as string fallback
-      llvm::Value *fmt = b.CreateGlobalStringPtr("%s\n");
+      llvm::Value *fmt = b.CreateGlobalString("%s\n");
       return b.CreateCall(printfFn, {fmt, argV});
     }
 
     llvm::Value *i = b.CreateSExtOrBitCast(argV, Type::getInt64Ty(ctx));
-    llvm::Value *fmt = b.CreateGlobalStringPtr("%lld\n");
+    llvm::Value *fmt = b.CreateGlobalString("%lld\n");
 
     return b.CreateCall(printfFn, {fmt, i});
   }
@@ -125,12 +125,12 @@ llvm::Value *emit_print(ASTNode_t *argNode, llvm::Value *argV, LLVMContext &ctx,
 
     // ---------------- STRING ----------------
   case STRINGS: {
-    llvm::Type *i8ptr = PointerType::getUnqual(Type::getInt8Ty(ctx));
+    llvm::Type *i8ptr = PointerType::getUnqual(ctx);
 
     if (argV->getType() != i8ptr)
       argV = b.CreateBitCast(argV, i8ptr);
 
-    llvm::Value *fmt = b.CreateGlobalStringPtr("%s\n");
+    llvm::Value *fmt = b.CreateGlobalString("%s\n");
     return b.CreateCall(printfFn, {fmt, argV});
   }
 
@@ -156,7 +156,7 @@ llvm::Value *emit_print(ASTNode_t *argNode, llvm::Value *argV, LLVMContext &ctx,
     Value *ptr1 = b.CreateGEP(Type::getInt8Ty(ctx), buf, one);
     b.CreateStore(ConstantInt::get(Type::getInt8Ty(ctx), 0), ptr1);
 
-    llvm::Value *fmt = b.CreateGlobalStringPtr("%s");
+    llvm::Value *fmt = b.CreateGlobalString("%s");
     return b.CreateCall(printfFn, {fmt, buf});
   }
 
@@ -166,8 +166,8 @@ llvm::Value *emit_print(ASTNode_t *argNode, llvm::Value *argV, LLVMContext &ctx,
 
     llvm::Value *cond = argV;
 
-    llvm::Value *trueStr = b.CreateGlobalStringPtr("true");
-    llvm::Value *falseStr = b.CreateGlobalStringPtr("false");
+    llvm::Value *trueStr = b.CreateGlobalString("true");
+    llvm::Value *falseStr = b.CreateGlobalString("false");
 
     llvm::Value *selected = b.CreateSelect(cond, trueStr, falseStr);
 
@@ -182,7 +182,7 @@ llvm::Value *emit_print(ASTNode_t *argNode, llvm::Value *argV, LLVMContext &ctx,
                          ? b.CreateFPExt(argV, Type::getDoubleTy(ctx))
                          : argV;
 
-    llvm::Value *fmt = b.CreateGlobalStringPtr("%f\n");
+    llvm::Value *fmt = b.CreateGlobalString("%f\n");
     return b.CreateCall(printfFn, {fmt, d});
   }
 
@@ -190,12 +190,12 @@ llvm::Value *emit_print(ASTNode_t *argNode, llvm::Value *argV, LLVMContext &ctx,
   default: {
     if (argV->getType()->isPointerTy()) {
       // treat as string fallback
-      llvm::Value *fmt = b.CreateGlobalStringPtr("%s");
+      llvm::Value *fmt = b.CreateGlobalString("%s");
       return b.CreateCall(printfFn, {fmt, argV});
     }
 
     llvm::Value *i = b.CreateSExtOrBitCast(argV, Type::getInt64Ty(ctx));
-    llvm::Value *fmt = b.CreateGlobalStringPtr("%lld");
+    llvm::Value *fmt = b.CreateGlobalString("%lld");
 
     return b.CreateCall(printfFn, {fmt, i});
   }

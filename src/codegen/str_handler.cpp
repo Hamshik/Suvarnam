@@ -36,7 +36,7 @@ Value *to_i8_ptr(Value *v, IRBuilder<> &b) {
   auto &ctx = b.getContext();
 
   auto *i8Ty = llvm::Type::getInt8Ty(ctx);
-  auto *i8Ptr = llvm::PointerType::getUnqual(i8Ty);
+  auto *i8Ptr = llvm::PointerType::getUnqual(ctx);
 
   // already correct type
   if (v->getType() == i8Ptr)
@@ -65,7 +65,7 @@ Value *to_i8_ptr(Value *v, IRBuilder<> &b) {
 Value *emit_char_to_string(Value *ch, LLVMContext &ctx, IRBuilder<> &b) {
   // allocate 2 bytes: char + null
   auto *i8Ty = Type::getInt8Ty(ctx);
-  auto *i8Ptr = PointerType::getUnqual(Type::getInt8Ty(ctx));
+  auto *i8Ptr = PointerType::getUnqual(ctx);
   auto *i32Ty = Type::getInt32Ty(ctx);
 
   auto m = b.GetInsertBlock()->getModule();
@@ -75,7 +75,7 @@ Value *emit_char_to_string(Value *ch, LLVMContext &ctx, IRBuilder<> &b) {
   if (!mallocFn) {
     LLVMContext &ctx = m->getContext();
 
-    Type *i8Ptr = PointerType::getUnqual(Type::getInt8Ty(ctx));
+    Type *i8Ptr = PointerType::getUnqual(ctx);
     Type *i64 = Type::getInt64Ty(ctx);
 
     FunctionType *mallocTy = FunctionType::get(i8Ptr, {i64}, false);
@@ -153,5 +153,5 @@ Value *emit_strs(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b) {
                                          {b.getInt32(0), b.getInt32(0)});
 
   return b.CreateBitCast(
-      ptr, llvm::PointerType::getUnqual(llvm::Type::getInt8Ty(ctx)));
+      ptr, llvm::PointerType::getUnqual(ctx));
 }
