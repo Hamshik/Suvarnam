@@ -7,7 +7,7 @@ llvm::Value *emit_forloops(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b, IRBui
     std::string varName = (initAssign && initAssign->assign.lhs && initAssign->assign.lhs->var)
                               ? initAssign->assign.lhs->var
                               : "";
-    DataTypes_t loopT = initAssign ? initAssign->datatype : I32;
+    DataTypes_t loopT = initAssign ? initAssign->type->base : I32;
     AllocaInst *varAlloca = get_or_create_alloca(varName, loopT, ctx, entryBuilder, locals);
 
     llvm::Value *endV = emit_expr(n->fornode.end, ctx, b, entryBuilder, locals);

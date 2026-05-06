@@ -1,4 +1,5 @@
 #include "eval/eval.h"
+#include "shared/structs.h"
 
 bool TQis_float(DataTypes_t t) {
     return t == F32 || t == F64 || t == F128 || t == UF32 || t == UF64 || t == UF128;
@@ -164,25 +165,26 @@ TQValue TQfrom_u128(unsigned __int128 x, DataTypes_t t) {
     return out;
 }
 
-TypedValue TQcast_typed(TypedValue v, DataTypes_t target) {
-    if (v.type == target) return v;
+TypedValue TQcast_typed(TypedValue v, Type_t* target) {
+    if (v.type->base == target->base) return v;
 
-    if (target == BOOL) {
-        if (v.type == BOOL) return v;
-        return (TypedValue){.type = BOOL, .val = ( TQValue){.bval = TQas_f128(v.val, v.type) != 0.0L}};
+    if (target->base == BOOL) {
+        if (v.type->base == BOOL) return v;
+        return (TypedValue){.type = make_type(BOOL, NULL), 
+            .val = ( TQValue){.bval = TQas_f128(v.val, v.type->base) != 0.0L}};
     }
 
-    if (  TQis_float(target)) {
-        long double x = TQas_f128(v.val, v.type);
-        return (TypedValue){.type = target, .val = TQfrom_f128(x, target)};
+    if (TQis_float(target->base)) {
+        long double x = TQas_f128(v.val, v.type->base);
+        return (TypedValue){.type = target, .val = TQfrom_f128(x, target->base)};
     }
-    if (  TQis_unsigned_int(target)) {
-        unsigned __int128 x = TQas_u128(v.val, v.type);
-        return (TypedValue){.type = target, .val = TQfrom_u128(x, target)};
+    if (TQis_unsigned_int(target->base)) {
+        unsigned __int128 x = TQas_u128(v.val, v.type->base);
+        return (TypedValue){.type = target, .val = TQfrom_u128(x, target->base)};
     }
-    if (  TQis_signed_int(target)) {
-        __int128 x = TQas_i128(v.val, v.type);
-        return (TypedValue){.type = target, .val = TQfrom_i128(x, target)};
+    if (TQis_signed_int(target->base)) {
+        __int128 x = TQas_i128(v.val, v.type->base);
+        return (TypedValue){.type = target, .val = TQfrom_i128(x, target->base)};
     }
 
     return v;

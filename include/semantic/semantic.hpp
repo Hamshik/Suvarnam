@@ -1,5 +1,6 @@
 #pragma once
 
+#include "shared/enums.h"
 #include "shared/structs.h"
 #include "SymbolTable/SymbolTable.hpp"
 
@@ -16,12 +17,14 @@ bool is_numeric(DataTypes_t t);
 #ifdef __cplusplus
 }
 
+
 extern "C" {
-    DataTypes_t check_expr(ASTNode_t *n, DataTypes_t type = UNKNOWN);
-    DataTypes_t semantic_index_handle(ASTNode_t *n);
-    DataTypes_t list_handle(ASTNode_t *n, DataTypes_t type = UNKNOWN);
+    Type_t* check_expr(ASTNode_t *n, Type_t*& type);
+    Type_t* semantic_index_handle(ASTNode_t *n);
+    Type_t* list_handle(ASTNode_t *n, Type_t* type = nullptr);
     bool islist(ASTNode_t *target);
 }
+Type_t* check_expr(ASTNode_t *n);
 
 extern bool isError;
 extern size_t err_no;
@@ -33,15 +36,13 @@ void type_error(ASTNode_t *n, const char *msg);
 bool is_integer(DataTypes_t t);
 void check_err();
 
-DataTypes_t promote(DataTypes_t a, DataTypes_t b);
+Type_t* unop(ASTNode_t* n, Type_t* type = nullptr);
+Type_t* binop(ASTNode_t* n, Type_t* type = nullptr);
+Type_t* assign(ASTNode_t* n, Type_t* type = nullptr);
 
-DataTypes_t unop(ASTNode_t* n, DataTypes_t type = UNKNOWN);
-DataTypes_t binop(ASTNode_t* n, DataTypes_t type = UNKNOWN);
-DataTypes_t assign(ASTNode_t* n, DataTypes_t type = UNKNOWN);
-
-DataTypes_t handle_fn(ASTNode_t* n);
-DataTypes_t ret(ASTNode_t *n);
-DataTypes_t call(ASTNode_t* n);
+Type_t* handle_fn(ASTNode_t* n);
+Type_t* ret(ASTNode_t *n);
+Type_t* call(ASTNode_t* n);
 
 void type_error(ASTNode_t *n,const char* msg);
 bool is_numeric(DataTypes_t t);
@@ -54,6 +55,8 @@ bool is_signed_numeric(DataTypes_t t);
 bool is_numeric(DataTypes_t t);
 bool is_integer(DataTypes_t t);
 int numeric_bits(DataTypes_t t);
+bool types_are_equal(Type_t* a, Type_t* b);
+Type_t* make_type(DataTypes_t base, Type_t* inner = nullptr);
 
 void ensure_semantic(Module_t *m);
 

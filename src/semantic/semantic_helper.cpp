@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "semantic/semantic.hpp"
+#include "shared/enums.h"
 #include "shared/structs.h"
 #include "typechecker/typecheck.h"
 #include "utils/colors.h"
@@ -9,11 +10,28 @@ extern file_t file;
 
 /* Helpers */
 void type_error(ASTNode_t *n, const char *msg) {
-  if (n)
-    n->datatype = UNKNOWN;
+  if (n && n->type)
+    n->type = make_type(UNKNOWN);
   panic(&file, n ? (TQLocation){0} : n->loc,
         SEM_BINOP_INVALID, msg ? msg : NULL);
   return;
+}
+
+
+bool types_are_equal(Type_t* a, Type_t* b) {
+    // 1. If both are null, they are equal (base case)
+    if (a == b) return true; 
+    if (!a || !b) return false;
+
+    // 2. Check the base type (e.g., LIST vs LIST)
+    if (a->base != b->base) return false;
+
+    // 3. Check fixed-size for lists (Rust style)
+    // If either has a size > 0, they must match.
+    if (a->size != b->size) return false;
+
+    // 4. Recursively check the inner types (the "magic" for nested lists)
+    return types_are_equal(a->inner, b->inner);
 }
 
 bool is_numeric(DataTypes_t t) {
@@ -101,9 +119,9 @@ bool literal_fits_type(const ASTNode_t *lit, DataTypes_t t) {
     return literal_fits_type(lit->assign.rhs, t) &&
            literal_fits_type(lit->assign.lhs, t);
   case AST_VAR:
-    if (!is_numeric(lit->datatype) || !is_numeric(t))
+    if (!is_numeric(lit->type->base) || !is_numeric(t))
       return false;
-    if (numeric_bits(lit->datatype) > numeric_bits(t))
+    if (numeric_bits(lit->type->base) > numeric_bits(t))
       return false;
     /* Allow widening signed->unsigned; actual sign is checked at runtime
      * elsewhere. */
@@ -213,26 +231,32 @@ DataTypes_t promote(DataTypes_t a, DataTypes_t b) {
 }
 
 void force_numeric_type(ASTNode_t *n, DataTypes_t t) {
-  if (!n || t == UNKNOWN || !is_numeric(t))
-    return;
+    if (!n || t == UNKNOWN || !is_numeric(t)) return;
+  
+  // If the node doesn't have a type object yet, give it one
+  if (!n->type) {
+      n->type = make_type(t);
+  }
+
   switch (n->kind) {
   case AST_NUM:
-    if (n->datatype == UNKNOWN)
-      n->datatype = t;
+    if (n->type->base == UNKNOWN)
+      n->type->base = t;
     break;
+
   case AST_UNOP:
     force_numeric_type(n->unop.operand, t);
-    if (n->datatype == UNKNOWN) {
-      n->datatype = (n->unop.operand && n->unop.operand->datatype != UNKNOWN)
-                        ? n->unop.operand->datatype
+    if (n->type->base == UNKNOWN) {
+      n->type->base = (n->unop.operand && n->unop.operand->type->base != UNKNOWN)
+                        ? n->unop.operand->type->base
                         : t;
     }
     break;
   case AST_BINOP:
     force_numeric_type(n->bin.left, t);
     force_numeric_type(n->bin.right, t);
-    if (n->datatype == UNKNOWN)
-      n->datatype = t;
+    if (n->type->base == UNKNOWN)
+      n->type->base = t;
     break;
   default:
     break;

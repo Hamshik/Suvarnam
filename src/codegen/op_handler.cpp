@@ -7,15 +7,15 @@ llvm::Value *emit_binop(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
   if (!L || !R)
     return nullptr;
 
-  bool is_float = is_float_dtype(n->datatype);
-  bool is_unsigned = is_unsigned_dtype(n->datatype);
+  bool is_float = is_float_dtype(n->type->base);
+  bool is_unsigned = is_unsigned_dtype(n->type->base);
 
   llvm::Module *module = b.GetInsertBlock()->getModule();
 
   switch (n->bin.op) {
 
   case OP_ADD: {
-    if (n->datatype == STRINGS) {
+    if (n->type->base == STRINGS) {
       llvm::Module *module = b.GetInsertBlock()->getModule();
 
       llvm::Type *i8Ty = llvm::Type::getInt8Ty(ctx);
@@ -123,7 +123,7 @@ llvm::Value *emit_unop(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
 
   switch (n->unop.op) {
   case OP_NEG:
-    return is_float_dtype(n->datatype) ? b.CreateFNeg(opnd) : b.CreateNeg(opnd);
+    return is_float_dtype(n->type->base) ? b.CreateFNeg(opnd) : b.CreateNeg(opnd);
   case OP_NOT:
     return b.CreateNot(opnd);
   default:
@@ -137,9 +137,9 @@ llvm::Value *emit_assing(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
   std::string name =
       n->assign.lhs && n->assign.lhs->var ? n->assign.lhs->var : "";
 
-  DataTypes_t t = n->datatype != UNKNOWN
-                      ? n->datatype
-                      : (n->assign.lhs ? n->assign.lhs->datatype : UNKNOWN);
+  DataTypes_t t = n->type->base != UNKNOWN
+                      ? n->type->base
+                      : (n->assign.lhs ? n->assign.lhs->type->base : UNKNOWN);
 
   Module *m = b.GetInsertBlock()->getModule();
 
@@ -230,7 +230,7 @@ void emit_global(ASTNode_t *n, Module &mod, LLVMContext &ctx) {
   if (n->kind == AST_ASSIGN && n->assign.is_declaration) {
     std::string name = n->assign.lhs->var;
     DataTypes_t t =
-        n->datatype != UNKNOWN ? n->datatype : n->assign.lhs->datatype;
+        n->type->base != UNKNOWN ? n->type->base : n->assign.lhs->type->base;
     if (mod.getGlobalVariable(name))
       return;
     new GlobalVariable(mod, ir_type(t, ctx), false,

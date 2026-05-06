@@ -15,7 +15,7 @@ Value *emit_expr(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
   case AST_NUM:
     return emit_number(n, ctx);
   case AST_BOOL:
-    return ConstantInt::get(Type::getInt1Ty(ctx), n->datatype == BOOL ? 1 : 0);
+    return ConstantInt::get(Type::getInt1Ty(ctx), n->type->base == BOOL ? 1 : 0);
 
   case AST_STR:
     return emit_strs(n, ctx, b);
@@ -34,14 +34,14 @@ Value *emit_expr(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
         return b.CreateLoad(alloca_inst->getAllocatedType(), alloca_inst, n->var);
       }
 
-      return b.CreateLoad(ir_type(n->datatype, ctx), it->second, n->var);
+      return b.CreateLoad(ir_type(n->type->base, ctx), it->second, n->var);
     }
 
     Module *m = b.GetInsertBlock()->getModule();
     auto g = m->getGlobalVariable(n->var ? n->var : "", true);
 
     if (g) {
-      return b.CreateLoad(ir_type(n->datatype, ctx), g, n->var);
+      return b.CreateLoad(ir_type(n->type->base, ctx), g, n->var);
     }
 
     return nullptr;

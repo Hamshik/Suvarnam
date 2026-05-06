@@ -105,7 +105,7 @@ Type *ir_type(DataTypes_t t, LLVMContext &ctx) {
 }
 
 llvm::Value *emit_number(ASTNode_t *n, LLVMContext &ctx) {
-  switch (n->datatype) {
+  switch (n->type->base) {
   case I8:
     return ConstantInt::get(Type::getInt8Ty(ctx),
                             strtoll(n->literal.raw, NULL, 0), true);

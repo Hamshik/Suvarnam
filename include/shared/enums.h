@@ -21,6 +21,7 @@ typedef enum ASTKind {
     AST_RETURN,
     AST_IMPORT,
     AST_LIST,
+    AST_LIST_DEC,
     AST_INDEX
 } ASTKind_t;
 

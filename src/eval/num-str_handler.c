@@ -7,7 +7,7 @@ TypedValue handle_num(ASTNode_t *node, TypedValue v) {
     return (TypedValue){0};
   }
   
-  switch (node->datatype) {
+  switch (node->type->base) {
   case I8:
     v.val.i8 = (int8_t)strtol(node->literal.raw, NULL, 10);
     break;
@@ -18,7 +18,7 @@ TypedValue handle_num(ASTNode_t *node, TypedValue v) {
     v.val.i32 = (int)strtol(node->literal.raw, NULL, 10);
     break;
   case I64:
-    v.val.i64 = (long)strtol(node->literal.raw, NULL, 10);
+    v.val.i64 = (int64_t)strtoll(node->literal.raw, NULL, 10);
     break;
   case I128: {
     int ok = 0;
@@ -75,7 +75,7 @@ TypedValue handle_num(ASTNode_t *node, TypedValue v) {
           NULL);
     return (TypedValue){0};
   }
-  v.type = node->datatype;
+  v.type = node->type;
   return v;
 }
 

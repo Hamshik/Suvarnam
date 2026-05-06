@@ -5,7 +5,7 @@ Function *get_or_create_prototype(ASTNode_t *fn_ast, Module &mod,
                                   LLVMContext &ctx) {
   std::vector<Type *> params;
   for (int i = 0; i < fn_ast->fn_def.param_count; ++i) {
-    params.push_back(ir_type(fn_ast->fn_def.params[i].type, ctx));
+    params.push_back(ir_type(fn_ast->fn_def.params[i].type->base, ctx));
   }
   Type *retTy = ir_type(fn_ast->fn_def.ret, ctx);
   if (retTy->isVoidTy() && fn_ast->fn_def.ret == UNKNOWN)
@@ -34,7 +34,7 @@ void emit_function(ASTNode_t *fn_ast, Module &mod, LLVMContext &ctx) {
     const char *pname = fn_ast->fn_def.params[idx].name;
     arg.setName(pname);
     AllocaInst *alloca = get_or_create_alloca(
-        pname, fn_ast->fn_def.params[idx].type, ctx, entryBuilder, locals);
+        pname, fn_ast->fn_def.params[idx].type->base, ctx, entryBuilder, locals);
     b.CreateStore(&arg, alloca);
     ++idx;
   }

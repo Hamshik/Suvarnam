@@ -1,37 +1,39 @@
+#include "shared/enums.h"
+#include "shared/structs.h"
 #include "utils/error_handler/error.h"
 #include "semantic/semantic.hpp" // for check_expr, type_error, is_numeric, is_integer
 
 extern file_t file; // global file
 
-DataTypes_t unop(ASTNode_t *n, DataTypes_t type) {
+Type_t* unop(ASTNode_t *n, Type_t* type) {
 
-
-
-  DataTypes_t t = check_expr(n->unop.operand, type);
+  Type_t* t = check_expr(n->unop.operand, type);
 
   switch (n->unop.op) {
   case OP_NOT:
-    if (t != BOOL)
+    if (t->base != BOOL)
       type_error(n, "Operator ! expects bool");
-    n->datatype = BOOL;
-    return BOOL;
+    n->type = make_type(BOOL, nullptr);
+    return n->type;
 
   case OP_ADDR:
     if (n->unop.operand->kind != AST_VAR)
       type_error(n, "address-of requires a variable");
-    if (t == UNKNOWN)
+    if (t->base == UNKNOWN)
       type_error(n, "cannot take address of unknown type");
-    n->datatype = PTR;
-    n->sub_type = t;
-    return PTR;
+    n->type = make_type(PTR, t);
+    return n->type;
 
   case OP_DEREF:
-    if (t != PTR)
-      type_error(n, "dereference requires a pointer");
-    if (n->unop.operand->sub_type == UNKNOWN)
-      type_error(n, "pointer target type is unknown");
-    n->datatype = n->unop.operand->sub_type;
-    return n->datatype;
+    if (t->base != PTR)
+        type_error(n, "dereference requires a pointer");
+    
+    // Safety check: Ensure the pointer actually has a target type
+    if (!t->inner)
+        type_error(n, "pointer target type is missing");
+        
+    n->type = t->inner; // The type of *p is the inner type of p
+  return n->type;
 
   default:
     break;
@@ -40,20 +42,23 @@ DataTypes_t unop(ASTNode_t *n, DataTypes_t type) {
   /* If a numeric literal has no type yet, default it for unary numeric ops.
    */
   if (n->unop.operand && n->unop.operand->kind == AST_NUM &&
-      n->unop.operand->datatype == UNKNOWN) {
-    n->unop.operand->datatype = I32;
-    t = I32;
+      n->unop.operand->type->base == UNKNOWN) {
+    n->unop.operand->type = make_type(I32);
+    t = n->unop.operand->type;
   }
 
-  if (!is_numeric(t))
+  if (!is_numeric(t->base))
     panic(&file, n->loc, SEM_UNARY_NEEDS_NUM, NULL);
 
-  if (n->unop.op == OP_BITNOT && !is_integer(t)) {
+  if ((n->unop.op == OP_INC || n->unop.op == OP_DEC) && !n->unop.operand->ismut) 
+    panic(&file, n->loc, SEM_ASSIGN_IMMUTABLE, "cannot increment/decrement immutable variable");
+
+  if (n->unop.op == OP_BITNOT && !is_integer(t->base)) {
     panic(&file, n->loc, SEM_UNARY_NEEDS_NUM,
           "bitwise not requires integer type");
   }
 
-  if (n->datatype == UNKNOWN)
-    n->datatype = t;
+  if (!n->type || n->type->base == UNKNOWN)
+    n->type = t;
   return t;
 }

@@ -1,11 +1,18 @@
+#include "shared/enums.h"
 #include "shared/structs.h"
 #include <stdlib.h>
+
+Type_t* make_type(DataTypes_t base, Type_t* inner) {
+    Type_t* t = malloc(sizeof(Type_t));
+    t->base = base;
+    t->inner = inner;
+    return t;
+}
 
 ASTNode_t *ast_alloc(void) {
     ASTNode_t *n = calloc(1, sizeof(ASTNode_t));
     if (!n) { perror("malloc"); exit(1); }
-    n->datatype = UNKNOWN;
-    n->sub_type = UNKNOWN;
+    n->type = make_type(UNKNOWN, NULL);
     return n;
 }
 

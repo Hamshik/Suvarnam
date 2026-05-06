@@ -1,5 +1,6 @@
 #include "eval/eval.h"
 #include "shared/structs.h"
+#include "utils/uhash.h"
 
 extern file_t file;
 ASTNode_t *root = NULL; // This is the single correct place for the definition
@@ -43,18 +44,18 @@ TypedValue ast_eval(ASTNode_t *node) {
     return handle_num(node, v);
 
   case AST_STR:
-    v.type = STRINGS;
+    v.type = node->type;
     v.val.str = node->literal.raw;
     return v;
 
   case AST_CHAR:
-    v.type = CHARACTER;
+    v.type = node->type;
     v.val.chars = node->literal.raw ? node->literal.raw : '\0';
     return v;
 
   case AST_VAR:
-    return (TypedValue){.type = node->datatype,
-                        .val = TQruntime_env_get(node->var, node->datatype, node->loc)};
+    return (TypedValue){.type = node->type,
+                        .val = TQruntime_env_get(node->var, node->type, node->loc)};
 
   case AST_BINOP:
     return eval_binop(node, v);
@@ -66,15 +67,15 @@ TypedValue ast_eval(ASTNode_t *node) {
     if (node->assign.op == OP_ASSIGN && node->assign.is_declaration) {
       TypedValue rt0 = ast_eval(node->assign.rhs);
       TypedValue rt =
-          TQcast_typed(rt0, node->datatype);
-      TQruntime_env_set_current(node->assign.lhs->var, &rt.val, node->datatype);
-      return (TypedValue){.val = rt.val, .type = node->datatype};
+          TQcast_typed(rt0, node->type);
+      TQruntime_env_set_current(node->assign.lhs->var, &rt.val, node->type);
+      return (TypedValue){.val = rt.val, .type = node->type};
     }
 
     TQValue val =
         eval_assign(node->assign.lhs, node->assign.rhs, node->assign.op,
-                    node->datatype, node->loc);
-    return (TypedValue){.val = val, .type = node->datatype};
+                    node->type, node->loc);
+    return (TypedValue){.val = val, .type = node->type};
   }
 
   case AST_SEQ: {
@@ -113,7 +114,7 @@ TypedValue ast_eval(ASTNode_t *node) {
   }
 
   case AST_BOOL:
-    return (TypedValue){.type = BOOL,
+    return (TypedValue){.type = node->type,
                         // Ensure raw is a valid pointer before dereferencing
                         .val = (node->literal.raw && node->literal.raw[0] == 't')
                                    ? (TQValue){.bval = true}
@@ -127,7 +128,7 @@ TypedValue ast_eval(ASTNode_t *node) {
     return eval_call(node, g_returning, g_return_value);
 
   case AST_RETURN: {
-    TypedValue r = {.type = VOID};
+    TypedValue r = {.type = 0, .val = {0}};
     if (node->ret_stmt.value)
       r = ast_eval(node->ret_stmt.value);
     g_return_value = r;
@@ -147,23 +148,18 @@ TypedValue ast_eval(ASTNode_t *node) {
   }
 
   case AST_LIST: {
-    v.type = node->datatype;
-    v.val.raw = (void *)node->list.elements;
-    set_var_current(node->list.target->var, &v.val, node->datatype);
+    v = (TypedValue){
+      .val = (TQValue){ .raw = (node->list.elements) },
+      .type = node->type
+    };
+    // set_var_current(node->list.target->var, &v.val, v.type->base);
     return v;
   }
 
   case AST_INDEX: {
     // 1. Get the list head from the target variable
-    // We force the type to LIST here because the variable holding the sequence
-    // is always a LIST, even if the elements are of another type.
-    TypedValue target = {0};
-    if (node->index.target->kind == AST_VAR) {
-      target.type = LIST;
-      target.val = TQruntime_env_get(node->index.target->var, LIST, node->loc);
-    } else {
-      target = ast_eval(node->index.target);
-    }
+    // This returns the TypedValue containing the pointer to the first AST_SEQ
+    TypedValue target = ast_eval(node->index.target);
 
     // 2. Get the integer index
     TypedValue idx_val = ast_eval(node->index.index);
@@ -175,13 +171,12 @@ TypedValue ast_eval(ASTNode_t *node) {
 
     // 4. Walk the list
     for (int i = 0; i < target_idx; i++) {
-      // Ensure we only step if the current node is a valid sequence node
-      if (current && current->kind == AST_SEQ && current->seq.b) {
+      // In a standard SEQ chain: seq.a is the item, seq.b is the next SEQ node
+      if (current && current->kind == AST_SEQ) {
         current = current->seq.b;
       } else {
-        // Index out of bounds
-        panic(&file, node->loc, RT_UNKNOWN_AST, "List index out of bounds");
-        return (TypedValue){.type = UNKNOWN};
+        // Safety fallback (though semantic should have caught this)
+        return (TypedValue){0};
       }
     }
 
@@ -200,7 +195,7 @@ TypedValue ast_eval(ASTNode_t *node) {
   }
 
   default:
-    panic(&file, node ? (TQLocation){0} : node->loc, RT_UNKNOWN_AST, NULL);
+    panic(&file, node ? node->loc : (TQLocation){0}, RT_UNKNOWN_AST, NULL);
     return (TypedValue){0};
   }
 }

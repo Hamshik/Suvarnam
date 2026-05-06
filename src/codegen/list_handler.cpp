@@ -5,7 +5,7 @@ static size_t idx = 0;
 
 Value *generateList(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
                     IRBuilder<> &entryBuilder, LocalMap &locals) {
-  Type *elemType = ir_type(n->sub_type, ctx);
+  Type *elemType = ir_type(n->type->inner->base, ctx);
 
   if (!elemType) {
    std::cerr << "Warning: invalid element type at line " 
@@ -14,11 +14,11 @@ Value *generateList(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
     return nullptr;
   }
   
-  ArrayType *arrayType = ArrayType::get(elemType, n->list.num);
+  ArrayType *arrayType = ArrayType::get(elemType, n->list.count);
 
   // Allocate using entryBuilder (Top of function)
   AllocaInst *arrayPtr =
-      entryBuilder.CreateAlloca(arrayType, nullptr, n->list.target->var);
+      entryBuilder.CreateAlloca(arrayType, nullptr);
 
   ASTNode_t *curr = n->list.elements;
   uint32_t index = 0;
@@ -39,7 +39,7 @@ Value *generateList(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
   }
 
   // Map the variable name to our actual filled array
-  locals[n->list.target->var] = arrayPtr;
+  // locals[n->list.target->var] = arrayPtr;
 
   return arrayPtr;
 }
@@ -87,17 +87,17 @@ Value *generateListAccess(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b, IRBuil
   // Extract the element type from the GEP pointer type
   // This is safer than relying on n->index.target->sub_type
   PointerType *ptrTy = dyn_cast<PointerType>(elementAddr->getType());
-  Type *elementType = ir_type(n->index.target->sub_type, ctx);
+  Type *elementType = ir_type(n->index.target->type->inner->base, ctx);
 
   // Fallback: If sub_type is unknown, try to infer from the pointer
   if (elementType->isVoidTy() && ptrTy) {
      // The result type of an index operation is stored in the node's datatype
-     elementType = ir_type(n->datatype, ctx); 
+     elementType = ir_type(n->type->base, ctx); 
   }
   
   if (elementType->isVoidTy()) {
       printf("Error: Could not determine element type for list access at line %zu (Target Subtype: %zu, Node Datatype: %zu)\n", 
-             n->loc.first_line, (size_t)n->index.target->sub_type, (size_t)n->datatype);
+             n->loc.first_line, (size_t)n->index.target->type->inner->base, (size_t)n->type->base);
       return nullptr;
   }
 

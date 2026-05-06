@@ -27,7 +27,7 @@
                     "ignoreFailures": true
                 }
             ],
-            "miDebuggerPath": "/usr/bin/gdb" // Ensure this path is correct for your system
+            "miDebuggerPath": "/usr/bin/gdb", // Ensure this path is correct for your system
         }
     ]
 

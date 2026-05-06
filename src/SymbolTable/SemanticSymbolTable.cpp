@@ -41,18 +41,12 @@ extern "C" SemanticSymbolRecord *semantic_find_symbol(const char *name) {
 
 namespace  TQ::semantic_symbol_table {
 
-DataTypes_t lookup(const char *name) {
+Type_t* lookup(const char *name) {
   SemanticSymbolRecord *symbol = semantic_find_symbol(name);
-  return symbol ? symbol->type : UNKNOWN;
+  return symbol ? symbol->type : nullptr;
 }
 
-DataTypes_t lookup_sub_type(const char *name) {
-  SemanticSymbolRecord *symbol = semantic_find_symbol(name);
-  return symbol ? symbol->sub_type : UNKNOWN;
-}
-
-bool declare(const char *name, DataTypes_t type, DataTypes_t sub_type,
-             bool is_mutable) {
+bool declare(const char *name, Type_t* type, bool is_mutable) {
   SemanticScopeRecord *scope = semantic_scope_top();
   auto [it, inserted] = scope->symbols.try_emplace(name);
   if (!inserted) {
@@ -60,45 +54,43 @@ bool declare(const char *name, DataTypes_t type, DataTypes_t sub_type,
   }
 
   it->second.type = type;
-  it->second.sub_type = sub_type;
-  it->second.max_type = type;
+  it->second.max_type = type->base;
   it->second.last_maxed_type = UNKNOWN;
   it->second.is_mutable = is_mutable;
   it->second.is_used = false;
   return true;
 }
 
-exitcode_t exists(const char *name, DataTypes_t type, DataTypes_t sub_type) {
+exitcode_t exists(const char *name, Type_t* type) {
   SemanticSymbolRecord *symbol = semantic_find_symbol(name);
   if (!symbol) {
     return NOT_DECLARED;
   }
 
-  if (symbol->type != type && !is_numeric(symbol->type) && !is_numeric(type)) {
+  if (symbol->type != type && !is_numeric(symbol->type->base) && !is_numeric(type->base)) {
     return TYPE_MISMATCH;
   }
 
-  if (type == PTR && symbol->sub_type != sub_type &&
-      !is_numeric(symbol->type) && !is_numeric(type)) {
+  if (type->base == PTR && symbol->type != type->inner &&
+      !is_numeric(symbol->type->base) && !is_numeric(type->base)) {
     return TYPE_MISMATCH;
   }
 
   return SUCCESS;
 }
 
-exitcode_t assign_check(const char *name, DataTypes_t rhs_type,
-                        DataTypes_t rhs_sub_type) {
+exitcode_t assign_check(const char *name, DataTypes_t rhs_type, DataTypes_t rhs_sub_type) {
   SemanticSymbolRecord *symbol = semantic_find_symbol(name);
   if (!symbol) {
     return NOT_DECLARED;
   }
 
-  if (rhs_type != UNKNOWN && symbol->type != rhs_type &&
-      !is_numeric(rhs_type) && !is_numeric(symbol->type)) {
+  if (rhs_type != UNKNOWN && symbol->type->base != rhs_type &&
+      !is_numeric(rhs_type) && !is_numeric(symbol->type->base)) {
     return TYPE_MISMATCH;
   }
 
-  if (rhs_type == PTR && symbol->sub_type != rhs_sub_type) {
+  if (rhs_type == PTR && symbol->type->base != rhs_sub_type) {
     return TYPE_MISMATCH;
   }
 
@@ -133,8 +125,7 @@ void scope_pop() {
 
 void clear_symbols() { semantic_scope_top()->symbols.clear(); }
 
-bool fn_declare(const char *name, Param_t *params, int param_count,
-                DataTypes_t ret) {
+bool fn_declare(const char *name, Param_t *params, int param_count, Type_t* ret) {
   if (g_semantic_functions.find(name) != g_semantic_functions.end()) {
     return false;
   }
@@ -175,8 +166,8 @@ DataTypes_t update_datatype(const char *name, DataTypes_t want) {
     return UNKNOWN;
   }
 
-  symbol->type = want;
-  return symbol->type;
+  symbol->type->base = want;
+  return symbol->type->base;
 }
 
 Module_t *get_module(const char *path) {

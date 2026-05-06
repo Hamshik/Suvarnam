@@ -9,8 +9,7 @@ extern "C" {
 extern file_t file;
 }
 struct SemanticSymbolRecord {
-  DataTypes_t type = UNKNOWN;
-  DataTypes_t sub_type = UNKNOWN;
+  Type_t* type = nullptr;
   DataTypes_t max_type = UNKNOWN;
   DataTypes_t last_maxed_type = UNKNOWN;
   bool is_mutable = false;
@@ -22,15 +21,14 @@ struct SemanticScopeRecord {
   SemanticScopeRecord *parent = nullptr;
 };
 
-
 namespace  TQ::runtime_symbol_table {
 
 void env_push();
 void env_pop();
 void env_clear_all();
-void env_set(const char *name,  TQValue *val, DataTypes_t datatype);
-void env_set_current(const char *name,  TQValue *val, DataTypes_t datatype);
- TQValue env_get(const char *name, DataTypes_t datatype, TQLocation loc);
+void env_set(const char *name,  TQValue *val, Type_t* type);
+void env_set_current(const char *name,  TQValue *val, Type_t* type);
+ TQValue env_get(const char *name, Type_t* datatype, TQLocation loc);
 TypedValue *env_get_ref(const char *name, TQLocation loc);
 int env_frame_id_of(const char *name, TQLocation loc);
 TypedValue *env_get_ref_at(int frame_id, const char *name, TQLocation loc);
@@ -43,12 +41,12 @@ void fn_clear();
 
 } // namespace  TQ::runtime_symbol_table
 
+
 namespace  TQ::semantic_symbol_table {
 
-DataTypes_t lookup(const char *name);
-DataTypes_t lookup_sub_type(const char *name);
-bool declare(const char *name, DataTypes_t type, DataTypes_t sub_type, bool is_mutable);
-exitcode_t exists(const char *name, DataTypes_t type, DataTypes_t sub_type);
+Type_t* lookup(const char *name);
+bool declare(const char *name, Type_t* type, bool is_mutable);
+exitcode_t exists(const char *name, Type_t* type);
 exitcode_t assign_check(const char *name, DataTypes_t rhs_type, DataTypes_t rhs_sub_type);
 bool is_mutable(const char *name);
 void scope_push();

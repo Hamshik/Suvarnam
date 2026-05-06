@@ -9,9 +9,9 @@ extern "C" {
 
 typedef struct  TQstd_sig {
     const char *name;
-    const DataTypes_t *params; /* UNKNOWN means "any" for builtins */
+    Type_t *params; /* UNKNOWN means "any" for builtins */
     int param_count;
-    DataTypes_t ret;
+    Type_t* ret;
 }  TQstd_sig_t;
 
 /* Returns NULL if not a builtin. */

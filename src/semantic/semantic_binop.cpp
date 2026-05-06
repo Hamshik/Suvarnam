@@ -1,85 +1,72 @@
 
+#include "shared/enums.h"
+#include "shared/structs.h"
 #include "utils/error_handler/error.h"
 #include "semantic/semantic.hpp"
 
-DataTypes_t binop(ASTNode_t *n, DataTypes_t type) {
+Type_t* binop(ASTNode_t *n, Type_t* type) {
+  // Use &type to allow inference to flow into children
+  Type_t* lt = check_expr(n->bin.left, type);
+  Type_t* rt = check_expr(n->bin.right, type);
 
-  DataTypes_t lt = check_expr(n->bin.left, type);
-  DataTypes_t rt = check_expr(n->bin.right, type);
-
-  if (n->bin.left->kind == AST_NUM && n->bin.left->datatype == UNKNOWN &&
-      is_numeric(rt)) {
-    n->bin.left->datatype = rt;
-    lt = rt;
-  } else if (n->bin.right->kind == AST_NUM &&
-             n->bin.right->datatype == UNKNOWN && is_numeric(lt)) {
-    n->bin.right->datatype = lt;
-    rt = lt;
-  } else if (n->bin.left->kind == AST_NUM && n->bin.left->datatype == UNKNOWN &&
-             n->bin.right->kind == AST_NUM &&
-             n->bin.right->datatype == UNKNOWN) {
-    n->bin.left->datatype = I32;
-    n->bin.right->datatype = I32;
-    lt = rt = I32;
+  // 1. Numeric Literal Inference (Improved)
+  if (n->bin.left->kind == AST_NUM && n->bin.left->type->base == UNKNOWN) {
+      if (is_numeric(rt->base)) { n->bin.left->type = rt; lt = rt; }
+  } 
+  else if (n->bin.right->kind == AST_NUM && n->bin.right->type->base == UNKNOWN) {
+      if (is_numeric(lt->base)) { n->bin.right->type = lt; rt = lt; }
   }
 
-  if (lt == PTR || rt == PTR) {
-    panic(&file, n->loc, SEM_NUMOP_NEEDS_NUM,
-          "pointer arithmetic not supported");
+  // 2. Disallow Pointer Arithmetic (as per your requirement)
+  if (lt->base == PTR || rt->base == PTR) {
+    panic(&file, n->loc, SEM_NUMOP_NEEDS_NUM, "pointer arithmetic not supported");
   }
-  /* string ops */
-  if (lt == STRINGS || rt == STRINGS) {
-    if (n->bin.op != OP_ADD || lt != STRINGS || rt != STRINGS) {
+
+  // 3. String Concatenation
+  if (lt->base == STRINGS || rt->base == STRINGS) {
+    if (n->bin.op != OP_ADD || lt->base != STRINGS || rt->base != STRINGS) {
       panic(&file, n->loc, SEM_STRING_OP_INVALID, NULL);
     }
-
-    n->datatype = STRINGS;
-    return STRINGS;
+    // Re-use a global type pointer if possible to save memory
+    n->type = make_type(STRINGS); 
+    return n->type;
   }
 
-  /* BIN OPS*/
+  // 4. Comparison Operators
   switch (n->bin.op) {
-  case OP_LT:
-  case OP_LE:
-  case OP_GT:
-  case OP_GE:
-  case OP_EQ:
-  case OP_NEQ:
-    if (!is_numeric(lt) || !is_numeric(rt)) {
-      panic(&file, n->loc, SEM_CMP_NEEDS_NUM, NULL);
-    }
-    n->datatype = BOOL;
-    return BOOL;
-
-  case OP_AND:
-  case OP_OR:
-    if (lt != BOOL || rt != BOOL)
-      panic(&file, n->loc, SEM_LOGIC_NEEDS_BOOL, NULL);
-
-    n->datatype = BOOL;
-    return BOOL;
-
-  default:
-    // arithmetic/bitwise path
-    if (!is_numeric(lt) || !is_numeric(rt))
-      panic(&file, n->loc, SEM_NUMOP_NEEDS_NUM, NULL);
-
-    if (n->bin.op == OP_LSHIFT || n->bin.op == OP_RSHIFT ||
-        n->bin.op == OP_BITAND || n->bin.op == OP_BITOR ||
-        n->bin.op == OP_BITXOR) {
-      if (!is_integer(lt) || !is_integer(rt)) {
-        panic(&file, n->loc, SEM_NUMOP_NEEDS_NUM,
-              "bitwise ops require integer types");
+    case OP_LT: case OP_LE: case OP_GT: case OP_GE:
+    case OP_EQ: case OP_NEQ:
+      if (!is_numeric(lt->base) || !is_numeric(rt->base)) {
+          // If they aren't numeric, allow EQ/NEQ only if they are the exact same type
+          if ((n->bin.op == OP_EQ || n->bin.op == OP_NEQ) && types_are_equal(lt, rt)) {
+              // Valid (e.g., comparing two lists or strings)
+          } else {
+              panic(&file, n->loc, SEM_CMP_NEEDS_NUM, NULL);
+          }
       }
-    }
+      n->type = make_type(BOOL);
+      return n->type;
 
-    n->datatype = promote(lt, rt);
-    return n->datatype;
+    case OP_AND: case OP_OR:
+      if (lt->base != BOOL || rt->base != BOOL)
+        panic(&file, n->loc, SEM_LOGIC_NEEDS_BOOL, NULL);
+      n->type = make_type(BOOL);
+      return n->type;
+
+    default:
+      // 5. Arithmetic & Bitwise
+      if (!is_numeric(lt->base) || !is_numeric(rt->base))
+        panic(&file, n->loc, SEM_NUMOP_NEEDS_NUM, NULL);
+
+      if (n->bin.op == OP_LSHIFT || n->bin.op == OP_RSHIFT ||
+          n->bin.op == OP_BITAND || n->bin.op == OP_BITOR || n->bin.op == OP_BITXOR) {
+        if (!is_integer(lt->base) || !is_integer(rt->base)) {
+          panic(&file, n->loc, SEM_NUMOP_NEEDS_NUM, "bitwise ops require integer types");
+        }
+      }
+
+      // Promote returns the dominant base type (e.g., f64 > i32)
+      n->type = make_type(promote(lt->base, rt->base));
+      return n->type;
   }
-  /* numeric ops */
-  if (!is_numeric(lt) || !is_numeric(rt))
-    panic(&file, n->loc, SEM_BINOP_INVALID, NULL);
-
-  n->datatype = promote(lt, rt);
-  return n->datatype;
 }

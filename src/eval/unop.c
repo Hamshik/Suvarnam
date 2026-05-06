@@ -1,4 +1,6 @@
+#include "SymbolTable/SymbolTable.hpp"
 #include "eval/eval.h"
+#include "shared/enums.h"
 
 TypedValue eval_unop(ASTNode_t *node) {
   if (node->unop.op == OP_ADDR) {
@@ -11,12 +13,12 @@ TypedValue eval_unop(ASTNode_t *node) {
     TQValue pv = {0};
     pv.ptr.frame_id = fid;
     pv.ptr.name = node->unop.operand->var;
-    return (TypedValue){.type = PTR, .val = pv};
+    return (TypedValue){.type = TQsemantic_lookup(node->unop.operand->var), .val = pv};
   }
 
   if (node->unop.op == OP_DEREF) {
     TypedValue pv = ast_eval(node->unop.operand);
-    if (pv.type != PTR || pv.val.ptr.name == NULL) {
+    if (pv.type->base != PTR || pv.val.ptr.name == NULL) {
       panic(&file, node->loc, RT_DANGLING_PTR, NULL);
       return (TypedValue){0};
     }
@@ -29,9 +31,9 @@ TypedValue eval_unop(ASTNode_t *node) {
 
   TypedValue r = ast_eval(node->unop.operand);
   TypedValue casted =
-      TQcast_typed(r, node->datatype);
-  TypedValue out = {.type = node->datatype};
-  do_unop_operation(&out.val, &casted.val, node->datatype, node->unop.op);
+      TQcast_typed(r, node->type);
+  TypedValue out = {.type = casted.type, .val = {0}};
+  do_unop_operation(&out.val, &casted.val, node->type->base, node->unop.op);
   return out;
 }
 

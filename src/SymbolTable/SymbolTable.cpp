@@ -9,16 +9,16 @@ void TQruntime_env_pop(void) {  TQ::runtime_symbol_table::env_pop(); }
 
 void TQruntime_env_clear_all(void) {  TQ::runtime_symbol_table::env_clear_all(); }
 
-void TQruntime_env_set(const char *name,  TQValue *val, DataTypes_t datatype) {
- TQ::runtime_symbol_table::env_set(name, val, datatype);
+void TQruntime_env_set(const char *name,  TQValue *val, Type_t* type) {
+ TQ::runtime_symbol_table::env_set(name, val, type);
 }
 
-void TQruntime_env_set_current(const char *name,  TQValue *val, DataTypes_t datatype) {
- TQ::runtime_symbol_table::env_set_current(name, val, datatype);
+void TQruntime_env_set_current(const char *name,  TQValue *val, Type_t* type) {
+ TQ::runtime_symbol_table::env_set_current(name, val, type);
 }
 
- TQValue TQruntime_env_get(const char *name, DataTypes_t datatype, TQLocation loc) {
-  return  TQ::runtime_symbol_table::env_get(name, datatype, loc);
+ TQValue TQruntime_env_get(const char *name, Type_t* type, TQLocation loc) {
+  return  TQ::runtime_symbol_table::env_get(name, type, loc);
 }
 
 TypedValue *  TQruntime_env_get_ref(const char *name, TQLocation loc) {
@@ -48,22 +48,16 @@ ASTNode_t *  TQruntime_fn_lookup(const char *name) {
 
 void TQruntime_fn_clear(void) {  TQ::runtime_symbol_table::fn_clear(); }
 
-DataTypes_t TQsemantic_lookup(const char *name) {
+Type_t* TQsemantic_lookup(const char *name) {
   return  TQ::semantic_symbol_table::lookup(name);
 }
 
-DataTypes_t TQsemantic_lookup_sub_type(const char *name) {
-  return  TQ::semantic_symbol_table::lookup_sub_type(name);
+bool TQsemantic_declare(const char *name, Type_t* type, bool is_mutable) {
+  return  TQ::semantic_symbol_table::declare(name, type, is_mutable);
 }
 
-bool TQsemantic_declare(const char *name, DataTypes_t type,
-                         DataTypes_t sub_type, bool is_mutable) {
-  return  TQ::semantic_symbol_table::declare(name, type, sub_type, is_mutable);
-}
-
-exitcode_t TQsemantic_exists(const char *name, DataTypes_t type,
-                              DataTypes_t sub_type) {
-  return  TQ::semantic_symbol_table::exists(name, type, sub_type);
+exitcode_t TQsemantic_exists(const char *name, Type_t* type) {
+  return  TQ::semantic_symbol_table::exists(name, type);
 }
 
 exitcode_t TQsemantic_assign_check(const char *name, DataTypes_t rhs_type,

@@ -1,6 +1,9 @@
 #include "ast/ast.h"
 #include "semantic/semantic.hpp"
+#include "shared/enums.h"
+#include "shared/structs.h"
 #include "utils/error_handler/error.h"
+#include <cstddef>
 
 void ensure_semantic(Module_t *m) {
     if (!m || m->semantic_done) return;
@@ -11,6 +14,11 @@ void ensure_semantic(Module_t *m) {
 
 DataTypes_t g_fn_ret = UNKNOWN;
 int g_in_fn = 0;
+
+Type_t* check_expr(ASTNode_t *n) {
+    Type_t* dummy = nullptr;
+    return check_expr(n, dummy);
+}
 
 extern "C" void semantic_check(ASTNode_t *root) {
   if (!root)
@@ -25,46 +33,45 @@ extern "C" void semantic_check(ASTNode_t *root) {
 
 /* Main recursive checker */
 
-extern "C" DataTypes_t check_expr(ASTNode_t *n, DataTypes_t type) {
+extern "C" Type_t* check_expr(ASTNode_t *n, Type_t*& type) {
   if (!n)
-    return UNKNOWN;
+    return nullptr;
 
   switch (n->kind) {
   case AST_BOOL:
-    return n->datatype;
+    return n->type;
 
   case AST_NUM:
     /* Keep unknown here; we decide during declaration binding. */
-    if(n->datatype == UNKNOWN) n->datatype = type;
-    return n->datatype;
+    if(n->type->base == UNKNOWN) n->type = type;
+    return n->type;
 
   case AST_STR:
-    return STRINGS;
+    if(n->type) n->type = make_type(STRINGS);
+    return n->type;
 
   case AST_CHAR:
-    return CHARACTER;
+    if(n->type) n->type = make_type(CHARACTER);
+    return n->type;
 
   case AST_VAR:{
-    if (n->datatype == UNKNOWN)
-      n->datatype = TQsemantic_lookup(n->var);
-    if ((n->datatype == PTR || n->datatype == LIST) && n->sub_type == UNKNOWN)
-      n->sub_type = TQsemantic_lookup_sub_type(n->var);
-    exitcode_t exit_code = TQsemantic_exists(n->var, n->datatype, n->sub_type);
+    if (n->type->base == UNKNOWN)
+      n->type = TQsemantic_lookup(n->var);
+
+    exitcode_t exit_code = TQsemantic_exists(n->var, n->type);
     switch (exit_code) {
     case NOT_DECLARED:
       panic(&file, n->loc, SEM_VAR_UNDECL, n->var);
-      return UNKNOWN;
+      return nullptr;
 
     case TYPE_MISMATCH:
       panic(&file, n->loc, SEM_VAR_TYPE_MISMATCH, n->var);
-      return UNKNOWN;
+      return nullptr;
 
     case SUCCESS:
-      break;
-    default:
-      break;
+    default: break;
     }
-    return n->datatype;
+    return n->type;
   }
 
   case AST_BINOP:
@@ -81,15 +88,15 @@ extern "C" DataTypes_t check_expr(ASTNode_t *n, DataTypes_t type) {
     return check_expr(n->seq.b, type);
 
   case NODE_IF: {
-    DataTypes_t ct = check_expr(n->ifnode.cond);
-    if (ct != BOOL)
+    Type_t* ct = check_expr(n->ifnode.cond);
+    if (ct->base != BOOL)
       panic(&file, n->loc, SEM_IF_COND_NOT_BOOL, NULL);
 
     check_expr(n->ifnode.then_branch);
     if (n->ifnode.else_branch)
       check_expr(n->ifnode.else_branch);
 
-    return UNKNOWN;
+    return nullptr;
   }
 
   case NODE_FOR: {
@@ -98,34 +105,34 @@ extern "C" DataTypes_t check_expr(ASTNode_t *n, DataTypes_t type) {
         n->fornode.init->assign.op != OP_ASSIGN)
       panic(&file, n->loc, SEM_FOR_INIT_INVALID, NULL);
 
-    DataTypes_t init_t = check_expr(n->fornode.init);
-    if (!is_numeric(init_t))
+    Type_t* init_t = check_expr(n->fornode.init);
+    if (!is_numeric(init_t->base))
       panic(&file, n->loc, SEM_FOR_INIT_NOT_NUM, NULL);
 
-    force_numeric_type(n->fornode.end, init_t);
-    DataTypes_t end_t = check_expr(n->fornode.end);
+    force_numeric_type(n->fornode.end, init_t->base);
+    Type_t* end_t = check_expr(n->fornode.end);
     if (end_t != init_t)
       panic(&file, n->loc, SEM_FOR_END_TYPE_MISMATCH, NULL);
 
     if (n->fornode.step) {
-      force_numeric_type(n->fornode.step, init_t);
-      DataTypes_t step_t = check_expr(n->fornode.step);
+      force_numeric_type(n->fornode.step, init_t->base);
+      Type_t* step_t = check_expr(n->fornode.step);
       if (step_t != init_t) {
         panic(&file, n->loc, SEM_FOR_STEP_TYPE_MISMATCH, NULL);
       }
     }
 
     check_expr(n->fornode.body);
-    return UNKNOWN;
+    return nullptr;
   }
 
   case AST_WHILE: {
-    DataTypes_t ct = check_expr(n->whilenode.cond);
-    if (ct != BOOL)
+    Type_t* ct = check_expr(n->whilenode.cond);
+    if (ct->base != BOOL)
       panic(&file, n->loc, SEM_WHILE_COND_NOT_BOOL, NULL);
 
     check_expr(n->whilenode.body);
-    return UNKNOWN;
+    return nullptr;
   }
 
   case AST_FN:
@@ -143,7 +150,7 @@ extern "C" DataTypes_t check_expr(ASTNode_t *n, DataTypes_t type) {
     Module_t *mod = TQsemantic_load_module(path, &already_imported);
     if (!mod) panic(&file, n->loc, SEM_IMPORT_FILE_NOT_FOUND, path);
 
-    if(already_imported) return UNKNOWN;
+    if(already_imported) return nullptr;
     
     ensure_semantic(mod);
 
@@ -152,7 +159,7 @@ extern "C" DataTypes_t check_expr(ASTNode_t *n, DataTypes_t type) {
     
     check_expr(mod->ast);
     
-    return UNKNOWN;
+    return nullptr;
   }
 
   case AST_LIST:
@@ -163,6 +170,6 @@ extern "C" DataTypes_t check_expr(ASTNode_t *n, DataTypes_t type) {
 
   default:
     panic(&file, n->loc, SEM_UNKNOWN_AST, NULL);
-    return UNKNOWN;
+    return nullptr;
   }
 }

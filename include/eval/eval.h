@@ -1,4 +1,5 @@
 /* ---------- common helpers ---------- */
+#include "shared/enums.h"
 #define DIE(msg) do { fprintf(stderr, "%s\n", (msg)); exit(EXIT_FAILURE); } while (0)
 
 #define CHECK_INT_ZERO(op, b) \
@@ -73,7 +74,7 @@ bool should_continue_for(DataTypes_t type, TQValue cur, TQValue end, TQValue ste
 
 /* Numeric helpers (runtime) */
 DataTypes_t TQpromote_runtime(DataTypes_t a, DataTypes_t b);
-TypedValue TQcast_typed(TypedValue v, DataTypes_t target);
+TypedValue TQcast_typed(TypedValue v, Type_t* target);
 
 TQValue TQeval_binop_numeric(OP_kind_t op, DataTypes_t type, TQValue a, TQValue b);
 unsigned __int128  TQparse_u128(const char *s, int *ok);
@@ -101,18 +102,19 @@ TypedValue eval_binop(ASTNode_t *node, TypedValue v);
 TypedValue eval_unop(ASTNode_t *node);
 TypedValue handle_num(ASTNode_t *node, TypedValue v);
 
-TypedValue TQcast_typed(TypedValue v, DataTypes_t target);
+TypedValue TQcast_typed(TypedValue v, Type_t* target);
 
 TypedValue eval_call(ASTNode_t *node, bool g_returning, TypedValue g_return_value);
 TypedValue eval_for(ASTNode_t *node, bool g_returning, TypedValue g_return_value);
 
 /*------------- external function declaration --------------------*/
 void panic(file_t *file,TQLocation loc, errc_t code, const char *detail);
+Type_t* make_type(DataTypes_t base, Type_t* inner);
 
 /*for eval.c*/
 ASTNode_t* new_fn_call(const char *name, ASTNode_t *args, TQLocation loc);
 void ast_free(ASTNode_t *n);
-TQValue eval_assign(ASTNode_t *lhs, ASTNode_t *rhs, OP_kind_t op, DataTypes_t datatypes , TQLocation loc);
+TQValue eval_assign(ASTNode_t *lhs, ASTNode_t *rhs, OP_kind_t op, Type_t* type , TQLocation loc);
 void set_var_current(const char *name, TQValue *val, DataTypes_t datatype);
 
 /*for fn_handler.c*/

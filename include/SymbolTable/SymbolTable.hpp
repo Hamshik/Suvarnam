@@ -29,7 +29,7 @@ typedef struct fnsymbol{
     Param_t *params;
     int param_count;
     bool isReturned;
-    DataTypes_t ret;
+    Type_t* ret;
     UT_hash_handle hh;
 }FnSymbol_t;
 
@@ -67,9 +67,9 @@ typedef struct module {
 void TQruntime_env_push(void);
 void TQruntime_env_pop(void);
 void TQruntime_env_clear_all(void);
-void TQruntime_env_set(const char *name,  TQValue *val, DataTypes_t datatype);
-void TQruntime_env_set_current(const char *name,  TQValue *val, DataTypes_t datatype);
- TQValue TQruntime_env_get(const char *name, DataTypes_t datatype, TQLocation loc);
+void TQruntime_env_set(const char *name,  TQValue *val, Type_t* type);
+void TQruntime_env_set_current(const char *name,  TQValue *val, Type_t* type);
+ TQValue TQruntime_env_get(const char *name, Type_t* type, TQLocation loc);
 TypedValue *  TQruntime_env_get_ref(const char *name, TQLocation loc);
 int TQruntime_env_frame_id_of(const char *name, TQLocation loc);
 TypedValue *  TQruntime_env_get_ref_at(int frame_id, const char *name, TQLocation loc);
@@ -79,14 +79,13 @@ bool TQruntime_fn_register(ASTNode_t *fn);
 ASTNode_t *  TQruntime_fn_lookup(const char *name);
 void TQruntime_fn_clear(void);
 
-DataTypes_t TQsemantic_lookup(const char *name);
-DataTypes_t TQsemantic_lookup_sub_type(const char *name);
+Type_t* TQsemantic_lookup(const char *name);
 
 #ifdef __cplusplus
-bool TQsemantic_declare(const char *name, DataTypes_t type, DataTypes_t sub_type, bool is_mutable);
+bool TQsemantic_declare(const char *name, Type_t* type, bool is_mutable);
 #endif
 
-exitcode_t TQsemantic_exists(const char *name, DataTypes_t type, DataTypes_t sub_type);
+exitcode_t TQsemantic_exists(const char *name, Type_t* type);
 exitcode_t TQsemantic_assign_check(const char *name, DataTypes_t rhs_type, DataTypes_t rhs_sub_type);
 bool TQsemantic_is_mutable(const char *name);
 void TQsemantic_scope_push(void);

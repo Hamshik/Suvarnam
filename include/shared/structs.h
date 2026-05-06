@@ -64,22 +64,27 @@ typedef union {
     void* raw;
 } TQValue;
 
+
+typedef struct Types{
+    DataTypes_t base;        // e.g., LIST, PTR, INT
+    struct Types* inner;      // Points to the next type (recursive)
+    size_t size;
+} Type_t;
+
 typedef struct {
-    DataTypes_t type;
+    Type_t* type;
     TQValue val;
 } TypedValue;
-
 typedef struct Param {
-  char *name;
-  DataTypes_t type;
-  DataTypes_t sub_type; /* for PTR only */
+    char *name;
+    Type_t* type; 
 } Param_t;
-
 
 typedef struct ASTNode {
     ASTKind_t kind;
-    DataTypes_t datatype;
-    DataTypes_t sub_type;
+
+    Type_t* type;
+    
     bool ismut;
     TQLocation loc; /* 0-based byte offset (start) */ /* 0-based byte offset (end) */ 
 
@@ -106,7 +111,6 @@ typedef struct ASTNode {
             struct ASTNode *lhs, *rhs;
             bool is_mutable;
             bool is_declaration;
-            bool is_autotyped;
             OP_kind_t op;
         } assign;
         // sequence of statements
@@ -123,14 +127,13 @@ typedef struct ASTNode {
         //Import Nodes
         struct { char *path; } importNode;
         // List Nodes
-        struct { struct ASTNode *elements, *target; bool is_mutable; size_t num;} list;
+        struct { struct ASTNode *elements; size_t count; } list;
         // Index Nodes
         struct {
             struct ASTNode* target; // The thing being indexed (e.g., the variable 'list')
             struct ASTNode* index;  // The position (e.g., the number '0' or expr 'i+1')
             bool islhs;
         } index;
-
     };
 } ASTNode_t;
 

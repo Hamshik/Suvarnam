@@ -1,37 +1,42 @@
 #include "eval/eval.h"
+#include "shared/enums.h"
+#include "shared/structs.h"
+#include "utils/uhash.h"
 
 TypedValue eval_binop(ASTNode_t *node, TypedValue v) {
   TypedValue l = ast_eval(node->bin.left);
   TypedValue r = ast_eval(node->bin.right);
 
-  if (node->datatype == STRINGS) {
-    v.type = STRINGS;
-    v.val =
-        (TQValue){.str = do_operation_str(l.val.str, r.val.str, node->bin.op)};
+  if (node->type->base == STRINGS) {
+   v = (TypedValue) {
+      make_type(STRINGS, NULL), // Explicitly name the field
+      { .str = do_operation_str(l.val.str, r.val.str, node->bin.op) }
+    };
+
     return v;
   }
 
   if (node->bin.op == OP_AND || node->bin.op == OP_OR) {
-    TypedValue lb = TQcast_typed(l, BOOL);
-    TypedValue rb = TQcast_typed(r, BOOL);
-    v.type = BOOL;
+    TypedValue lb = TQcast_typed(l, node->bin.left->type);
+    TypedValue rb = TQcast_typed(r, node->bin.right->type);
+    v.type = make_type(BOOL, NULL);
     v.val = eval_bool(node->bin.op, BOOL, lb.val, rb.val);
     return v;
   }
 
-  if (isBoolOP(node->bin.op) || node->datatype == BOOL) {
-    DataTypes_t cmp_t = TQpromote_runtime(l.type, r.type);
-    TypedValue lc = TQcast_typed(l, cmp_t);
-    TypedValue rc = TQcast_typed(r, cmp_t);
-    v.type = BOOL;
+  if (isBoolOP(node->bin.op) || node->type->base == BOOL) {
+    DataTypes_t cmp_t = TQpromote_runtime(l.type->base, r.type->base);
+    TypedValue lc = TQcast_typed(l, l.type);
+    TypedValue rc = TQcast_typed(r, r.type);
+    v.type = make_type(BOOL, NULL);
     v.val = eval_bool(node->bin.op, cmp_t, lc.val, rc.val);
     return v;
   }
 
-  DataTypes_t op_t = node->datatype;
+  DataTypes_t op_t = node->type->base;
   TypedValue lc = TQcast_typed(l, op_t);
   TypedValue rc = TQcast_typed(r, op_t);
-  v.type = op_t;
+  v.type = make_type(op_t, NULL);
   v.val = TQeval_binop_numeric(node->bin.op, op_t, lc.val, rc.val);
   return v;
 }

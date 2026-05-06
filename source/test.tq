@@ -1,6 +1,6 @@
 
 fn main(){
     var mut i32[] list = (1, 2, 3, 4+5);
-    list[1] = 100;
-    println(list[1]);
+    list[0] = 100;
+    println(list[0]);
 }

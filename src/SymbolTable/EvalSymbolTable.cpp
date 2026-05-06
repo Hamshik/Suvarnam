@@ -1,6 +1,8 @@
 #include "SymbolTable/SymbolTableInternal.hpp"
 #include "ast/ast.h"
 #include "semantic/semantic.hpp"
+#include "shared/enums.h"
+#include "shared/structs.h"
 #include "utils/error_handler/error.h"
 
 #include <string>
@@ -11,22 +13,21 @@ extern file_t file;
 namespace {
 
 void reset_runtime_value(TypedValue &value) {
-  if (value.type == STRINGS) {
+  if (value.type->base == STRINGS) {
     free(value.val.str);
-  } else if (value.type == PTR) {
+  } else if (value.type->base == PTR) {
     free(value.val.ptr.name);
   }
 
-  value.type = UNKNOWN;
+  value.type = nullptr;
   value.val =  TQValue{};
 }
 
-void store_runtime_value(TypedValue &slot, DataTypes_t datatype,
-                         const  TQValue &value) {
+void store_runtime_value(TypedValue &slot, Type_t* type, const TQValue &value) {
   reset_runtime_value(slot);
   TQValue fresh{};
-  assign_value(datatype, &fresh, value);
-  slot.type = datatype;
+  assign_value(type->base, &fresh, value);
+  slot.type = type;
   slot.val = fresh;
 }
 
@@ -34,7 +35,7 @@ struct RuntimeBinding {
   TypedValue typed_value{};
 
   RuntimeBinding() {
-    typed_value.type = UNKNOWN;
+    typed_value.type = nullptr;
     typed_value.val =  TQValue{};
   }
 
@@ -44,7 +45,7 @@ struct RuntimeBinding {
   RuntimeBinding &operator=(const RuntimeBinding &) = delete;
 
   RuntimeBinding(RuntimeBinding &&other) noexcept : typed_value(other.typed_value) {
-    other.typed_value.type = UNKNOWN;
+    other.typed_value.type = nullptr;
     other.typed_value.val =  TQValue{};
   }
 
@@ -52,7 +53,7 @@ struct RuntimeBinding {
     if (this != &other) {
       reset_runtime_value(typed_value);
       typed_value = other.typed_value;
-      other.typed_value.type = UNKNOWN;
+      other.typed_value.type = nullptr;
       other.typed_value.val =  TQValue{};
     }
     return *this;
@@ -131,24 +132,24 @@ void env_clear_all() {
   fn_clear();
 }
 
-void env_set(const char *name,  TQValue *val, DataTypes_t datatype) {
+void env_set(const char *name,  TQValue *val, Type_t* type) {
   RuntimeBinding *binding = runtime_find_binding(runtime_env_top(), name);
   if (binding) {
-    store_runtime_value(binding->typed_value, datatype, *val);
+    store_runtime_value(binding->typed_value, type, *val);
     return;
   }
 
-  env_set_current(name, val, datatype);
+  env_set_current(name, val, type);
 }
 
-void env_set_current(const char *name,  TQValue *val, DataTypes_t datatype) {
+void env_set_current(const char *name,  TQValue *val, Type_t* type) {
   RuntimeFrame *frame = runtime_env_top();
   auto [it, inserted] = frame->vars.try_emplace(name);
   (void)inserted;
-  store_runtime_value(it->second.typed_value, datatype, *val);
+  store_runtime_value(it->second.typed_value, type, *val);
 }
 
- TQValue env_get(const char *name, DataTypes_t datatype, TQLocation loc) {
+ TQValue env_get(const char *name, Type_t* datatype, TQLocation loc) {
   RuntimeBinding *binding = runtime_find_binding(runtime_env_top(), name);
   if (!binding) {
     panic(&file, loc, RT_VAR_NOT_DEFINED, name);
@@ -156,7 +157,7 @@ void env_set_current(const char *name,  TQValue *val, DataTypes_t datatype) {
   }
 
   if (binding->typed_value.type != datatype &&
-      !is_numeric(binding->typed_value.type) && !is_numeric(datatype)) {
+      !is_numeric(binding->typed_value.type->base) && !is_numeric(datatype->base)) {
     panic(&file, loc, RT_VAR_TYPE_MISMATCH, name);
     return  TQValue{};
   }
@@ -202,18 +203,18 @@ TypedValue *env_get_ref_at(int frame_id, const char *name, TQLocation loc) {
 }
 
 void env_set_at(int frame_id, const char *name,  TQValue *val,
-                DataTypes_t datatype, TQLocation loc) {
+                Type_t* type, TQLocation loc) {
   TypedValue *target = env_get_ref_at(frame_id, name, loc);
   if (!target) {
     return;
   }
 
-  if (target->type != datatype) {
+  if (target->type != type) {
     panic(&file, loc, RT_VAR_TYPE_MISMATCH, name);
     return;
   }
 
-  store_runtime_value(*target, datatype, *val);
+  store_runtime_value(*target, type, *val);
 }
 
 bool fn_register(ASTNode_t *fn) {
