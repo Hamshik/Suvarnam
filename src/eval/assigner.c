@@ -9,6 +9,9 @@
 
 extern file_t file;
 
+/* Prototype for semantic mutability check */
+bool TQsemantic_is_mutable(const char* name);
+
 void assign_value(DataTypes_t dt,  TQValue *dst,  TQValue src) {
     switch (dt) {
         case I8:     dst->i8 = src.i8; break;
@@ -90,7 +93,7 @@ static void update_val(TQValue r, ASTNode_t *dst){
 
 TQValue eval_assign(ASTNode_t *lhs, ASTNode_t *rhs, OP_kind_t op, Type_t* type , TQLocation loc) {
     TypedValue rt0 = ast_eval(rhs);
-    TypedValue rt = TQcast_typed(rt0, type->base);
+    TypedValue rt = TQcast_typed(rt0, type);
     TQValue r = rt.val;
     TQValue v = {0};
 
@@ -102,12 +105,21 @@ TQValue eval_assign(ASTNode_t *lhs, ASTNode_t *rhs, OP_kind_t op, Type_t* type ,
     /* Assignment to variable */
     if (lhs->kind == AST_VAR) {
         if (op == OP_ASSIGN) {
+            if (!lhs->ismut) {
+                panic(&file, loc, RT_ASSIGN_UNSUPPORTED, "Cannot assign to immutable variable");
+                return (TQValue){0};
+            }
             set_var(lhs->var, &r, type);
             return r;
         }
 
         TQValue cur = getvar(lhs->var, type, loc);
         OP_kind_t operation = get_assign_op(op);
+        if (!lhs->ismut) {
+            panic(&file, loc, RT_ASSIGN_UNSUPPORTED, "Cannot update immutable variable");
+            return (TQValue){0};
+        }
+
         switch (type->base) {
             case I8: case I16: case I32: case I128:
             case U8: case U16: case U32: case U64: case U128:
@@ -177,35 +189,26 @@ TQValue eval_assign(ASTNode_t *lhs, ASTNode_t *rhs, OP_kind_t op, Type_t* type ,
         TypedValue target_val = ast_eval(lhs->index.target);
         int idx = ast_eval(lhs->index.index).val.i32;
 
-        // The raw pointer points to the head of the AST_SEQ chain
-        ASTNode_t *curr = (ASTNode_t*)target_val.val.raw;
-        
-        // Traverse the sequence to find the correct element
-        for(int i = 0; i < idx && curr; i++) {
-            if (curr->kind == AST_SEQ) curr = curr->seq.b;
-            else curr = NULL;
-        }
-        
-        if (!curr) {
-            panic(&file, loc, RT_UNKNOWN_AST, "List index out of bounds");
+        /* Mutability check: walk back the index chain to the base variable.
+         * This is crucial for e[0][0] = X; to check mutability of 'e'. */
+        ASTNode_t *curr_lhs = lhs->index.target;
+        while (curr_lhs && curr_lhs->kind == AST_INDEX) 
+            curr_lhs = curr_lhs->index.target;
+            
+        if (curr_lhs && curr_lhs->kind == AST_VAR && !curr_lhs->ismut) {
+            panic(&file, loc, RT_ASSIGN_UNSUPPORTED, "Cannot assign to an index of an immutable variable");
             return (TQValue){0};
         }
 
-        ASTNode_t *target_node = (curr->kind == AST_SEQ) ? curr->seq.a : curr;
-
-        // RECURSIVE CHECK:
-        // If the element we found is another LIST, we don't 'update_val' (string conversion)
-        // Instead, we replace the pointer.
-        if (target_node->kind == AST_LIST) {
-            // Rust/Python list behavior: matrix[0] = [1, 2]
-            // Update the pointer in the sequence node
-            target_node->list.elements = (ASTNode_t*)r.raw; 
-        } else {
-            // Standard behavior: list[0] = 5
-            update_val(r, target_node);
+        if (target_val.val.raw) {
+            TypedValue *elements = (TypedValue*)target_val.val.raw;
+            // Directly update the evaluated value in the memory array
+            elements[idx] = rt; 
+            return r;
         }
-
-        return r;
+        
+        panic(&file, loc, RT_UNKNOWN_AST, "List access error");
+        return (TQValue){0};
     }
 
 

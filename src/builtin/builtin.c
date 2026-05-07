@@ -73,6 +73,7 @@ static void TQwrite_value(FILE *out, TQValue v, Type_t* t) {
         case VOID:      break;
         default:        fputs("<unknown>", out); break;
     }
+    fflush(out);
 }
 
 /* --- Builtin Signatures --- */
@@ -80,22 +81,20 @@ static const Type_t* g_print_params[]   = { T_UNKNOWN };
 static const Type_t* g_alloc_params[]   = { T_UNKNOWN };
 static const Type_t* g_calloc_params[]  = { T_UNKNOWN, T_UNKNOWN };
 static const Type_t* g_realloc_params[] = { T_PTR, T_UNKNOWN };
-static const Type_t* g_getdt_params[]   = { T_UNKNOWN };
 static const Type_t* g_rm_params[]      = { T_PTR };
-static const Type_t* g_mem_params[]     = { T_PTR, T_PTR, T_UNKNOWN };
-static const Type_t* g_exit_params[]    = { T_I32 };
+static const Type_t* g_mem_params[]     = { T_PTR, T_PTR, T_UNKNOWN, T_UNKNOWN }; // 4 for memncpy
+static const Type_t* g_hlt_params[]     = { T_I32 };
 
 static const TQstd_sig_t g_builtins[] = {
-    { "print",    (Type_t*)g_print_params, 1, (Type_t*)T_VOID    },
-    { "println",  (Type_t*)g_print_params, 1, (Type_t*)T_VOID    },
-    { "alloc",    (Type_t*)g_alloc_params, 1, (Type_t*)T_PTR     },
-    { "calloc",   (Type_t*)g_calloc_params,2, (Type_t*)T_PTR     },
-    { "realloc",  (Type_t*)g_realloc_params,2, (Type_t*)T_PTR     },
-    { "type",     (Type_t*)g_getdt_params, 1, (Type_t*)T_STRINGS },
-    { "rm",       (Type_t*)g_rm_params,    1, (Type_t*)T_VOID    },
-    { "memncpy",  (Type_t*)g_mem_params,   4, (Type_t*)T_VOID    },
-    { "memcpy",   (Type_t*)g_mem_params,   3, (Type_t*)T_VOID    },
-    { "hlt",      (Type_t*)g_exit_params,  1, (Type_t*)T_VOID    }
+    { "print",    (Type_t**)g_print_params,   1, (Type_t*)T_VOID },
+    { "println",  (Type_t**)g_print_params,   1, (Type_t*)T_VOID },
+    { "alloc",    (Type_t**)g_alloc_params,   1, (Type_t*)T_PTR  },
+    { "calloc",   (Type_t**)g_calloc_params,  2, (Type_t*)T_PTR  },
+    { "realloc",  (Type_t**)g_realloc_params, 2, (Type_t*)T_PTR  },
+    { "rm",       (Type_t**)g_rm_params,      1, (Type_t*)T_VOID },
+    { "memncpy",  (Type_t**)g_mem_params,     4, (Type_t*)T_VOID },
+    { "memcpy",   (Type_t**)g_mem_params,     3, (Type_t*)T_VOID },
+    { "hlt",      (Type_t**)g_hlt_params,      1, (Type_t*)T_VOID }
 };
 
 const TQstd_sig_t* TQstd_sig(const char *name) {
@@ -122,7 +121,8 @@ TypedValue TQstd_call(const char *name, const TypedValue *argv, int argc, TQLoca
     /* Print / Println */
     if (strcmp(name, "print") == 0 || strcmp(name, "println") == 0) {
         if (argc >= 1) TQwrite_value(stdout, argv[0].val, argv[0].type);
-        if (name[5] == 'n') fputc('\n', stdout);
+        if (strcmp(name, "println") == 0) fputc('\n', stdout);
+        fflush(stdout);
         return (TypedValue){.type = (Type_t*)T_VOID};
     }
 

@@ -91,7 +91,7 @@ char *  TQunescape_string(const char *in, size_t in_len, size_t *out_len, int *e
     if (!in) return NULL;
 
     size_t cap = in_len + 1;
-    char *out = (char *)malloc(cap);
+    char *out = (char *)calloc(1,cap);
     if (!out) return NULL;
 
     size_t j = 0;

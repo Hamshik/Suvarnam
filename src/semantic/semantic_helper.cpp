@@ -11,7 +11,7 @@ extern file_t file;
 /* Helpers */
 void type_error(ASTNode_t *n, const char *msg) {
   if (n && n->type)
-    n->type = make_type(UNKNOWN);
+    n->type = make_type(UNKNOWN, NULL);
   panic(&file, n ? (TQLocation){0} : n->loc,
         SEM_BINOP_INVALID, msg ? msg : NULL);
   return;
@@ -235,7 +235,7 @@ void force_numeric_type(ASTNode_t *n, DataTypes_t t) {
   
   // If the node doesn't have a type object yet, give it one
   if (!n->type) {
-      n->type = make_type(t);
+      n->type = make_type(t, NULL);
   }
 
   switch (n->kind) {

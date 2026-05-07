@@ -60,7 +60,7 @@ TypedValue eval_call(ASTNode_t *node, bool g_returning, TypedValue g_return_valu
 
   TypedValue last = ast_eval(fn->fn_def.body);
   TypedValue ret = g_returning ? g_return_value : last;
-  if (fn->fn_def.ret == VOID)
+  if (fn->fn_def.ret->base == VOID)
     ret = (TypedValue){.type = make_type(VOID, NULL)};
 
   g_returning = saved_returning;

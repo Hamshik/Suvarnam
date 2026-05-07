@@ -96,6 +96,8 @@ Type *ir_type(DataTypes_t t, LLVMContext &ctx) {
   case BOOL:
     return Type::getInt1Ty(ctx);
   case STRINGS:
+  case LIST:
+  case PTR:
     return PointerType::getUnqual(ctx);
   case CHARACTER:
     return Type::getInt32Ty(ctx);
@@ -193,6 +195,19 @@ AllocaInst *get_or_create_alloca(const std::string &name, DataTypes_t t,
   locals[name] = alloca;
   return alloca;
 }
+
+Function *get_malloc_fn(Module &m, LLVMContext &ctx) {
+  Function *mallocFn = m.getFunction("malloc");
+  if (!mallocFn) {
+    Type *i8Ptr = PointerType::getUnqual(ctx);
+    Type *i64 = Type::getInt64Ty(ctx);
+    FunctionType *mallocTy = FunctionType::get(i8Ptr, {i64}, false);
+    mallocFn =
+        Function::Create(mallocTy, Function::ExternalLinkage, "malloc", m);
+  }
+  return mallocFn;
+}
+
 
 bool blockTerminated(IRBuilder<> &b) {
   return b.GetInsertBlock()->getTerminator() != nullptr;

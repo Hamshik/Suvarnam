@@ -52,7 +52,7 @@ ADD_FLEX_BISON_DEPENDENCY(MyLexer MyParser)
 
 # 6. Collect all Source Files
 # We use file(GLOB_RECURSE) to pick up all nested .c and .cpp files
-file(GLOB_RECURSE ALL_SOURCES 
+file(GLOB_RECURSE ALL_SOURCES CONFIGURE_DEPENDS
     "src/*.c" 
     "src/*.cpp" 
     "TQlib/*.c"

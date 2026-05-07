@@ -169,7 +169,7 @@ static bool emit_ir(Module &mod, const char *path, char **out) {
     }
 
     if (out) {
-        *out = (char*)malloc(ir.size() + 1);
+        *out = (char*)calloc(1, ir.size() + 1);
         memcpy(*out, ir.c_str(), ir.size() + 1);
     }
 

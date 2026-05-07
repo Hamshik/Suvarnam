@@ -2,13 +2,30 @@
 
 llvm::Value *emit_forloops(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b, IRBuilder<> &entryBuilder, LocalMap &locals)
 {
-    emit_expr(n->fornode.init, ctx, b, entryBuilder, locals);
     ASTNode_t *initAssign = n->fornode.init;
     std::string varName = (initAssign && initAssign->assign.lhs && initAssign->assign.lhs->var)
                               ? initAssign->assign.lhs->var
                               : "";
     DataTypes_t loopT = initAssign ? initAssign->type->base : I32;
-    AllocaInst *varAlloca = get_or_create_alloca(varName, loopT, ctx, entryBuilder, locals);
+
+    // Emit the initialization expression (which should handle declaration/assignment)
+    emit_expr(initAssign, ctx, b, entryBuilder, locals);
+
+    // Get the pointer to the loop variable (local or global)
+    llvm::Value *varPtr = nullptr;
+    auto it = locals.find(varName);
+    if (it != locals.end()) {
+        varPtr = it->second;
+    } else {
+        Module *m = b.GetInsertBlock()->getModule();
+        varPtr = m->getGlobalVariable(varName, true);
+    }
+
+    if (!varPtr) {
+        // This should ideally be caught by semantic analysis, but as a fallback
+        fprintf(stderr, "Error: Loop variable '%s' not found or not addressable.\n", varName.c_str());
+        return nullptr;
+    }
 
     llvm::Value *endV = emit_expr(n->fornode.end, ctx, b, entryBuilder, locals);
     if (!endV)
@@ -29,7 +46,7 @@ llvm::Value *emit_forloops(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b, IRBui
 
     // cond
     b.SetInsertPoint(condBB);
-    llvm::Value *curV = b.CreateLoad(ir_type(loopT, ctx), varAlloca, varName);
+    llvm::Value *curV = b.CreateLoad(ir_type(loopT, ctx), varPtr, varName);
     llvm::Value *cmp = nullptr;
     bool unsignedLoop = is_unsigned_dtype(loopT);
     // Heuristic: if step is constant and negative (for signed), use >=, else use <=
@@ -59,9 +76,9 @@ llvm::Value *emit_forloops(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b, IRBui
 
     // step
     b.SetInsertPoint(stepBB);
-    curV = b.CreateLoad(ir_type(loopT, ctx), varAlloca, varName + ".step");
+    curV = b.CreateLoad(ir_type(loopT, ctx), varPtr, varName);
     llvm::Value *nextV = b.CreateAdd(curV, stepV);
-    b.CreateStore(nextV, varAlloca);
+    b.CreateStore(nextV, varPtr);
     b.CreateBr(condBB);
 
     // after

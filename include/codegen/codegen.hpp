@@ -83,7 +83,7 @@ uint32_t decode_utf8(const char *raw_ptr, size_t raw_len, size_t *byte_len,
 
 llvm::Value* generateList(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b, IRBuilder<> &entryBuilder, LocalMap &locals);
 Value *generateListAccess(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b, IRBuilder<> &entryBuilder, LocalMap &locals);
-
+Value *generateListElementPtr(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b, IRBuilder<> &entryBuilder, LocalMap &locals);
 char* TQconcat(const char *a, const char *b);
 Value *to_i8_ptr(Value *v, IRBuilder<> &b) ;
 Value *emit_char_to_string(Value *ch, LLVMContext &ctx, IRBuilder<> &b);

@@ -1,10 +1,18 @@
 #include "codegen/codegen.hpp"
 #include <iostream>
 
+// Forward declare the helper
+Function *get_malloc_fn(Module &m, LLVMContext &ctx);
 static size_t idx = 0;
 
 Value *generateList(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
                     IRBuilder<> &entryBuilder, LocalMap &locals) {
+  if (!n->type || !n->type->inner) {
+    std::cerr << "Codegen Error: List type or inner element type is missing at line " 
+              << (size_t)n->loc.first_line << std::endl;
+    return nullptr;
+  }
+
   Type *elemType = ir_type(n->type->inner->base, ctx);
 
   if (!elemType) {
@@ -15,10 +23,25 @@ Value *generateList(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
   }
   
   ArrayType *arrayType = ArrayType::get(elemType, n->list.count);
+  Function *currentFn = b.GetInsertBlock()->getParent();
+  Module *m = b.GetInsertBlock()->getModule();
 
-  // Allocate using entryBuilder (Top of function)
-  AllocaInst *arrayPtr =
-      entryBuilder.CreateAlloca(arrayType, nullptr);
+  Value *allocatedPtr = nullptr;
+  Value *typedPtr = nullptr;
+
+  // Hybrid Mechanism: 
+  // If we are in the 'init' function, allocate on the Heap.
+  // Otherwise, use the Stack (AllocaInst) for automatic local cleanup.
+  if (currentFn && currentFn->getName() == "init") {
+      const DataLayout &DL = m->getDataLayout();
+      uint64_t totalSize = n->list.count * DL.getTypeAllocSize(elemType);
+      Function *mallocFn = get_malloc_fn(*m, ctx);
+      allocatedPtr = b.CreateCall(mallocFn, {b.getInt64(totalSize)}, "list_heap");
+      typedPtr = b.CreateBitCast(allocatedPtr, PointerType::getUnqual(ctx));
+  } else {
+      allocatedPtr = entryBuilder.CreateAlloca(arrayType, nullptr, "list_stack");
+      typedPtr = b.CreateInBoundsGEP(arrayType, allocatedPtr, {b.getInt32(0), b.getInt32(0)});
+  }
 
   ASTNode_t *curr = n->list.elements;
   uint32_t index = 0;
@@ -27,9 +50,8 @@ Value *generateList(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
     ASTNode_t *exprNode = (curr->kind == AST_SEQ) ? curr->seq.a : curr;
     Value *elementVal = emit_expr(exprNode, ctx, b, entryBuilder, locals);
 
-    // Use "b" (Current Block), NOT entryBuilder for logic!
-    std::vector<Value *> indices = {b.getInt32(0), b.getInt32(index++)};
-    Value *elementAddr = b.CreateGEP(arrayType, arrayPtr, indices);
+    // Calculate element address using typedPtr
+    Value *elementAddr = b.CreateInBoundsGEP(elemType, typedPtr, b.getInt32(index++));
 
     b.CreateStore(elementVal, elementAddr);
 
@@ -38,45 +60,27 @@ Value *generateList(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
     curr = curr->seq.b;
   }
 
-  // Map the variable name to our actual filled array
-  // locals[n->list.target->var] = arrayPtr;
-
-  return arrayPtr;
+  // Return as generic pointer (i8*)
+  return b.CreateBitCast(typedPtr, ir_type(LIST, ctx));
 }
 
 Value *generateListElementPtr(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b, IRBuilder<> &entryBuilder, LocalMap &locals) {
-  const char *name = n->index.target->var ? n->index.target->var : "";
-  Value *arrayVal = nullptr;
-  Type *allocatedType = nullptr;
-
-  // 1. Try to find the list in local variables
-  auto it = locals.find(name);
-  if (it != locals.end()) {
-    arrayVal = it->second;
-    allocatedType = it->second->getAllocatedType();
-  } 
-  // 2. Try to find the list in global variables
-  else {
-    Module *m = b.GetInsertBlock()->getModule();
-    GlobalVariable *gv = m->getGlobalVariable(name, true);
-    if (gv) {
-      arrayVal = gv;
-      allocatedType = gv->getValueType();
-    }
-  }
-
-  if (!arrayVal || !allocatedType || !allocatedType->isArrayTy()) {
-    printf("Error: Variable '%s' is not a valid list/array at line %zu, col %zu\n", name, 
-      n->loc.first_line, n->loc.first_column);
-    return nullptr;
-  }
-
+  Value *listPtr = emit_expr(n->index.target, ctx, b, entryBuilder, locals);
   Value *indexVal = emit_expr(n->index.index, ctx, b, entryBuilder, locals);
-  if (!indexVal)
-    return nullptr;
+  if (!listPtr || !indexVal) return nullptr;
 
-  std::vector<Value *> indices = {b.getInt32(0), indexVal};
-  return b.CreateInBoundsGEP(allocatedType, arrayVal, indices, "elem_ptr");
+  if (!n->type) {
+    fprintf(stderr, "Codegen Error: Index node has no type at line %zu\n", (size_t)n->loc.first_line);
+    return nullptr;
+  }
+
+  // Use the type of the result (the element type) resolved by semantics
+  Type *elemType = ir_type(n->type->base, ctx);
+  
+  // Cast the generic i8* list pointer to a typed element pointer
+  Value *typedPtr = b.CreateBitCast(listPtr, PointerType::getUnqual(ctx));
+  
+  return b.CreateInBoundsGEP(elemType, typedPtr, indexVal, "elem_ptr");
 }
 
 Value *generateListAccess(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b, IRBuilder<> &entryBuilder, LocalMap &locals) {
@@ -84,20 +88,11 @@ Value *generateListAccess(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b, IRBuil
   if (!elementAddr)
     return nullptr;
 
-  // Extract the element type from the GEP pointer type
-  // This is safer than relying on n->index.target->sub_type
-  PointerType *ptrTy = dyn_cast<PointerType>(elementAddr->getType());
-  Type *elementType = ir_type(n->index.target->type->inner->base, ctx);
-
-  // Fallback: If sub_type is unknown, try to infer from the pointer
-  if (elementType->isVoidTy() && ptrTy) {
-     // The result type of an index operation is stored in the node's datatype
-     elementType = ir_type(n->type->base, ctx); 
-  }
+  // The type of the element is n->type
+  Type *elementType = ir_type(n->type->base, ctx);
   
   if (elementType->isVoidTy()) {
-      printf("Error: Could not determine element type for list access at line %zu (Target Subtype: %zu, Node Datatype: %zu)\n", 
-             n->loc.first_line, (size_t)n->index.target->type->inner->base, (size_t)n->type->base);
+      fprintf(stderr, "Error: Could not determine element type for list access at line %zu\n", n->loc.first_line);
       return nullptr;
   }
 

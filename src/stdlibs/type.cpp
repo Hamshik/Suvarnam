@@ -1,7 +1,7 @@
 #include "stdlibs/stdlibs.h"
 
 Value* get_type(ASTNode_t* n, IRBuilder<> &b) {
-    DataTypes_t t = n->call.args->datatype;
+    DataTypes_t t = n->call.args->type->base;
 
     const char *name = nullptr;
 

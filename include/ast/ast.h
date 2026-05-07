@@ -23,11 +23,11 @@ ASTNode_t *new_for(ASTNode_t *init, ASTNode_t *end, ASTNode_t *step, ASTNode_t *
 ASTNode_t *new_seq(ASTNode_t *a, ASTNode_t *b);
 ASTNode_t *new_while(ASTNode_t *cond, ASTNode_t *body, TQLocation loc);
 ASTNode_t* new_bool(bool val, TQLocation loc);
-ASTNode_t* new_fn_def(const char *name, Param_t *params, int param_count, DataTypes_t ret_type, ASTNode_t *body, TQLocation loc);
+ASTNode_t* new_fn_def(const char *name, Param_t *params, int param_count, Type_t* ret_type, ASTNode_t *body, TQLocation loc);
 ASTNode_t* new_fn_call(const char *name, ASTNode_t *args, TQLocation loc);
 ASTNode_t* new_return(ASTNode_t *value, TQLocation loc);
 ASTNode_t* new_import_node(const char *path, TQLocation loc);
-ASTNode_t* new_list(ASTNode_t *elements, size_t count,TQLocation loc);
+ASTNode_t* new_list(ASTNode_t *elements,TQLocation loc);
 ASTNode_t* new_index(ASTNode_t *var, ASTNode_t *index, bool islhs, TQLocation loc);
 
 /* Eval + memory */
@@ -47,7 +47,7 @@ TQValue eval_assign(ASTNode_t *lhs, ASTNode_t *rhs, OP_kind_t op, Type_t* type ,
 TypedValue *getvar_ref(const char *name, TQLocation loc);
 int env_frame_id_of(const char *name, TQLocation loc);
 TypedValue *getvar_ref_at(int frame_id, const char *name, TQLocation loc);
-void set_var_at(int frame_id, const char *name, TQValue *val, DataTypes_t datatype, TQLocation loc);
+void set_var_at(int frame_id, const char *name, TQValue *val, Type_t* type, TQLocation loc);
 
 #ifdef __cplusplus
 }

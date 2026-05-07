@@ -12,3 +12,5 @@ TODO.md
 .agents
 .codex
 build/
+compile_commands.json
+parser*

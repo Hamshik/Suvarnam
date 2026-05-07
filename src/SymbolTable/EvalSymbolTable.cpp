@@ -13,9 +13,9 @@ extern file_t file;
 namespace {
 
 void reset_runtime_value(TypedValue &value) {
-  if (value.type->base == STRINGS) {
+  if (value.type && value.type->base == STRINGS) {
     free(value.val.str);
-  } else if (value.type->base == PTR) {
+  } else if (value.type && value.type->base == PTR) {
     free(value.val.ptr.name);
   }
 

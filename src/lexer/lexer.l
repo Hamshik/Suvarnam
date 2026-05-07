@@ -163,7 +163,7 @@ mut                 { return MUT; }
 fn                  { return FN; }
 (ret|return)        { return RETURN; }
 
-list                { return LIST; }
+list                { return LISTS; }
 
 [0-9]+(\.[0-9]+)? {
     yylval->node = new_num(yytext, UNKNOWN, *yylloc);
@@ -172,7 +172,7 @@ list                { return LIST; }
 }
 
 \.[0-9]+ {
-    char* buffer = (char*)malloc(strlen(yytext) + 2);
+    char* buffer = (char*)calloc(1,strlen(yytext) + 2);
     snprintf(buffer, strlen(yytext) + 2, "0%s", yytext);
     yylval->node = new_num(buffer, UNKNOWN, *yylloc);
     free(buffer);

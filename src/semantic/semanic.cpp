@@ -43,15 +43,17 @@ extern "C" Type_t* check_expr(ASTNode_t *n, Type_t*& type) {
 
   case AST_NUM:
     /* Keep unknown here; we decide during declaration binding. */
-    if(n->type->base == UNKNOWN) n->type = type;
+    if(!n->type || n->type->base == UNKNOWN) n->type = type;
+    if((!n->type)|| (n->type->base == LIST || n->type->base == PTR)) n->type = type->inner;
+
     return n->type;
 
   case AST_STR:
-    if(n->type) n->type = make_type(STRINGS);
+    if(n->type) n->type = make_type(STRINGS, NULL);
     return n->type;
 
   case AST_CHAR:
-    if(n->type) n->type = make_type(CHARACTER);
+    if(n->type) n->type = make_type(CHARACTER, NULL);
     return n->type;
 
   case AST_VAR:{
@@ -87,7 +89,7 @@ extern "C" Type_t* check_expr(ASTNode_t *n, Type_t*& type) {
     check_expr(n->seq.a, type);
     return check_expr(n->seq.b, type);
 
-  case NODE_IF: {
+  case AST_IF: {
     Type_t* ct = check_expr(n->ifnode.cond);
     if (ct->base != BOOL)
       panic(&file, n->loc, SEM_IF_COND_NOT_BOOL, NULL);
@@ -99,7 +101,7 @@ extern "C" Type_t* check_expr(ASTNode_t *n, Type_t*& type) {
     return nullptr;
   }
 
-  case NODE_FOR: {
+  case AST_FOR: {
     if (!n->fornode.init || n->fornode.init->kind != AST_ASSIGN ||
         n->fornode.init->assign.lhs->kind != AST_VAR ||
         n->fornode.init->assign.op != OP_ASSIGN)
@@ -140,6 +142,7 @@ extern "C" Type_t* check_expr(ASTNode_t *n, Type_t*& type) {
 
   case AST_CALL:
     return call(n);
+    return call(n); // The 'call' function (not provided) needs to be updated to accept ASTNode_t*
 
   case AST_RETURN:
     return ret(n);

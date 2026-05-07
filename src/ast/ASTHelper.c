@@ -3,7 +3,7 @@
 #include <stdlib.h>
 
 Type_t* make_type(DataTypes_t base, Type_t* inner) {
-    Type_t* t = malloc(sizeof(Type_t));
+    Type_t* t = calloc(1,sizeof(Type_t));
     t->base = base;
     t->inner = inner;
     return t;
@@ -51,13 +51,13 @@ void ast_free(ASTNode_t *n) {
             ast_free(n->seq.b);
             break;
 
-        case NODE_IF:
+        case AST_IF:
             ast_free(n->ifnode.cond);
             ast_free(n->ifnode.then_branch);
             ast_free(n->ifnode.else_branch);
             break;
 
-        case NODE_FOR:
+        case AST_FOR:
             ast_free(n->fornode.init);
             ast_free(n->fornode.end);
             ast_free(n->fornode.step);

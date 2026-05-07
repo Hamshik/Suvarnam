@@ -73,7 +73,7 @@ void TQruntime_env_set_current(const char *name,  TQValue *val, Type_t* type);
 TypedValue *  TQruntime_env_get_ref(const char *name, TQLocation loc);
 int TQruntime_env_frame_id_of(const char *name, TQLocation loc);
 TypedValue *  TQruntime_env_get_ref_at(int frame_id, const char *name, TQLocation loc);
-void TQruntime_env_set_at(int frame_id, const char *name,  TQValue *val, DataTypes_t datatype, TQLocation loc);
+void TQruntime_env_set_at(int frame_id, const char *name,  TQValue *val, Type_t* type, TQLocation loc);
 
 bool TQruntime_fn_register(ASTNode_t *fn);
 ASTNode_t *  TQruntime_fn_lookup(const char *name);
@@ -91,7 +91,7 @@ bool TQsemantic_is_mutable(const char *name);
 void TQsemantic_scope_push(void);
 void TQsemantic_scope_pop(void);
 void TQsemantic_clear_symbols(void);
-bool TQsemantic_fn_declare(const char *name, Param_t *params, int param_count, DataTypes_t ret);
+bool TQsemantic_fn_declare(const char *name, Param_t *params, int param_count, Type_t* ret);
 FnSymbol_t *  TQsemantic_fn_lookup(const char *name);
 void TQsemantic_clear_fns(void);
 DataTypes_t TQsemantic_update_datatype(const char *name, DataTypes_t want);

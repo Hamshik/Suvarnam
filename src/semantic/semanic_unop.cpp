@@ -2,6 +2,7 @@
 #include "shared/structs.h"
 #include "utils/error_handler/error.h"
 #include "semantic/semantic.hpp" // for check_expr, type_error, is_numeric, is_integer
+#include <cstddef>
 
 extern file_t file; // global file
 
@@ -43,7 +44,7 @@ Type_t* unop(ASTNode_t *n, Type_t* type) {
    */
   if (n->unop.operand && n->unop.operand->kind == AST_NUM &&
       n->unop.operand->type->base == UNKNOWN) {
-    n->unop.operand->type = make_type(I32);
+    n->unop.operand->type = make_type(I32, NULL);
     t = n->unop.operand->type;
   }
 

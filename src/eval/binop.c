@@ -34,8 +34,8 @@ TypedValue eval_binop(ASTNode_t *node, TypedValue v) {
   }
 
   DataTypes_t op_t = node->type->base;
-  TypedValue lc = TQcast_typed(l, op_t);
-  TypedValue rc = TQcast_typed(r, op_t);
+  TypedValue lc = TQcast_typed(l, node->type);
+  TypedValue rc = TQcast_typed(r, node->type);
   v.type = make_type(op_t, NULL);
   v.val = TQeval_binop_numeric(node->bin.op, op_t, lc.val, rc.val);
   return v;

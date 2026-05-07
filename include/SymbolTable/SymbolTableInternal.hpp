@@ -32,8 +32,7 @@ void env_set_current(const char *name,  TQValue *val, Type_t* type);
 TypedValue *env_get_ref(const char *name, TQLocation loc);
 int env_frame_id_of(const char *name, TQLocation loc);
 TypedValue *env_get_ref_at(int frame_id, const char *name, TQLocation loc);
-void env_set_at(int frame_id, const char *name,  TQValue *val, DataTypes_t datatype,
-                TQLocation loc);
+void env_set_at(int frame_id, const char *name,  TQValue *val, Type_t* type, TQLocation loc);
 
 bool fn_register(ASTNode_t *fn);
 ASTNode_t *fn_lookup(const char *name);
@@ -52,7 +51,7 @@ bool is_mutable(const char *name);
 void scope_push();
 void scope_pop();
 void clear_symbols();
-bool fn_declare(const char *name, Param_t *params, int param_count, DataTypes_t ret);
+bool fn_declare(const char *name, Param_t *params, int param_count, Type_t* ret);
 FnSymbol_t *fn_lookup(const char *name);
 void clear_fns();
 DataTypes_t update_datatype(const char *name, DataTypes_t want);

@@ -9,7 +9,7 @@ extern "C" {
 
 typedef struct  TQstd_sig {
     const char *name;
-    Type_t *params; /* UNKNOWN means "any" for builtins */
+    Type_t** params; /* UNKNOWN means "any" for builtins */
     int param_count;
     Type_t* ret;
 }  TQstd_sig_t;

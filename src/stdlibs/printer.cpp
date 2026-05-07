@@ -38,7 +38,7 @@ llvm::Value *emit_println(ASTNode_t *argNode, llvm::Value *argV,
   Module *m = b.GetInsertBlock()->getModule();
   Function *printfFn = get_printf(*m, ctx);
 
-  switch (argNode->datatype) {
+  switch (argNode->type->base) {
 
     // ---------------- STRING ----------------
   case STRINGS: {
@@ -92,7 +92,7 @@ llvm::Value *emit_println(ASTNode_t *argNode, llvm::Value *argV,
   case F32:
   case F64:
   case F128: {
-    llvm::Value *d = (argNode->datatype == F32)
+    llvm::Value *d = (argNode->type->base == F32)
                          ? b.CreateFPExt(argV, Type::getDoubleTy(ctx))
                          : argV;
 
@@ -121,7 +121,7 @@ llvm::Value *emit_print(ASTNode_t *argNode, llvm::Value *argV, LLVMContext &ctx,
   Module *m = b.GetInsertBlock()->getModule();
   Function *printfFn = get_printf(*m, ctx);
 
-  switch (argNode->datatype) {
+  switch (argNode->type->base) {
 
     // ---------------- STRING ----------------
   case STRINGS: {
@@ -178,7 +178,7 @@ llvm::Value *emit_print(ASTNode_t *argNode, llvm::Value *argV, LLVMContext &ctx,
   case F32:
   case F64:
   case F128: {
-    llvm::Value *d = (argNode->datatype == F32)
+    llvm::Value *d = (argNode->type->base == F32)
                          ? b.CreateFPExt(argV, Type::getDoubleTy(ctx))
                          : argV;
 

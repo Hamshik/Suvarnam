@@ -134,38 +134,42 @@ llvm::Value *emit_unop(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
 llvm::Value *emit_assing(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
                          IRBuilder<> &entryBuilder, LocalMap &locals) {
 
-  std::string name =
-      n->assign.lhs && n->assign.lhs->var ? n->assign.lhs->var : "";
+  ASTNode_t *lhs = n->assign.lhs;
+  if (!lhs) return nullptr;
 
+  std::string name = lhs->var ? lhs->var : "";
+  
   DataTypes_t t = n->type->base != UNKNOWN
                       ? n->type->base
-                      : (n->assign.lhs ? n->assign.lhs->type->base : UNKNOWN);
+                      : (lhs->type ? lhs->type->base : UNKNOWN);
 
-  Module *m = b.GetInsertBlock()->getModule();
+  Value *targetPtr = nullptr;
 
-  auto it = locals.find(name);
-
-  AllocaInst *alloca = nullptr;
-  GlobalVariable *gv = nullptr;
-
-  if (it != locals.end()) {
-    alloca = it->second;
-  } else {
-    gv = m->getGlobalVariable(name, true);
-    if (!gv) {
-      gv = new GlobalVariable(*m, ir_type(t, ctx),
-                              false,
-                              GlobalValue::ExternalLinkage,
-                              Constant::getNullValue(ir_type(t, ctx)),
-                              name);
+  if (lhs->kind == AST_VAR) {
+    auto it = locals.find(name);
+    if (it != locals.end()) {
+      targetPtr = it->second;
+    } else {
+      Module *m = b.GetInsertBlock()->getModule();
+      targetPtr = m->getGlobalVariable(name, true);
+      if (targetPtr == nullptr) {
+        targetPtr = new GlobalVariable(*m, ir_type(t, ctx), false,
+                                       GlobalValue::ExternalLinkage,
+                                       Constant::getNullValue(ir_type(t, ctx)), name);
+      }
     }
+  } else if (lhs->kind == AST_INDEX) {
+    targetPtr = generateListElementPtr(lhs, ctx, b, entryBuilder, locals);
+  } else if (lhs->kind == AST_CALL) {
+    targetPtr = emit_call(lhs, ctx, b, entryBuilder, locals); // Assuming emit_call returns a pointer if it's an lvalue
   }
 
-  auto loadVar = [&](Value *ptr) {
-    return b.CreateLoad(ir_type(t, ctx), ptr, name);
-  };
+  if (!targetPtr) return nullptr;
 
-  Value *lhsVal = alloca ? loadVar(alloca) : loadVar(gv);
+  Value *lhsVal = nullptr;
+  if (n->assign.op != OP_ASSIGN) {
+    lhsVal = b.CreateLoad(ir_type(t, ctx), targetPtr, name);
+  }
 
   Value *rhs = emit_expr(n->assign.rhs, ctx, b, entryBuilder, locals);
   if (!rhs) return nullptr;
@@ -209,12 +213,11 @@ llvm::Value *emit_assing(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
 
   if (t == STRINGS) {
     result = to_i8_ptr(result, b);
+  } else if (t == LIST) {
+    result = b.CreateBitCast(result, ir_type(LIST, ctx));
   }
 
-  if (alloca)
-    b.CreateStore(result, alloca);
-  else
-    b.CreateStore(result, gv);
+  b.CreateStore(result, targetPtr);
 
   return result;
 }

@@ -54,9 +54,11 @@ TypedValue ast_eval(ASTNode_t *node) {
     return v;
 
   case AST_VAR:
-    return (TypedValue){.type = node->type,
-                        .val = TQruntime_env_get(node->var, node->type, node->loc)};
-
+    v.val = TQruntime_env_get(node->var, node->type, node->loc);
+    // If the node type is UNKNOWN, we should try to determine the type 
+    // from the environment lookup rather than just trusting node->type.
+    v.type = (node->type && node->type->base != UNKNOWN) ? node->type : make_type(I32, NULL); 
+    return v;
   case AST_BINOP:
     return eval_binop(node, v);
 
@@ -85,7 +87,7 @@ TypedValue ast_eval(ASTNode_t *node) {
     return ast_eval(node->seq.b);
   }
 
-  case NODE_IF:
+  case AST_IF:
     if (ast_eval(node->ifnode.cond).val.bval) {
       TypedValue r = ast_eval(node->ifnode.then_branch);
       if (g_returning)
@@ -100,7 +102,7 @@ TypedValue ast_eval(ASTNode_t *node) {
     }
     return (TypedValue){0};
 
-  case NODE_FOR:
+  case AST_FOR:
     return eval_for(node, g_returning, g_return_value);
 
   case AST_WHILE: {
@@ -148,47 +150,38 @@ TypedValue ast_eval(ASTNode_t *node) {
   }
 
   case AST_LIST: {
-    v = (TypedValue){
-      .val = (TQValue){ .raw = (node->list.elements) },
-      .type = node->type
-    };
-    // set_var_current(node->list.target->var, &v.val, v.type->base);
+    v.type = node->type; // list[T]
+    
+    // Allocate space for the results
+    TypedValue *elements = calloc(node->list.count, sizeof(TypedValue));
+    
+    // Eagerly evaluate every element now
+    ASTNode_t *curr = node->list.elements;
+    for (int i = 0; i < node->list.count && curr; i++) {
+      if (curr->kind == AST_SEQ) {
+        elements[i] = ast_eval(curr->seq.a);
+        curr = curr->seq.b;
+      } else {
+        elements[i] = ast_eval(curr);
+        curr = NULL;
+      }
+    }
+    
+    // Store the array of results instead of the AST nodes
+    v.val.raw = (void *)elements; 
     return v;
   }
 
   case AST_INDEX: {
-    // 1. Get the list head from the target variable
-    // This returns the TypedValue containing the pointer to the first AST_SEQ
     TypedValue target = ast_eval(node->index.target);
 
-    // 2. Get the integer index
     TypedValue idx_val = ast_eval(node->index.index);
     int target_idx = idx_val.val.i32;
 
-    // 3. Pointer to walk the AST_SEQ chain
-    // We cast the raw pointer back to an ASTNode_t
-    ASTNode_t *current = (ASTNode_t *)target.val.raw;
-
-    // 4. Walk the list
-    for (int i = 0; i < target_idx; i++) {
-      // In a standard SEQ chain: seq.a is the item, seq.b is the next SEQ node
-      if (current && current->kind == AST_SEQ) {
-        current = current->seq.b;
-      } else {
-        // Safety fallback (though semantic should have caught this)
-        return (TypedValue){0};
-      }
-    }
-
-    // 5. Evaluate the result
-    // If we are at the right node, evaluate the 'a' component (the element)
-    if (current) {
-      if (current->kind == AST_SEQ) {
-        return ast_eval(current->seq.a);
-      } else {
-        // This handles the 'tail' of the list if it's not a SEQ node
-        return ast_eval(current);
-      }
+    if (target.val.raw) {
+      TypedValue *elements = (TypedValue *)target.val.raw;
+      // Direct O(1) access to the eagerly evaluated result
+      return elements[target_idx];
     }
 
     return (TypedValue){0};

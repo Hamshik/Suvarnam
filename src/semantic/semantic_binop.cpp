@@ -3,6 +3,7 @@
 #include "shared/structs.h"
 #include "utils/error_handler/error.h"
 #include "semantic/semantic.hpp"
+#include <cstddef>
 
 Type_t* binop(ASTNode_t *n, Type_t* type) {
   // Use &type to allow inference to flow into children
@@ -28,7 +29,7 @@ Type_t* binop(ASTNode_t *n, Type_t* type) {
       panic(&file, n->loc, SEM_STRING_OP_INVALID, NULL);
     }
     // Re-use a global type pointer if possible to save memory
-    n->type = make_type(STRINGS); 
+    n->type = make_type(STRINGS, NULL); 
     return n->type;
   }
 
@@ -44,13 +45,13 @@ Type_t* binop(ASTNode_t *n, Type_t* type) {
               panic(&file, n->loc, SEM_CMP_NEEDS_NUM, NULL);
           }
       }
-      n->type = make_type(BOOL);
+      n->type = make_type(BOOL, NULL);
       return n->type;
 
     case OP_AND: case OP_OR:
       if (lt->base != BOOL || rt->base != BOOL)
         panic(&file, n->loc, SEM_LOGIC_NEEDS_BOOL, NULL);
-      n->type = make_type(BOOL);
+      n->type = make_type(BOOL, NULL);
       return n->type;
 
     default:
@@ -66,7 +67,8 @@ Type_t* binop(ASTNode_t *n, Type_t* type) {
       }
 
       // Promote returns the dominant base type (e.g., f64 > i32)
-      n->type = make_type(promote(lt->base, rt->base));
+      DataTypes_t promted_t = promote(lt->base, rt->base);
+      n->type = n->type->base == promted_t ? n->type : make_type(promted_t, NULL);
       return n->type;
   }
 }

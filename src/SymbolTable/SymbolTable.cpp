@@ -34,8 +34,8 @@ TypedValue *  TQruntime_env_get_ref_at(int frame_id, const char *name, TQLocatio
 }
 
 void TQruntime_env_set_at(int frame_id, const char *name,  TQValue *val,
-                           DataTypes_t datatype, TQLocation loc) {
- TQ::runtime_symbol_table::env_set_at(frame_id, name, val, datatype, loc);
+                           Type_t* type, TQLocation loc) {
+ TQ::runtime_symbol_table::env_set_at(frame_id, name, val, type, loc);
 }
 
 bool TQruntime_fn_register(ASTNode_t *fn) {
@@ -77,8 +77,7 @@ void TQsemantic_clear_symbols(void) {
  TQ::semantic_symbol_table::clear_symbols();
 }
 
-bool TQsemantic_fn_declare(const char *name, Param_t *params, int param_count,
-                            DataTypes_t ret) {
+bool TQsemantic_fn_declare(const char *name, Param_t *params, int param_count, Type_t* ret) {
   return  TQ::semantic_symbol_table::fn_declare(name, params, param_count, ret);
 }
 

@@ -1,5 +1,6 @@
 #include "builtin/builtin.h"
 #include "semantic/semantic.hpp"
+#include "shared/enums.h"
 #include "shared/structs.h"
 #include <float.h>
 #include <limits.h>
@@ -8,9 +9,9 @@
 
 Type_t* handle_fn(ASTNode_t *n) {
   if (n->fn_def.name && strcmp(n->fn_def.name, "main") == 0)
-    n->fn_def.ret = I32;
+    n->fn_def.ret = make_type(I32, nullptr);
 
-  if (!  TQsemantic_fn_declare(n->fn_def.name, n->fn_def.params,
+  if (!TQsemantic_fn_declare(n->fn_def.name, n->fn_def.params,
                               n->fn_def.param_count, n->fn_def.ret)) {
     panic(&file, n->loc, SEM_FN_REDECL, n->fn_def.name);
   }
@@ -25,7 +26,7 @@ Type_t* handle_fn(ASTNode_t *n) {
 
   DataTypes_t saved_ret = g_fn_ret;
   int saved_in_fn = g_in_fn;
-  g_fn_ret = n->fn_def.ret;
+  g_fn_ret = n->fn_def.ret ? n->fn_def.ret->base : UNKNOWN;
   g_in_fn = 1;
   check_expr(n->fn_def.body);
   g_fn_ret = saved_ret;
@@ -63,7 +64,7 @@ Type_t* call(ASTNode_t *n) {
   for (int i = 0; i < param_count; i++) {
     ASTNode_t *cur = arg ? (arg->kind == AST_SEQ ? arg->seq.a : arg) : NULL;
 
-    Type_t* want = f ? f->params[i].type : stds->params[i];
+    Type_t* want = f ? f->params[i].type : ((Type_t**)stds->params)[i];
 
     if (is_numeric(want->base))
       force_numeric_type(cur, want->base);

@@ -56,7 +56,7 @@ bool is_numeric(DataTypes_t t);
 bool is_integer(DataTypes_t t);
 int numeric_bits(DataTypes_t t);
 bool types_are_equal(Type_t* a, Type_t* b);
-Type_t* make_type(DataTypes_t base, Type_t* inner = nullptr);
+extern "C" Type_t* make_type(DataTypes_t base, Type_t* inner);
 
 void ensure_semantic(Module_t *m);
 

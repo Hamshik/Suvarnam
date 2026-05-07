@@ -7,8 +7,8 @@ Function *get_or_create_prototype(ASTNode_t *fn_ast, Module &mod,
   for (int i = 0; i < fn_ast->fn_def.param_count; ++i) {
     params.push_back(ir_type(fn_ast->fn_def.params[i].type->base, ctx));
   }
-  Type *retTy = ir_type(fn_ast->fn_def.ret, ctx);
-  if (retTy->isVoidTy() && fn_ast->fn_def.ret == UNKNOWN)
+  Type *retTy = ir_type(fn_ast->fn_def.ret->base, ctx);
+  if (retTy->isVoidTy() && fn_ast->fn_def.ret->base == UNKNOWN)
     retTy = Type::getInt32Ty(ctx);
   FunctionType *ft = FunctionType::get(retTy, params, false);
   Function *fn = mod.getFunction(fn_ast->fn_def.name);

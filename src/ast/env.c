@@ -37,6 +37,6 @@ TypedValue *getvar_ref_at(int frame_id, const char *name, TQLocation loc) {
     return TQruntime_env_get_ref_at(frame_id, name, loc);
 }
 
-void set_var_at(int frame_id, const char *name,  TQValue *val, DataTypes_t datatype, TQLocation loc) {
-    TQruntime_env_set_at(frame_id, name, val, datatype, loc);
+void set_var_at(int frame_id, const char *name,  TQValue *val, Type_t* type, TQLocation loc) {
+    TQruntime_env_set_at(frame_id, name, val, type, loc);
 }

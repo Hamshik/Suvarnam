@@ -1,4 +1,5 @@
 #include "eval/eval.h"
+#include "shared/enums.h"
 
 TypedValue handle_num(ASTNode_t *node, TypedValue v) {
   if (!node || !node->literal.raw) {
@@ -7,7 +8,13 @@ TypedValue handle_num(ASTNode_t *node, TypedValue v) {
     return (TypedValue){0};
   }
   
-  switch (node->type->base) {
+  DataTypes_t base = node->type ? node->type->base : UNKNOWN;
+  
+  // If semantic analysis didn't assign a type, default to I32 for literals.
+  // This prevents the interpreter from failing on simple indices like [0].
+  if (base == UNKNOWN) base = I32;
+
+  switch (base) {
   case I8:
     v.val.i8 = (int8_t)strtol(node->literal.raw, NULL, 10);
     break;
@@ -75,7 +82,15 @@ TypedValue handle_num(ASTNode_t *node, TypedValue v) {
           NULL);
     return (TypedValue){0};
   }
-  v.type = node->type;
+
+  // Ensure we return a valid type object. If the node had no type,
+  // we create a temporary I32 type so the rest of the eval logic works.
+  if (node->type && node->type->base != UNKNOWN) {
+      v.type = node->type;
+  } else {
+      v.type = make_type(base, NULL);
+  }
+
   return v;
 }
 
@@ -84,7 +99,7 @@ char *do_operation_str(const char *a, const char *b, OP_kind_t op) {
   size_t size = strlen(a) + strlen(b) + 1;
   switch (op) {
   case OP_ADD:
-    result = malloc(size);
+    result = calloc(1, size);
     if (result == NULL)
       fprintf(stderr, "Memory allocation is failed for string catination");
     sprintf(result, "%s%s", a, b); // automatically adds null terminator

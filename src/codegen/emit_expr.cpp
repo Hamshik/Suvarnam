@@ -61,10 +61,10 @@ Value *emit_expr(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
 
   case AST_WHILE:
     return emit_whileloop(n, ctx, b, entryBuilder, locals);
-  case NODE_FOR:
+  case AST_FOR:
     return emit_forloops(n, ctx, b, entryBuilder, locals);
 
-  case NODE_IF:
+  case AST_IF:
     return emit_if(n, ctx, b, entryBuilder, locals);
 
   case AST_SEQ: {

@@ -93,7 +93,7 @@ char *logf_msg(const char *fmt, ...) {
 
     if (n < 0) return NULL;
 
-    char *buf = malloc((size_t)n + 1);
+    char *buf = calloc(1, (size_t)n + 1);
     if (!buf) return NULL;
 
     va_start(ap, fmt);
@@ -117,7 +117,7 @@ char *read_entire_path(FILE *f, size_t *out_len) {
     }
     rewind(f);
 
-    char *buf = malloc((size_t)n + 1);
+    char *buf = calloc(1, (size_t)n + 1);
     if (!buf) {
         (void)fseek(f, saved, SEEK_SET);
         return NULL;
