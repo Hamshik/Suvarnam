@@ -1,5 +1,5 @@
+#include "shared/structs.h"
 #include "stdlibs/stdlibs.h"
-
 
 using namespace llvm;
 
@@ -32,13 +32,12 @@ llvm::Value *emit_print_like(const char *fmt, llvm::Value *v, LLVMContext &ctx,
   return b.CreateCall(printfFn, argv);
 }
 
-llvm::Value *emit_println(ASTNode_t *argNode, llvm::Value *argV,
-                          LLVMContext &ctx, IRBuilder<> &b) {
+llvm::Value *emit_println(ASTNode_t *argNode, llvm::Value *argV, LLVMContext &ctx, IRBuilder<> &b) {
 
   Module *m = b.GetInsertBlock()->getModule();
   Function *printfFn = get_printf(*m, ctx);
 
-  switch (argNode->type->base) {
+  switch (argNode->call.args->type->base) {
 
     // ---------------- STRING ----------------
   case STRINGS: {
@@ -137,7 +136,6 @@ llvm::Value *emit_print(ASTNode_t *argNode, llvm::Value *argV, LLVMContext &ctx,
   // ---------------- CHARACTER → STRING ----------------
   case CHARACTER: {
     // create stack buffer: char[2] = {c, 0}
-    printf("char\n");
     Value *c = b.CreateTrunc(argV, Type::getInt8Ty(ctx));
 
     static size_t id = 0;
