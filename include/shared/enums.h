@@ -123,6 +123,7 @@ typedef enum errc {
     SEM_LIST_NUM_IS_0 = 1103,
     SEM_INDEX_NOT_ARRAY = 1104,
     SEM_INDEX_NOT_INT = 1105,
+    SEM_INTERNAL_ERROR = 1106,
 
     /*LLVM ERROR*/
     INVAILD_UTF8_CHAR = 2000,
@@ -141,6 +142,7 @@ typedef enum errc {
     RT_ASSIGN_TARGET_NOT_VAR = 3010,
     RT_ASSIGN_UNSUPPORTED = 3011,
     RT_DANGLING_PTR = 3012,
+    RT_INDEX_OUT_OF_BOUNDS = 3013,
 
 } errc_t;
 
