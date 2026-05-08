@@ -1,6 +1,8 @@
 #include "eval/eval.h"
 #include "shared/structs.h"
+#include "utils/error_handler/error.h"
 #include "utils/uhash.h"
+#include <stdio.h>
 
 extern file_t file;
 ASTNode_t *root = NULL; // This is the single correct place for the definition
@@ -14,9 +16,7 @@ TypedValue ast_eval_main(ASTNode_t *root) {
     ast_eval(root); /* ast_eval registers functions on AST_FN */
   ASTNode_t *main_fn = TQruntime_fn_lookup("main");
   if (!main_fn) {
-    panic(&file,
-      (TQLocation){1, 1, 0, 0, 0, 0}
-      , SEM_CALL_UNDEF_FN, "main");
+    panic(&file, (TQLocation){1, 1, 0, 0, 0, 0}, SEM_CALL_UNDEF_FN, "main");
     return (TypedValue){0};
   }
   ASTNode_t *call = new_fn_call("main", NULL, (TQLocation){0});
@@ -55,9 +55,10 @@ TypedValue ast_eval(ASTNode_t *node) {
 
   case AST_VAR:
     v.val = TQruntime_env_get(node->var, node->type, node->loc);
-    // If the node type is UNKNOWN, we should try to determine the type 
+    // If the node type is UNKNOWN, we should try to determine the type
     // from the environment lookup rather than just trusting node->type.
-    v.type = (node->type && node->type->base != UNKNOWN) ? node->type : make_type(I32, NULL); 
+    v.type = (node->type && node->type->base != UNKNOWN) ? node->type
+                                                         : make_type(I32, NULL);
     return v;
   case AST_BINOP:
     return eval_binop(node, v);
@@ -68,15 +69,13 @@ TypedValue ast_eval(ASTNode_t *node) {
   case AST_ASSIGN: {
     if (node->assign.op == OP_ASSIGN && node->assign.is_declaration) {
       TypedValue rt0 = ast_eval(node->assign.rhs);
-      TypedValue rt =
-          TQcast_typed(rt0, node->type);
+      TypedValue rt = TQcast_typed(rt0, node->type);
       TQruntime_env_set_current(node->assign.lhs->var, &rt.val, node->type);
       return (TypedValue){.val = rt.val, .type = node->type};
     }
 
-    TQValue val =
-        eval_assign(node->assign.lhs, node->assign.rhs, node->assign.op,
-                    node->type, node->loc);
+    TQValue val = eval_assign(node->assign.lhs, node->assign.rhs,
+                              node->assign.op, node->type, node->loc);
     return (TypedValue){.val = val, .type = node->type};
   }
 
@@ -118,9 +117,10 @@ TypedValue ast_eval(ASTNode_t *node) {
   case AST_BOOL:
     return (TypedValue){.type = node->type,
                         // Ensure raw is a valid pointer before dereferencing
-                        .val = (node->literal.raw && node->literal.raw[0] == 't')
-                                   ? (TQValue){.bval = true}
-                                   : (TQValue){.bval = false}};
+                        .val =
+                            (node->literal.raw && node->literal.raw[0] == 't')
+                                ? (TQValue){.bval = true}
+                                : (TQValue){.bval = false}};
 
   case AST_FN:
     fn_register_runtime(node);
@@ -151,10 +151,10 @@ TypedValue ast_eval(ASTNode_t *node) {
 
   case AST_LIST: {
     v.type = node->type; // list[T]
-    
+
     // Allocate space for the results
     TypedValue *elements = calloc(node->list.count, sizeof(TypedValue));
-    
+
     // Eagerly evaluate every element now
     ASTNode_t *curr = node->list.elements;
     for (int i = 0; i < node->list.count && curr; i++) {
