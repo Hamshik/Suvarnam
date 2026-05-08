@@ -141,7 +141,8 @@ int compile_and_execute(ASTNode_t *root, const Options *opts) {
 
     char *clang_argv[] = {
         "clang",
-        "TQlib/TQstrcmp.c",
+        "TQlib/helper/printer.c",
+        "TQlib/helper/TQstrcmp.c",
         opts->ir_output_path,   // your .ll file
         "-Wl,-e,entrypoint",
         "-no-pie",
