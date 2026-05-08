@@ -1,15 +1,56 @@
-#include "builtin/builtin.h"
 #include "semantic/semantic.hpp"
+#include "builtin/BuiltinRegistry.hpp"
 #include "shared/enums.h"
 #include "shared/structs.h"
 #include <float.h>
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
+#include "utils/error_handler/error.h"
+
+extern Type_t* g_current_fn_ret_type;
+
+/**
+ * Unified structure to hold function signature information
+ */
+struct ResolvedSig {
+  Type_t* ret;
+  Type_t** params; // Pointer to array of Type_t*
+  int param_count;
+  bool exists;
+};
+
+static ResolvedSig get_call_sig(const char* name) {
+  ResolvedSig sig = {nullptr, nullptr, 0, false};
+  if (!name) return sig;
+  
+  // 1. Check the Symbol Table (includes both User functions and TQlib prototypes)
+  if (FnSymbol_t *f = TQsemantic_fn_lookup(name)) {
+    sig.ret = f->ret;
+    sig.param_count = f->param_count;
+    sig.exists = true;
+    return sig; 
+  }
+
+  // 2. Check Builtin Registry
+  if (BuiltinFunction* b = BuiltinRegistry::instance().lookup(name)) {
+    sig.ret = b->return_type;
+    sig.param_count = (int)b->param_types.size();
+    sig.exists = true;
+    return sig;
+  }
+
+  return sig;
+}
 
 Type_t* handle_fn(ASTNode_t *n) {
   if (n->fn_def.name && strcmp(n->fn_def.name, "main") == 0)
     n->fn_def.ret = make_type(I32, nullptr);
+
+  // Ensure return type exists
+  if (!n->fn_def.ret) {
+     n->fn_def.ret = make_type(VOID, nullptr);
+  }
 
   if (!TQsemantic_fn_declare(n->fn_def.name, n->fn_def.params,
                               n->fn_def.param_count, n->fn_def.ret)) {
