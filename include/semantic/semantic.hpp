@@ -39,6 +39,7 @@ void check_err();
 Type_t* unop(ASTNode_t* n, Type_t* type = nullptr);
 Type_t* binop(ASTNode_t* n, Type_t* type = nullptr);
 Type_t* assign(ASTNode_t* n, Type_t* type = nullptr);
+void handle_idx_assign(ASTNode* &n, ASTNode_t* &lhs, Type_t* &type);
 
 Type_t* handle_fn(ASTNode_t* n);
 Type_t* ret(ASTNode_t *n);

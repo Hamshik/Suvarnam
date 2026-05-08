@@ -31,6 +31,12 @@ typedef struct TQLocation {
   size_t last_pos;  /* 0-based byte offset */
 } TQLocation;
 
+typedef struct idx_expr{
+    struct ASTNode* expr_node; // for expr like [i[0] + 1] ect
+    int depth;  // to know how much use goes like this i[][][]...
+    struct idx_expr* next; // next of i[]of i[][]... <- this one
+} idx_expr_t;
+
 typedef struct TQPtr {
     size_t frame_id;
     char *name;
@@ -127,11 +133,11 @@ typedef struct ASTNode {
         //Import Nodes
         struct { char *path; } importNode;
         // List Nodes
-        struct { struct ASTNode *elements; size_t count; } list;
+        struct { struct ASTNode *elements; size_t count; int max_nested_dept; } list;
         // Index Nodes
         struct {
             struct ASTNode* target; // The thing being indexed (e.g., the variable 'list')
-            struct ASTNode* index;  // The position (e.g., the number '0' or expr 'i+1')
+            idx_expr_t* idx;      // The position (e.g., the number '0' or expr 'i+1')
             bool islhs;
         } index;
     };

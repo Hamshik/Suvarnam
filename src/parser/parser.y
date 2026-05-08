@@ -26,6 +26,9 @@
         Param_t *params;
         int count;
     } paramlist;
+
+    idx_expr_t* idx_epr;
+
     Type_t *type;  /* New: for recursive types */
     size_t size;
 }
@@ -49,12 +52,13 @@
 %token <datatype> DATATYPES
 %token <node> IDENTIFIER NUMBER STRING_LITERAL BOOL_LITERAL CHAR_LITERAL
 
-%type <node>  top_level_stmts block if_stmt for_stmt while_stmt import_stmt expr_stmts
-%type <node> fn_def param return_stmt opt_args args list_stmt expr_stmt top_level_stmt
-%type <node> lvalue import_list expr assignment program
+%type <node>  top_level_stmts block if_stmt for_stmt while_stmt import_stmt expr_stmts call_stmt
+%type <node> fn_def param return_stmt opt_args args list_stmt expr_stmt top_level_stmt index_stmt fn_block_t
+%type <node> lvalue import_list expr assignment program 
 %type <paramlist> opt_params params
 %type <type> recursive_type
 %type <size> opt_list_size
+%type <idx_epr> indexing
 
 %right ASSIGN PLUS_ASSIGN MINUS_ASSIGN STAR_ASSIGN SLASH_ASSIGN MOD_ASSIGN POWER_ASSIGN LSHIFT_ASSIGN RSHIFT_ASSIGN
 %left OR
@@ -155,17 +159,7 @@ if_stmt:
         { $$ = new_if($3, $5, NULL, @$); }
     | IF LPAREN expr RPAREN expr_stmt ELSE expr_stmt
         { $$ = new_if($3, $5, $7, @$); }
-    | IF LPAREN expr error expr_stmt %prec LOWER_THAN_ELSE
-        { 
-            TQerror_LOC(@4, PARSE_UNCLOSED_PAREN, NULL); 
-            yyerrok; $$ = new_if($3, $5, NULL, @$); 
-        }
-    | IF LPAREN expr error expr_stmt ELSE expr_stmt
-        { 
-            TQerror_LOC(@4, PARSE_UNCLOSED_PAREN, NULL); 
-            yyerrok; $$ = new_if($3, $5, $7, @$); 
-        }
-    ;
+;
 
 
 for_stmt: 
@@ -173,36 +167,39 @@ for_stmt:
         { $$ = new_for($3, $5, NULL, $7, @$); }
     | FOR LPAREN assignment COLON expr COLON expr RPAREN expr_stmt
         { $$ = new_for($3, $5, $7, $9, @$); }
-    | FOR LPAREN assignment COLON expr error expr_stmt
-        { 
-            TQerror_LOC(@6, PARSE_UNCLOSED_PAREN, NULL); 
-            yyerrok; $$ = new_for($3, $5, NULL, $7, @$); 
-        }
     ;
 
 while_stmt:
     WHILE LPAREN expr RPAREN expr_stmt
         { $$ = new_while($3, $5, @$); }
-    | WHILE LPAREN expr error expr_stmt
-        { 
-            TQerror_LOC(@4, PARSE_UNCLOSED_PAREN, NULL); 
-            yyerrok; $$ = new_while($3, $5, @$); 
-        }
-    ;
 
+;
+
+fn_block_t:
+    SEMICOLON { $$ =  NULL; }
+    | block   { $$ = $1; }
 fn_def: 
-    FN recursive_type IDENTIFIER LPAREN opt_params RPAREN  block
+    FN recursive_type IDENTIFIER LPAREN opt_params RPAREN  fn_block_t
     {
         $$ = new_fn_def($3->var, $5.params, $5.count, $2, $7, @$);
   
         ast_free($3);
     }
-  | FN IDENTIFIER LPAREN opt_params RPAREN block
+  | FN IDENTIFIER LPAREN opt_params RPAREN fn_block_t
     {
         $$ = new_fn_def($2->var, $4.params, $4.count, NULL, $6, @$);
   
         ast_free($2);
-    }
+    } 
+;
+
+call_stmt:
+    IDENTIFIER LPAREN opt_args RPAREN
+      {
+          $$ = new_fn_call($1->var, $3, @$);
+            
+          ast_free($1);
+      }
 ;
 
 opt_params:
@@ -245,12 +242,6 @@ recursive_type:
         $$ = make_type(LIST, $3);
         $$->size = $4; 
     }
-    | LISTS LSQUARE recursive_type opt_list_size error 
-    {
-        TQerror_LOC(@5, PARSE_UNCLOSED_BRACKET, NULL);
-        yyerrok;
-        $$ = make_type(LIST, $3); $$->size = $4;
-    }
     
     | recursive_type AMP  %prec UADDR {
         $$ = make_type(PTR, $1);
@@ -282,10 +273,38 @@ args:
 
 list_stmt:
     LSQUARE opt_args RSQUARE { $$ = new_list($2, @$); }
-    | LSQUARE opt_args error 
+;
+
+indexing:
+    LSQUARE expr RSQUARE
+    {
+        // Base case: the first index found (e.g., [k])
+        idx_expr_t* idx_node = malloc(sizeof(idx_expr_t));
+        idx_node->expr_node = $2;
+        idx_node->depth = 1;
+        idx_node->next = NULL;
+        $$ = idx_node;
+        
+    }
+    | indexing LSQUARE expr RSQUARE
+    {
+        // Recursive case: adding another dimension (e.g., [j][k])
+        idx_expr_t* idx_node = malloc(sizeof(idx_expr_t));
+        idx_node->expr_node = $3;
+        idx_node->depth = $1->depth + 1;
+        idx_node->next = $1; // Link to the previous dimensions
+        $$ = idx_node;
+    }
+;
+
+index_stmt:
+    IDENTIFIER indexing 
     { 
-        TQerror_LOC(@3, PARSE_UNCLOSED_BRACKET, NULL); 
-        yyerrok; $$ = new_list($2, @$); 
+        // Example: 'arr' or arry() followed by '[i][j]'
+        $$ = new_index($1, $2, false, @1); 
+    }
+    | call_stmt indexing  {
+        $$ = new_index($1, $2, false, @1);
     }
 ;
 
@@ -332,33 +351,17 @@ expr:
     | IDENTIFIER DEC %prec POSTFIX
         { $$ = new_unop($1, @$, OP_DEC); }
 
-    | LPAREN expr RPAREN         { $$ = $2; }
-    | LPAREN expr error          {TQerror_LOC(@3, PARSE_UNCLOSED_PAREN, NULL); yyerrok; $$ = $2; }
-    | IDENTIFIER LPAREN opt_args RPAREN
-      {
-          $$ = new_fn_call($1->var, $3, @$);
-            
-          ast_free($1);
-      }
-    | list_stmt                   {$$ = $1;}
+    | LPAREN expr RPAREN            { $$ = $2; }
+    | call_stmt                     { $$ = $$; }
+    | list_stmt                   { $$ = $1; } 
+    | index_stmt                  { $$ = $1; }
 
-    | IDENTIFIER LSQUARE expr RSQUARE  { $$ = new_index($1, $3, false, @$); }
-    | IDENTIFIER LSQUARE expr error    
-    { 
-        TQerror_LOC(@4, PARSE_UNCLOSED_BRACKET, NULL); 
-        yyerrok; $$ = new_index($1, $3, false, @$); 
-    }
 ;
 
 lvalue:
       IDENTIFIER                        { $$ = $1; }
     | STAR IDENTIFIER %prec UDEREF      { $$ = new_unop($2, @$, OP_DEREF); }
-    | IDENTIFIER LSQUARE expr RSQUARE   { $$ = new_index($1, $3, true, @$); }
-    | IDENTIFIER LSQUARE expr error     
-    { 
-        TQerror_LOC(@4, PARSE_UNCLOSED_BRACKET, NULL); 
-        yyerrok; $$ = new_index($1, $3, true, @$); 
-    }
+    | index_stmt                        { $$ = $1; $$->index.islhs = true; }
 ;
 
 

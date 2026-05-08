@@ -28,7 +28,7 @@ ASTNode_t* new_fn_call(const char *name, ASTNode_t *args, TQLocation loc);
 ASTNode_t* new_return(ASTNode_t *value, TQLocation loc);
 ASTNode_t* new_import_node(const char *path, TQLocation loc);
 ASTNode_t* new_list(ASTNode_t *elements,TQLocation loc);
-ASTNode_t* new_index(ASTNode_t *var, ASTNode_t *index, bool islhs, TQLocation loc);
+ASTNode_t* new_index(ASTNode_t *var, idx_expr_t* index, bool islhs, TQLocation loc);
 
 /* Eval + memory */
 void ast_free(ASTNode_t *n);

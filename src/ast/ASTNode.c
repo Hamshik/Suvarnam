@@ -175,15 +175,16 @@ ASTNode_t* new_list(ASTNode_t *elements, TQLocation loc) {
     node->list.count = 0; // Initialize to 0 to avoid massive unsigned underflow
     node->type = make_type(LIST, NULL); // Base list type
     if (node->type) node->type->size = 0;
+    node->list.max_nested_dept = 0;
     node->loc = loc;
     return node;
 }
 
-ASTNode_t* new_index(ASTNode_t *target, ASTNode_t *index, bool islhs, TQLocation loc) {
+ASTNode_t* new_index(ASTNode_t *target, idx_expr_t *index, bool islhs , TQLocation loc) {
     ASTNode_t *node = ast_alloc();
     node->kind = AST_INDEX;
     node->index.target = target;
-    node->index.index = index;
+    node->index.idx = index;
     node->index.islhs = islhs;
     node->type = make_type(UNKNOWN, NULL); // Sub-type resolved during semantic analysis
     node->loc = loc;

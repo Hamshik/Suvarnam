@@ -166,25 +166,46 @@ TypedValue ast_eval(ASTNode_t *node) {
         curr = NULL;
       }
     }
-    
+
     // Store the array of results instead of the AST nodes
-    v.val.raw = (void *)elements; 
+    v.val.raw = (void *)elements;
     return v;
   }
 
   case AST_INDEX: {
-    TypedValue target = ast_eval(node->index.target);
+    // 1. Get the base object (e.g., the variable 'matrix')
+    TypedValue current_target = ast_eval(node->index.target);
 
-    TypedValue idx_val = ast_eval(node->index.index);
-    int target_idx = idx_val.val.i32;
+    // 2. Start at the head of your linked list of indices
+    idx_expr_t *current_idx_node = node->index.idx;
 
-    if (target.val.raw) {
-      TypedValue *elements = (TypedValue *)target.val.raw;
-      // Direct O(1) access to the eagerly evaluated result
-      return elements[target_idx];
+    // 3. Traverse the dimensions
+    while (current_idx_node != NULL) {
+      // Evaluate the current index expression (e.g., the 'i' in [i])
+      TypedValue idx_val = ast_eval(current_idx_node->expr_node);
+      int idx = idx_val.val.i32;
+
+      // Safety check: ensure we are actually indexing a list
+      if (current_target.type->base != LIST || current_target.val.raw == NULL) {
+        panic(&file, node->index.target->loc, RT_INDEX_OUT_OF_BOUNDS, node->index.target->var);
+        break;
+      }
+
+      // Access the internal array of TypedValues
+      TypedValue *elements = (TypedValue *)current_target.val.raw;
+
+      // Bounds checking would go here
+
+      // 4. Update current_target to be the element we just found
+      // If this is a 2D array, the element is itself a LIST TypedValue
+      current_target = elements[idx];
+
+      // Move to the next dimension ([j])
+      current_idx_node = current_idx_node->next;
     }
 
-    return (TypedValue){0};
+    // After all dimensions are processed, current_target holds the final value
+    return current_target;
   }
 
   default:
