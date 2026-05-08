@@ -11,7 +11,7 @@ Type_t* binop(ASTNode_t *n, Type_t* type) {
   Type_t* rt = check_expr(n->bin.right, type);
 
   // 1. Numeric Literal Inference (Improved)
-  if (n->bin.left->kind == AST_NUM && n->bin.left->type->base == UNKNOWN) {
+  if (n->bin.left->kind == AST_NUM && (!n->bin.left->type || n->bin.left->type->base == UNKNOWN)) {
       if (is_numeric(rt->base)) { n->bin.left->type = rt; lt = rt; }
   } 
   else if (n->bin.right->kind == AST_NUM && n->bin.right->type->base == UNKNOWN) {

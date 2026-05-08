@@ -1,5 +1,8 @@
 #include "codegen/codegen.hpp"
-#include "stdlibs/stdlibs.h"
+#include "builtin/BuiltinRegistry.hpp"
+
+
+FunctionCallee get_builtin_llvm_fn(const char* name, Module &m, LLVMContext &ctx);
 
 Function *get_or_create_prototype(ASTNode_t *fn_ast, Module &mod,
                                   LLVMContext &ctx) {
@@ -76,31 +79,22 @@ llvm::Value *emit_call(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
     syserr("ERROR: function call with empty name\n");
   }
 
-  bool isPrintLn = strcmp(fname, "println") == 0;
-
-  bool isPrint = strcmp(fname, "print") == 0;
-
-  bool isExit = strcmp(fname, "hlt") == 0;
-
-  bool isType = strcmp(fname, "type") == 0;
-
-  // 🔹 PRINT
-  if (isPrint)
-    return emit_print(n, args[0], ctx, b);
-  if(isPrintLn)
-    return emit_println(n, args[0], ctx, b);
-  if (isExit)
-    return get_exit(m, ctx, args, b);
-
-  if (isType) return get_type(n, b);
-
-  // 🔥 EXIT (hlt)
+  // Check registry for built-ins
+  BuiltinFunction* builtin = BuiltinRegistry::instance().lookup(fname);
+  if (builtin) {
+      FunctionCallee callee = get_builtin_llvm_fn(fname, *m, ctx);
+      if (callee.getCallee()) {
+          return b.CreateCall(callee, args);
+      }
+  }
 
   // 🔹 NORMAL FUNCTION CALL
   Function *callee = m->getFunction(fname);
 
   if (!callee) {
-    perror("undef std fns");
+    fprintf(stderr, "Codegen Error: Call to undefined function '%s' at line %zu\n", 
+            fname, (size_t)n->loc.first_line);
+    return nullptr;
   }
 
   return b.CreateCall(callee, args);

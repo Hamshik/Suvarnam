@@ -59,18 +59,22 @@ Type_t* handle_fn(ASTNode_t *n) {
 
   TQsemantic_scope_push();
   for (int i = 0; i < n->fn_def.param_count; i++) {
-    // params are mutable locals
+    if (!n->fn_def.params[i].type) n->fn_def.params[i].type = make_type(UNKNOWN, nullptr);
+    
     if (!TQsemantic_declare(n->fn_def.params[i].name, n->fn_def.params[i].type, true))
       panic(&file, n->loc, SEM_DUP_PARAM,
             n->fn_def.params[i].name);
   }
 
-  DataTypes_t saved_ret = g_fn_ret;
+  DataTypes_t saved_g_fn_ret = g_fn_ret; // Save old g_fn_ret
+  Type_t* saved_current_fn_ret_type = g_current_fn_ret_type; // Save old g_current_fn_ret_type
   int saved_in_fn = g_in_fn;
-  g_fn_ret = n->fn_def.ret ? n->fn_def.ret->base : UNKNOWN;
+  g_fn_ret = n->fn_def.ret ? n->fn_def.ret->base : UNKNOWN; // Still set base type for compatibility
+  g_current_fn_ret_type = n->fn_def.ret; // Set the full return type
   g_in_fn = 1;
   check_expr(n->fn_def.body);
-  g_fn_ret = saved_ret;
+  g_fn_ret = saved_g_fn_ret; // Restore old g_fn_ret
+  g_current_fn_ret_type = saved_current_fn_ret_type; // Restore old g_current_fn_ret_type
   g_in_fn = saved_in_fn;
 
   TQsemantic_scope_pop();
@@ -78,12 +82,14 @@ Type_t* handle_fn(ASTNode_t *n) {
 }
 
 Type_t* call(ASTNode_t *n) {
-  FnSymbol_t *f = TQsemantic_fn_lookup(n->call.name);
-  const TQstd_sig_t *stds = NULL;
-  if (!f)
-    stds = TQstd_sig(n->call.name);
-  if (!f && !stds)
+  if (!n || !n->call.name) return nullptr;
+
+  ResolvedSig sig = get_call_sig(n->call.name);
+  
+  if (!sig.exists) {
     panic(&file, n->loc, SEM_CALL_UNDEF_FN, n->call.name);
+    return nullptr; // Return early to avoid redundant errors like ARGC_MISMATCH
+  }
 
   // count args and check types (args are stored as a left-associated AST_SEQ list)
   int argc = 0;
@@ -94,29 +100,37 @@ Type_t* call(ASTNode_t *n) {
     else
       it = NULL;
   }
-  if (f && argc != f->param_count)
-    panic(&file, n->loc, SEM_ARGC_MISMATCH, n->call.name);
-  if (stds && argc != stds->param_count)
+
+  if (argc != sig.param_count)
     panic(&file, n->loc, SEM_ARGC_MISMATCH, n->call.name);
 
   // walk args in the same order as we built them (left then seq.b chain)
   ASTNode_t *arg = n->call.args;
-  int param_count = f ? f->param_count : (stds ? stds->param_count : 0);
+  int param_count = sig.param_count;
+
+  // We re-lookup FnSymbol if it exists just to get access to the params array 
+  // because our struct uses Type_t** which is hard to map from FnSymbol_t's param struct.
+  FnSymbol_t *f = TQsemantic_fn_lookup(n->call.name);
+  BuiltinFunction* b = BuiltinRegistry::instance().lookup(n->call.name);
+
   for (int i = 0; i < param_count; i++) {
     ASTNode_t *cur = arg ? (arg->kind == AST_SEQ ? arg->seq.a : arg) : NULL;
 
-    Type_t* want = f ? f->params[i].type : ((Type_t**)stds->params)[i];
+    Type_t *want = nullptr;
+    if (f && i < f->param_count) want = f->params[i].type;
+    else if (b && i < (int)b->param_types.size()) want = b->param_types[i];
 
-    if (is_numeric(want->base))
+    // Pass 'want' as a type hint to allow list literals to inherit their type
+    if (want && want->base != UNKNOWN && is_numeric(want->base))
       force_numeric_type(cur, want->base);
-    Type_t* at = check_expr(cur);
-    if (want->base != UNKNOWN && at != want)
+
+    Type_t* at = check_expr(cur, want);
+    
+    if (!at) return nullptr; // Propagate error if check_expr failed
+
+    if (at && want && want->base != UNKNOWN && !types_are_equal(at, want)) {
       panic(&file, n->loc, SEM_ARG_TYPE_MISMATCH,
             n->call.name);
-
-    // Replace: if (want->base == PTR && cur && cur->type->inner->base != want->inner->base)
-    if (want->base == PTR && cur && !types_are_equal(cur->type->inner, want->inner)) {
-        panic(&file, n->loc, SEM_ARG_TYPE_MISMATCH, n->call.name);
     }
 
     if (arg && arg->kind == AST_SEQ)
@@ -125,30 +139,51 @@ Type_t* call(ASTNode_t *n) {
       arg = NULL;
   }
 
-  Type_t* ret = f ? f->ret : (stds ? stds->ret : nullptr);
-  n->type = ret;
-  return ret;
+  if (!sig.ret) {
+      sig.ret = make_type(UNKNOWN, nullptr);
+  }
+  n->type = sig.ret;
+  return sig.ret;
 }
 
 Type_t* ret(ASTNode_t *n) {
   if (!g_in_fn) {
-    panic(&file, n->loc, SEM_RETURN_OUTSIDE_FN, NULL);
+    panic(&file, n->loc, SEM_RETURN_OUTSIDE_FN, "Return statement outside of a function.");
   }
-  if (n->ret_stmt.value) {
-    if (g_fn_ret == VOID) {
-      panic(&file, n->loc, SEM_RETURN_TYPE_MISMATCH, NULL);
+
+  // Case 1: Function declared to return VOID
+  if (g_current_fn_ret_type && g_current_fn_ret_type->base == VOID) {
+    if (n->ret_stmt.value) {
+      panic(&file, n->loc, SEM_RETURN_TYPE_MISMATCH, "Function declared to return VOID, but a value is returned.");
       return nullptr;
     }
-    if (is_numeric(g_fn_ret))
-      force_numeric_type(n->ret_stmt.value, g_fn_ret);
-    Type_t* rt = check_expr(n->ret_stmt.value);
-    if (g_fn_ret != UNKNOWN && rt->base != g_fn_ret) {
-      panic(&file, n->loc, SEM_RETURN_TYPE_MISMATCH, NULL);
+    // Correctly returning VOID type
+    return make_type(VOID, nullptr);
+  }
+
+  // Case 2: Function declared to return a value (not VOID)
+  if (!n->ret_stmt.value) {
+    panic(&file, n->loc, SEM_RETURN_TYPE_MISMATCH, "Function declared to return a value, but nothing is returned.");
+    return nullptr;
+  }
+
+  // Evaluate the return expression, forcing numeric type if applicable
+  if (g_current_fn_ret_type && is_numeric(g_current_fn_ret_type->base)) {
+    force_numeric_type(n->ret_stmt.value, g_current_fn_ret_type->base);
+  }
+
+  // Check the type of the return expression, passing the expected return type for inference
+  Type_t* rt = check_expr(n->ret_stmt.value, g_current_fn_ret_type);
+
+  // Handle potential null from check_expr (error already reported)
+  if (!rt) {
+    return nullptr;
+  }
+
+  // Compare the return expression's type with the function's declared return type
+  if (g_current_fn_ret_type && !types_are_equal(rt, g_current_fn_ret_type)) {
+    panic(&file, n->loc, SEM_RETURN_TYPE_MISMATCH, "Return expression type does not match function return type.");
+    return nullptr;
     }
-    return rt;
-  }
-  if (g_fn_ret != UNKNOWN && g_fn_ret != VOID) {
-    panic(&file, n->loc, SEM_RETURN_TYPE_MISMATCH, NULL);
-  }
-  return make_type(VOID, nullptr);
+  return rt;
 }
