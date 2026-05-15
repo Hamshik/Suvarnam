@@ -1,9 +1,5 @@
-# TACA
-! not artifacted to TarkIQ(Gujarat). Its independent open source project !
-
-The TACA is also known as Tarkiq
-
-The word  `Tarkiq`  is derived from  `Tulu (or Sanskrit)`  means  `Smart Optimizer`
+# Suvarnam
+Its a programming language....
 
 Build:
     `./build.sh`
