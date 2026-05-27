@@ -21,8 +21,10 @@ typedef enum ASTKind {
     AST_RETURN,
     AST_IMPORT,
     AST_LIST,
-    AST_LIST_DEC,
-    AST_INDEX
+    AST_RANGE,
+    AST_INDEX,
+    AST_CONTINUE,
+    AST_BREAK
 } ASTKind_t;
 
 typedef enum DataTypes{
@@ -48,6 +50,7 @@ typedef enum DataTypes{
     
     PTR,
     LIST,
+    RANGE,
 
     BOOL,
     STRINGS,
@@ -67,7 +70,8 @@ typedef enum OP_kind {
     OP_MUL_ASSIGN, OP_DIV_ASSIGN, OP_MOD_ASSIGN, OP_POW_ASSIGN,
     OP_LSHIFT_ASSIGN, OP_RSHIFT_ASSIGN,
     OP_INC, OP_DEC,
-    OP_ADDR, OP_DEREF
+    OP_ADDR, OP_DEREF,
+    OP_RANGE
 } OP_kind_t;
 
 /* error/warn enums*/
@@ -124,6 +128,10 @@ typedef enum errc {
     SEM_INDEX_NOT_ARRAY = 1104,
     SEM_INDEX_NOT_INT = 1105,
     SEM_INTERNAL_ERROR = 1106,
+    SEM_FOR_ITERABLE_NOT_RANGE = 1107,
+    SEM_FOR_ITERABLE_INVALID_TYPE = 1108,
+    SEM_BREAK_OUTSIDE_LOOP = 1109,
+    SEM_CONTINUE_OUTSIDE_LOOP = 1110,
 
     /*LLVM ERROR*/
     INVAILD_UTF8_CHAR = 2000,

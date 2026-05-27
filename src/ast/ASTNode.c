@@ -114,23 +114,24 @@ ASTNode_t* new_if(ASTNode_t *cond, ASTNode_t *thenB, ASTNode_t *elseB, TQLocatio
     return node;
 }
 
-ASTNode_t* new_for(ASTNode_t *init, ASTNode_t *end, ASTNode_t *step, ASTNode_t *body, TQLocation loc) {
+ASTNode_t* new_for(const char* var, ASTNode_t *interable, ASTNode_t *body, TQLocation loc, bool ismut) {
     ASTNode_t *node = ast_alloc();
     node->kind = AST_FOR;
-    node->fornode.init = init;
-    node->fornode.end = end;
-    node->fornode.step = step;
+    node->fornode.iterable = interable;
     node->fornode.body = body;
+    node->fornode.iterator_var_name = strdup(var);
     node->type = NULL;
+    node->fornode.isVarMut = ismut;
     node->loc = loc;
     return node;
 }
 
-ASTNode_t* new_while(ASTNode_t *cond, ASTNode_t *body, TQLocation loc) {
+ASTNode_t* new_while(ASTNode_t *cond, ASTNode_t *body, ASTNode_t* expr, TQLocation loc) {
     ASTNode_t *node = ast_alloc();
     node->kind = AST_WHILE;
     node->whilenode.cond = cond;
     node->whilenode.body = body;
+    node->whilenode.expr = expr;
     node->type = NULL;
     node->loc = loc;
     return node;
@@ -195,6 +196,33 @@ ASTNode_t* new_import_node(const char *path, TQLocation loc) {
     ASTNode_t *node = ast_alloc();
     node->kind = AST_IMPORT;
     node->importNode.path = strdup(path);
+    node->type = NULL;
+    node->loc = loc;
+    return node;
+}
+
+ASTNode_t* new_range(ASTNode_t* start, ASTNode_t* end, ASTNode_t* step, bool isexslusive) {
+    ASTNode_t* node = ast_alloc();
+    node->kind = AST_RANGE;
+    node->range.start = start;
+    node->range.end = end;
+    node->range.step = step; // Will be NULL if no step is provided
+    node->type = make_type(RANGE, NULL); // Initial type, semantic analysis will confirm
+    node->range.isexslusive = isexslusive;
+    return node;
+}
+
+ASTNode_t* new_break(TQLocation loc) {
+    ASTNode_t *node = ast_alloc();
+    node->kind = AST_BREAK;
+    node->type = NULL;
+    node->loc = loc;
+    return node;
+}
+
+ASTNode_t* new_continue(TQLocation loc){
+    ASTNode_t* node = ast_alloc();
+    node->kind = AST_CONTINUE;
     node->type = NULL;
     node->loc = loc;
     return node;

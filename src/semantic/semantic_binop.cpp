@@ -40,6 +40,19 @@ Type_t* binop(ASTNode_t *n, Type_t* type) {
     return n->type;
   }
 
+  // 4. Range Operator (e.g., 0..10)
+  if (n->bin.op == OP_RANGE) {
+    if (!is_numeric(lt->base) || !is_numeric(rt->base)) {
+      panic(&file, n->loc, SEM_NUMOP_NEEDS_NUM, "Range operands must be numeric");
+    }
+    DataTypes_t common = promote(lt->base, rt->base);
+    // Propagate the promoted type to children so codegen emits correct widths
+    force_numeric_type(n->bin.left, common);
+    force_numeric_type(n->bin.right, common);
+    n->type = make_type(RANGE, make_type(common, NULL));
+    return n->type;
+  }
+
   // 4. Comparison Operators
   switch (n->bin.op) {
     case OP_LT: case OP_LE: case OP_GT: case OP_GE:

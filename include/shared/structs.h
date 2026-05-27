@@ -42,6 +42,12 @@ typedef struct TQPtr {
     char *name;
 } TQPtr;
 
+typedef struct TQRange {
+    int64_t start;
+    int64_t end;
+    int64_t step;
+} TQRange;
+
 typedef union {
     /* signed numeric type */
     int8_t i8;
@@ -62,6 +68,7 @@ typedef union {
     unsigned __int128 u128;
 
     TQPtr ptr;
+    TQRange range;
 
     bool bval;
     char* chars;
@@ -124,8 +131,15 @@ typedef struct ASTNode {
         // conditionals
         struct { struct ASTNode *cond, *then_branch, *else_branch; } ifnode;
         //loops
-        struct { struct ASTNode *init, *end, *step, *body; } fornode;
-        struct { struct ASTNode *cond, *body; } whilenode;
+        struct { struct ASTNode *cond, *body, *expr; } whilenode;
+        // New: Python-like for-in loop
+        struct {
+            char *iterator_var_name; // The name of the loop variable (e.g., 'i' in 'for i in range')
+            struct ASTNode *iterable; // The expression representing the iterable (e.g., an AST_RANGE node)
+            struct ASTNode *body;     // The loop body
+            bool isVarMut;
+        } fornode;
+        
         // function definition and call
         struct { char *name; Param_t *params; int param_count; Type_t* ret; struct ASTNode *body; } fn_def;
         struct { char *name; struct ASTNode *args; } call;
@@ -134,6 +148,11 @@ typedef struct ASTNode {
         struct { char *path; } importNode;
         // List Nodes
         struct { struct ASTNode *elements; size_t count; int max_nested_dept; } list;
+        // Range Nodes
+        struct {
+            struct ASTNode *start, *end, *step;
+            bool isexslusive;
+        } range;
         // Index Nodes
         struct {
             struct ASTNode* target; // The thing being indexed (e.g., the variable 'list')

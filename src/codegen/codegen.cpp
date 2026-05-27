@@ -200,7 +200,6 @@ extern "C" int codegen(ASTNode_t *root, const char *ll_path, char **ir_out) {
         std::cerr << TACA_BOLD TACA_RED
                   << "LLVM verify error: "
                   << TACA_RESET << errOS.str() << "\n";
-        return 1;
     }
 
     if (!emit_ir(mod, ll_path, ir_out))

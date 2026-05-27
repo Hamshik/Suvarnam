@@ -147,6 +147,9 @@ char                         { yylval->datatype = CHARACTER; return DATATYPES;}
 bool                         { yylval->datatype = BOOL; return DATATYPES;}
 void                         { yylval->datatype = VOID; return DATATYPES;}
 while                        { return WHILE; }
+in                           { return IN; }
+break                        { return BREAK; }
+continue                     { return CONTINUE; }
 
 true                         {
     yylval->node = new_bool(1, *yylloc);
@@ -218,7 +221,7 @@ fn                  { return FN; }
 ">"                 { return GT; }
 "{"                 { TQbrace_depth++; return LBRACE; }
 "}"                 { if (  TQbrace_depth > 0) TQbrace_depth--; return RBRACE; }
-
+".."                { return DOT_DOT;}
 
 [a-zA-Z_][a-zA-Z0-9_]*|[a-zA-Z_] {
     yylval->node = new_var(yytext, UNKNOWN, *yylloc);

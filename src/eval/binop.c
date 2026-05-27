@@ -32,6 +32,14 @@ TypedValue eval_binop(ASTNode_t *node, TypedValue v) {
     return v;
   }
 
+  if (node->bin.op == OP_RANGE) {
+    v.type = make_type(RANGE, NULL);
+    v.val.range.start = (int64_t)TQas_i128(l.val, l.type->base);
+    v.val.range.end = (int64_t)TQas_i128(r.val, r.type->base);
+    v.val.range.step = 1; // Default step
+    return v;
+  }
+
   if (node->bin.op == OP_AND || node->bin.op == OP_OR) {
     TypedValue lb = TQcast_typed(l, node->bin.left->type);
     TypedValue rb = TQcast_typed(r, node->bin.right->type);

@@ -102,7 +102,7 @@ TypedValue ast_eval(ASTNode_t *node) {
     return (TypedValue){0};
 
   case AST_FOR:
-    return eval_for(node, g_returning, g_return_value);
+    // return eval_for(node, g_returning, g_return_value);
 
   case AST_WHILE: {
     TypedValue last = {0};

@@ -58,10 +58,9 @@ void ast_free(ASTNode_t *n) {
             break;
 
         case AST_FOR:
-            ast_free(n->fornode.init);
-            ast_free(n->fornode.end);
-            ast_free(n->fornode.step);
             ast_free(n->fornode.body);
+            ast_free(n->fornode.iterable);
+            free(n->fornode.iterator_var_name);
             break;
 
         case AST_FN:

@@ -19,9 +19,9 @@ ASTNode_t *new_binop(ASTNode_t *l, ASTNode_t *r, TQLocation loc, OP_kind_t op);
 ASTNode_t *new_unop(ASTNode_t *e, TQLocation loc, OP_kind_t op);
 ASTNode_t *new_assign(ASTNode_t *lhs, ASTNode_t *rhs, Type_t* datatype, bool is_mutable, TQLocation loc, OP_kind_t op);
 ASTNode_t *new_if(ASTNode_t *cond, ASTNode_t *thenB, ASTNode_t *elseB, TQLocation loc);
-ASTNode_t *new_for(ASTNode_t *init, ASTNode_t *end, ASTNode_t *step, ASTNode_t *body, TQLocation loc);
+ASTNode_t *new_for(const char* var, ASTNode_t *interable, ASTNode_t *body, TQLocation loc, bool ismut);
 ASTNode_t *new_seq(ASTNode_t *a, ASTNode_t *b);
-ASTNode_t *new_while(ASTNode_t *cond, ASTNode_t *body, TQLocation loc);
+ASTNode_t *new_while(ASTNode_t *cond, ASTNode_t *body, ASTNode_t* expr,TQLocation loc);
 ASTNode_t* new_bool(bool val, TQLocation loc);
 ASTNode_t* new_fn_def(const char *name, Param_t *params, int param_count, Type_t* ret_type, ASTNode_t *body, TQLocation loc);
 ASTNode_t* new_fn_call(const char *name, ASTNode_t *args, TQLocation loc);
@@ -29,6 +29,10 @@ ASTNode_t* new_return(ASTNode_t *value, TQLocation loc);
 ASTNode_t* new_import_node(const char *path, TQLocation loc);
 ASTNode_t* new_list(ASTNode_t *elements,TQLocation loc);
 ASTNode_t* new_index(ASTNode_t *var, idx_expr_t* index, bool islhs, TQLocation loc);
+ASTNode_t* new_range(ASTNode_t* start, ASTNode_t* end, ASTNode_t* step, bool isexslusive);
+ASTNode_t* new_break(TQLocation loc);
+ASTNode_t* new_continue(TQLocation loc);
+
 
 /* Eval + memory */
 void ast_free(ASTNode_t *n);

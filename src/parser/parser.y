@@ -43,18 +43,18 @@
 %token INC DEC
 %token LSHIFT RSHIFT
 %token AMP PIPE BITXOR BITNOT
-%token LPAREN RPAREN LBRACE RBRACE SEMICOLON LSQUARE RSQUARE
+%token LPAREN RPAREN LBRACE RBRACE SEMICOLON LSQUARE RSQUARE COLON
 %token ASSIGN PLUS_ASSIGN MINUS_ASSIGN STAR_ASSIGN SLASH_ASSIGN MOD_ASSIGN POWER_ASSIGN
-%token LSHIFT_ASSIGN RSHIFT_ASSIGN COLON COMMA
+%token LSHIFT_ASSIGN RSHIFT_ASSIGN IN COMMA DOT_DOT 
 %token AND OR NOT EQ NEQ LT LE GT GE
-%token IF ELSE FOR WHILE MUT VAR FN RETURN IMPORT
+%token IF ELSE FOR WHILE MUT VAR FN RETURN IMPORT CONTINUE BREAK
 
 %token <datatype> DATATYPES
 %token <node> IDENTIFIER NUMBER STRING_LITERAL BOOL_LITERAL CHAR_LITERAL
 
 %type <node>  top_level_stmts block if_stmt for_stmt while_stmt import_stmt expr_stmts call_stmt
 %type <node> fn_def param return_stmt opt_args args list_stmt expr_stmt top_level_stmt index_stmt fn_block_t
-%type <node> lvalue import_list expr assignment program 
+%type <node> lvalue import_list expr assignment program iterable 
 %type <paramlist> opt_params params
 %type <type> recursive_type
 %type <size> opt_list_size
@@ -118,6 +118,8 @@ expr_stmt:
     | if_stmt                   { $$ = $1; }
     | for_stmt                  { $$ = $1; }
     | while_stmt                { $$ = $1; }
+    | CONTINUE SEMICOLON       { $$= new_continue(@$); }
+    | BREAK SEMICOLON           { $$= new_break(@$); }
     | error {
         panic(&file, @$, PARSE_SYNTAX, g_last_parse_err_msg);
         yyerrok;
@@ -161,23 +163,52 @@ if_stmt:
         { $$ = new_if($3, $5, $7, @$); }
 ;
 
-
-for_stmt: 
-    FOR LPAREN assignment COLON expr RPAREN expr_stmt
-        { $$ = new_for($3, $5, NULL, $7, @$); }
-    | FOR LPAREN assignment COLON expr COLON expr RPAREN expr_stmt
-        { $$ = new_for($3, $5, $7, $9, @$); }
-    ;
+iterable:
+      expr DOT_DOT expr 
+        { $$ = new_range($1, $3, NULL, false); }
+    | expr DOT_DOT expr DOT_DOT expr 
+        { $$ = new_range($1, $3, $5, false); }
+    | expr DOT_DOT ASSIGN expr 
+        { $$ = new_range($1, $4, NULL, true); }
+    | expr DOT_DOT ASSIGN expr DOT_DOT expr 
+        { $$ = new_range($1, $4, $6, true); }
+    | IDENTIFIER { $$ = $1; }
+;
+for_stmt:
+      // like for i : 0..1
+      FOR LPAREN IDENTIFIER[id] IN iterable[iter] RPAREN expr_stmt[body]
+    {
+        $$ = new_for($id->var, $iter, $body, @$, false);
+        free($id);
+    }
+    | FOR LPAREN MUT IDENTIFIER[id] IN iterable[iter] RPAREN expr_stmt[body]
+    { 
+        $$ = new_for($id->var, $iter, $body, @$, true); 
+        free($id);
+    }
+    // like for 0..1
+    | FOR LPAREN iterable[iter] RPAREN expr_stmt[body]
+    {
+        $$ = new_for(NULL, $iter, $body, @$, false);
+    }
+;
 
 while_stmt:
-    WHILE LPAREN expr RPAREN expr_stmt
-        { $$ = new_while($3, $5, @$); }
-
+    WHILE LPAREN expr[cond] RPAREN expr_stmt[body]
+        { $$ = new_while($cond, $body, NULL, @$); }
+    | WHILE LPAREN expr[cond] RPAREN COLON LPAREN assignment[assigns] RPAREN expr_stmt[body]
+    {
+        if($assigns->assign.op == OP_ASSIGN)
+            panic(&file, @1, PARSE_SYNTAX, "expr expects operational assignment not just plain assign");
+        $$ = new_while($cond, $body, $assigns, @$);
+    }
 ;
 
 fn_block_t:
     SEMICOLON { $$ =  NULL; }
     | block   { $$ = $1; }
+;
+
 fn_def: 
     FN recursive_type IDENTIFIER LPAREN opt_params RPAREN  fn_block_t
     {

@@ -1,3 +1,4 @@
+#include "shared/enums.h"
 #include "utils/error_handler/error.h"
 #include <stdarg.h>
 #include <stdio.h>
@@ -54,7 +55,11 @@ const char *errc_msg(errc_t code) {
         case SEM_INDEX_NOT_ARRAY: return "indexing non-array type";
         case SEM_INDEX_NOT_INT: return "array index must be an integer";
         case SEM_INTERNAL_ERROR: return "internal error";
-        
+        case SEM_FOR_ITERABLE_INVALID_TYPE : return "Range iterable must produce numeric types.";
+        case SEM_FOR_ITERABLE_NOT_RANGE: return "Enhanced for loop iterable must be a range.";
+        case SEM_BREAK_OUTSIDE_LOOP: return "break statement outside of loop";
+        case SEM_CONTINUE_OUTSIDE_LOOP: return "continue statement outside of loop";
+
         case INVAILD_UTF8_CHAR: return "invalid UTF-8 character literal";
         case RET_NOT_DECLARED: return "return value is not declared in a function";
         

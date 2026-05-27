@@ -1,6 +1,5 @@
 #include "codegen/codegen.hpp"
-#include "utils/utf-8_lib/utf8/core.h"
-#include "utils/utf-8_lib/utf8/unchecked.h"
+#include "utils/utf-8_lib/utf8/unchecked.hpp"
 
 uint32_t decode_utf8(const char *raw, size_t raw_len, size_t *byte_len,
                      Utf8Error *error) {

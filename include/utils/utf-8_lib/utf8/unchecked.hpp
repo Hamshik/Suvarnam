@@ -28,7 +28,7 @@ DEALINGS IN THE SOFTWARE.
 #ifndef UTF8_FOR_CPP_UNCHECKED_H_2675DCD0_9480_4c0c_B92A_CC14C027B731
 #define UTF8_FOR_CPP_UNCHECKED_H_2675DCD0_9480_4c0c_B92A_CC14C027B731
 #ifdef __cplusplus
-#include "core.h"
+#include "core.hpp"
 
 namespace utf8
 {
@@ -176,7 +176,7 @@ namespace utf8
 
         // The iterator class
         template <typename octet_iterator>
-          class iterator : public std::iterator <std::bidirectional_iterator_tag, uint32_t> { 
+          class iterator { 
             octet_iterator it;
             public:
             iterator () {}

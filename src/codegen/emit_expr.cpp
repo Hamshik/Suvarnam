@@ -1,4 +1,11 @@
 #include "codegen/codegen.hpp"
+#include <vector>
+
+struct LoopContext {
+    llvm::BasicBlock *continuationBB;
+    llvm::BasicBlock *exitBB;
+};
+extern std::vector<LoopContext> loopStack;
 
 Value *emit_expr(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
                        IRBuilder<> &entryBuilder, LocalMap &locals) {
@@ -63,6 +70,8 @@ Value *emit_expr(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
     return emit_whileloop(n, ctx, b, entryBuilder, locals);
   case AST_FOR:
     return emit_forloops(n, ctx, b, entryBuilder, locals);
+  case AST_RANGE:
+    return emit_binop(n, ctx, b, entryBuilder, locals);
 
   case AST_IF:
     return emit_if(n, ctx, b, entryBuilder, locals);
@@ -87,6 +96,21 @@ Value *emit_expr(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
         b.CreateRetVoid();
     }
     return v;
+  }
+
+  case AST_BREAK: {
+    if (!loopStack.empty()) {
+      auto& currentLoop = loopStack.back();
+      b.CreateBr(currentLoop.exitBB);
+    }
+    return nullptr;
+  }
+
+  case AST_CONTINUE: {
+    if (!loopStack.empty()) {
+      b.CreateBr(loopStack.back().continuationBB);
+    }
+    return nullptr;
   }
 
   case AST_IMPORT: {

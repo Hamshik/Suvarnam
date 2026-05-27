@@ -1,8 +1,8 @@
 fn main(){
-    var mut num = 10;
-    var strs = "Hello World ";
-
-    printlns(num*strs);
-    printlns(strs*num);
-
+    var mut i = 0;
+    
+    while( i < 10 ) : (i += 1) {
+        if(i > 5) continue;
+        printlni(i);
+    }
 }
