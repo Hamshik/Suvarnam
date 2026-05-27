@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 
-char* TQconcat(char* a, char* b) {
+char* SVconcat(char* a, char* b) {
     size_t lenA = strlen(a);
     size_t lenB = strlen(b);
 
@@ -16,6 +16,25 @@ char* TQconcat(char* a, char* b) {
     res[lenA + lenB] = '\0';
     return res;
 }
+
+char* SVmulstr(char* str, int n) {
+    if (!str) return NULL;
+    if (n <= 0) return strdup(""); // Return empty string for 0 or negative reps
+
+    size_t len = strlen(str);
+    // Allocate enough memory for all copies plus the null terminator
+    char* res = (char*)malloc(len * n + 1);
+    if (!res) return NULL;
+
+    for (int i = 0; i < n; i++) {
+        memcpy(res + (i * len), str, len);
+    }
+
+    // FIX: Terminate at the end of the total length, not the original length
+    res[len * n] = '\0'; 
+    return res;
+}
+
 
 // A helper struct to represent your list in the runtime
 typedef struct {

@@ -23,11 +23,18 @@ Type_t* binop(ASTNode_t *n, Type_t* type) {
     panic(&file, n->loc, SEM_NUMOP_NEEDS_NUM, "pointer arithmetic not supported");
   }
 
-  // 3. String Concatenation
+  // 3. String Concatenation & multiplication
   if (lt->base == STRINGS || rt->base == STRINGS) {
-    if (n->bin.op != OP_ADD || lt->base != STRINGS || rt->base != STRINGS) {
+    
+    bool is_valid_mul = (n->bin.op == OP_MUL) && 
+                        ((lt->base == STRINGS && is_numeric(rt->base)) || 
+                         (is_numeric(lt->base) && rt->base == STRINGS));
+    bool is_valid_add = (n->bin.op == OP_ADD) && (lt->base == STRINGS && rt->base == STRINGS);
+
+    if (!is_valid_mul && !is_valid_add) {
       panic(&file, n->loc, SEM_STRING_OP_INVALID, NULL);
     }
+
     // Re-use a global type pointer if possible to save memory
     n->type = make_type(STRINGS, NULL); 
     return n->type;

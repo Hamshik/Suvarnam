@@ -8,11 +8,27 @@ TypedValue eval_binop(ASTNode_t *node, TypedValue v) {
   TypedValue r = ast_eval(node->bin.right);
 
   if (node->type->base == STRINGS) {
-   v = (TypedValue) {
-      make_type(STRINGS, NULL), // Explicitly name the field
-      { .str = do_operation_str(l.val.str, r.val.str, node->bin.op) }
-    };
-
+    if (node->bin.op == OP_ADD) {
+      v = (TypedValue) {
+        make_type(STRINGS, NULL),
+        { .str = do_operation_str(l.val.str, r.val.str, node->bin.op) }
+      };
+    } else if (node->bin.op == OP_MUL) {
+      TypedValue str_v = (l.type->base == STRINGS) ? l : r;
+      TypedValue num_v = (l.type->base == STRINGS) ? r : l;
+      
+      int count = (int)TQas_i128(num_v.val, num_v.type->base);
+      
+      size_t len = strlen(str_v.val.str);
+      char *res = calloc(1, len * count + 1);
+      for (int i = 0; i < count; i++) {
+        memcpy(res + i * len, str_v.val.str, len);
+      }
+      v = (TypedValue) {
+        make_type(STRINGS, NULL),
+        { .str = res }
+      };
+    }
     return v;
   }
 

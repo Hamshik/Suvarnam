@@ -67,6 +67,8 @@ add_executable(taca
     ${ALL_SOURCES}
     ${BISON_MyParser_OUTPUTS}
     ${FLEX_MyLexer_OUTPUTS}
+    src/codegen/emit_assign.cpp
+    src/codegen/str_op_handler.cpp
 )
 
 # 8. Map LLVM Components to Libraries

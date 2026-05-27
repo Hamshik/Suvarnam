@@ -27,11 +27,13 @@ bool types_are_equal(Type_t* a, Type_t* b) {
     if (is_numeric(a->base) && is_numeric(b->base)) return true;
     if (a->base != b->base) return false;
     
-    // 3. Check fixed-size for lists (Rust style)
-    if (a->size != b->size) return false;
+    // 3. For Lists and Pointers, check sizes and inner types
+    if (a->base == LIST || a->base == PTR) {
+        if (a->size != b->size) return false;
+        return types_are_equal(a->inner, b->inner);
+    }
 
-    // 4. Recursively check the inner types (the "magic" for nested lists)
-    return types_are_equal(a->inner, b->inner);
+    return true;
 }
 
 bool is_numeric(DataTypes_t t) {

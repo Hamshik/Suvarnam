@@ -84,6 +84,18 @@ Type_t* handle_fn(ASTNode_t *n) {
 Type_t* call(ASTNode_t *n) {
   if (!n || !n->call.name) return nullptr;
 
+  // Special handling for built-in 'len' property
+  if (strcmp(n->call.name, "len") == 0) {
+    Type_t* arg_type = check_expr(n->call.args);
+    if (!arg_type || arg_type->base != LIST) {
+      panic(&file, n->loc, SEM_INDEX_NOT_ARRAY, "len() expects a list argument");
+      return nullptr;
+    }
+    // Return I32 for the length
+    n->type = make_type(I32, nullptr);
+    return n->type;
+  }
+
   ResolvedSig sig = get_call_sig(n->call.name);
   
   if (!sig.exists) {

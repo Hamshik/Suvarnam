@@ -1,5 +1,6 @@
 #include "codegen/codegen.hpp"
 #include "builtin/BuiltinRegistry.hpp"
+#include <cstring>
 
 
 FunctionCallee get_builtin_llvm_fn(const char* name, Module &m, LLVMContext &ctx);
@@ -75,8 +76,17 @@ llvm::Value *emit_call(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
   Module *m = b.GetInsertBlock()->getModule();
   const char *fname = n->call.name;
 
-  if (!fname || strlen(fname) == 0) {
+  if (!fname || fname[0] == '\0') {
     syserr("ERROR: function call with empty name\n");
+  }
+
+  // 🔹 Directly inject the list size as a constant for the 'len' built-in
+  if (strcmp(fname, "len") == 0) {
+    ASTNode_t *it = n->call.args;
+    ASTNode_t *arg = (it && it->kind == AST_SEQ) ? it->seq.a : it;
+    if (arg && arg->type && arg->type->base == LIST) {
+      return ConstantInt::get(Type::getInt32Ty(ctx), arg->type->size);
+    }
   }
 
   // Find the function (either builtin or user-defined)
