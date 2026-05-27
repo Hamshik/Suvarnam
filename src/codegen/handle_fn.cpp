@@ -79,22 +79,33 @@ llvm::Value *emit_call(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
     syserr("ERROR: function call with empty name\n");
   }
 
-  // Check registry for built-ins
-  BuiltinFunction* builtin = BuiltinRegistry::instance().lookup(fname);
-  if (builtin) {
-      FunctionCallee callee = get_builtin_llvm_fn(fname, *m, ctx);
-      if (callee.getCallee()) {
-          return b.CreateCall(callee, args);
-      }
+  // Find the function (either builtin or user-defined)
+  FunctionCallee callee;
+  if (BuiltinRegistry::instance().lookup(fname)) {
+    callee = get_builtin_llvm_fn(fname, *m, ctx);
+  } else {
+    callee = m->getFunction(fname);
   }
 
-  // 🔹 NORMAL FUNCTION CALL
-  Function *callee = m->getFunction(fname);
-
-  if (!callee) {
-    fprintf(stderr, "Codegen Error: Call to undefined function '%s' at line %zu\n", 
+  if (!callee.getCallee()) {
+    fprintf(stderr, "Codegen Error: Call to undefined function '%s' at line %zu\n",
             fname, (size_t)n->loc.first_line);
     return nullptr;
+  }
+
+  // 🔹 Match arguments to function signature using explicit casts
+  FunctionType *ft = callee.getFunctionType();
+  for (size_t i = 0; i < args.size() && i < ft->getNumParams(); ++i) {
+    Type *expected = ft->getParamType(i);
+    if (args[i]->getType() != expected) {
+      if (expected->isIntegerTy() && args[i]->getType()->isIntegerTy()) {
+        args[i] = b.CreateIntCast(args[i], expected, true);
+      } else if (expected->isFloatingPointTy() && args[i]->getType()->isFloatingPointTy()) {
+        args[i] = b.CreateFPCast(args[i], expected);
+      } else if (expected->isPointerTy() && args[i]->getType()->isPointerTy()) {
+        args[i] = b.CreatePointerCast(args[i], expected);
+      }
+    }
   }
 
   return b.CreateCall(callee, args);

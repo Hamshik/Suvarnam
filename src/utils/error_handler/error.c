@@ -27,13 +27,13 @@ void panic(file_t *file, TQLocation loc, errc_t code, const char *detail)
     if (detail && *detail) {
         /* Avoid "syntax error: syntax error, unexpected X" style duplication. */
         if (starts_with(detail, base))
-            fprintf(stderr, TACA_BOLD TACA_RED "error[TQ%04d]: %s\n" TACA_RESET, (int)code, detail);
+            fprintf(stderr, TACA_BOLD TACA_RED "error[SV%04d]: %s\n" TACA_RESET, (int)code, detail);
         else
-            fprintf(stderr, TACA_BOLD TACA_RED "error[TQ%04d]: %s: %s\n" TACA_RESET, (int)code, base, detail);
+            fprintf(stderr, TACA_BOLD TACA_RED "error[SV%04d]: %s: %s\n" TACA_RESET, (int)code, base, detail);
     } else {
-        fprintf(stderr, TACA_BOLD TACA_RED "error[TQ%04d]: %s\n" TACA_RESET, (int)code, base);
+        fprintf(stderr, TACA_BOLD TACA_RED "error[SV%04d]: %s\n" TACA_RESET, (int)code, base);
     }
-    fprintf(stderr, TACA_BOLD TACA_DIM " --> %s:%zu:%zu\n" TACA_RESET, filename, (int)loc.first_line, (int)loc.first_column);
+    fprintf(stderr, TACA_BOLD TACA_DIM " --> %s:%zu:%zu\n" TACA_RESET, filename, (size_t)loc.first_line, (size_t)loc.first_column);
 
     if (!src || src_len == 0) {
         free(src);
@@ -82,13 +82,13 @@ void warn(file_t *file, TQLocation loc, warnc_t code, const char *detail)
     if (detail && *detail) {
         /* Avoid "syntax warning: syntax warning, unexpected X" style duplication. */
         if (starts_with(detail, base))
-            fprintf(stderr, TACA_BOLD TACA_YELLOW "warning[TQ%04d]: %s\n" TACA_RESET, (int)code, detail);
+            fprintf(stderr, TACA_BOLD TACA_YELLOW "warning[SV%04d]: %s\n" TACA_RESET, (int)code, detail);
         else
-            fprintf(stderr, TACA_BOLD TACA_YELLOW "warning[TQ%04d]: %s: %s\n" TACA_RESET, (int)code, base, detail);
+            fprintf(stderr, TACA_BOLD TACA_YELLOW "warning[SV%04d]: %s: %s\n" TACA_RESET, (int)code, base, detail);
     } else {
-        fprintf(stderr, TACA_BOLD TACA_YELLOW "warning[TQ%04d]: %s\n" TACA_RESET, (int)code, base);
+        fprintf(stderr, TACA_BOLD TACA_YELLOW "warning[SV%04d]: %s\n" TACA_RESET, (int)code, base);
     }
-    fprintf(stderr, TACA_BOLD TACA_DIM " --> %s:%zu:%zu\n" TACA_RESET, filename, (int)loc.first_line, (int)loc.first_column);
+    fprintf(stderr, TACA_BOLD TACA_DIM " --> %s:%zu:%zu\n" TACA_RESET, filename, (size_t)loc.first_line, (size_t)loc.first_column);
 
     if (!src || src_len == 0) {
         free(src);
@@ -141,7 +141,7 @@ void syswarn(const char *context)
     int saved_errno = errno;
     isWarning = true;
     warn_no++;
-    fprintf(stderr, TACA_BOLD TACA_YELLOW "warning[TQ??]: system warning: %s\n" TACA_RESET,
+    fprintf(stderr, TACA_BOLD TACA_YELLOW "warning[SV??]: system warning: %s\n" TACA_RESET,
             (context && *context) ? context : "unknown");
     if (saved_errno != 0) {
         fprintf(stderr, TACA_BOLD TACA_DIM " note:" TACA_RESET " %s\n", strerror(saved_errno));

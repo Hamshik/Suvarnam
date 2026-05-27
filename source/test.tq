@@ -1,3 +1,8 @@
 fn main(){
-    println("Hello world");
+    var mut list = [["Hello!", "World!"], ["Hello!", "World!"]];
+    list[0] = ["Hello ", "World"];
+    printlns(list[0][0]);
+    printlns(list[0][1]);
+    printlns(list[1][0]);
+    printlns(list[1][1]);
 }

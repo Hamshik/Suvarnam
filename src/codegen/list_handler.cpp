@@ -1,11 +1,12 @@
 #include "codegen/codegen.hpp"
 #include "builtin/BuiltinRegistry.hpp"
+#include <cstddef>
 #include <iostream>
 #include <llvm-22/llvm/Support/Alignment.h>
 
 // Forward declare the helper
 Function *get_malloc_fn(Module &m, LLVMContext &ctx);
-Type_t *get_type(Type_t *t);
+Type_t *get_AST_ret(Type_t *t, size_t depth);
 static size_t idx = 0;
 
 FunctionCallee get_builtin_llvm_fn(const char* name, Module &m, LLVMContext &ctx) {
@@ -34,7 +35,7 @@ void emit_list_print_call(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b, IRBuil
     Module *m = b.GetInsertBlock()->getModule();
     
     // 1. Get the function reference from the registry
-    FunctionCallee printFn = get_builtin_llvm_fn("TQ_print_list", *m, ctx);
+    FunctionCallee printFn = get_builtin_llvm_fn("SV_print_list", *m, ctx);
 
     if (!printFn.getCallee()) {
         return; // Handle error
@@ -46,7 +47,7 @@ void emit_list_print_call(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b, IRBuil
     // 3. Get the size (from your AST metadata)
     Value *listSize = b.getInt32(n->list.count);
 
-    // 4. Generate the call: TQ_print_list(listPtr, listSize)
+    // 4. Generate the call: SV_print_list(listPtr, listSize)
     b.CreateCall(printFn, {listPtr, listSize});
 }
 
@@ -172,7 +173,7 @@ Value *generateListAccess(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
     return nullptr;
 
   // 1. Get the actual base type (e.g., i32) resolved by semantics
-  Type *elementType = ir_type(get_type(n->type)->base , ctx);
+  Type *elementType = ir_type(get_AST_ret(n->type, n->index.idx->depth)->base , ctx);
 
   if (elementType->isVoidTy()) {
     fprintf(stderr, "Error: Invalid element type at line %zu\n",

@@ -39,7 +39,7 @@ extern "C" SemanticSymbolRecord *semantic_find_symbol(const char *name) {
 
 } // namespace
 
-namespace  TQ::semantic_symbol_table {
+namespace  SV::semantic_symbol_table {
 
 Type_t* lookup(const char *name) {
   SemanticSymbolRecord *symbol = semantic_find_symbol(name);
@@ -215,4 +215,4 @@ Module_t *load_module(const char *path, bool &already_imported) {
   return raw;
 }
 
-} // namespace  TQ::semantic_symbol_table
+} // namespace  SV::semantic_symbol_table

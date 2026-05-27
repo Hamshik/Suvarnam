@@ -47,7 +47,7 @@
 %token ASSIGN PLUS_ASSIGN MINUS_ASSIGN STAR_ASSIGN SLASH_ASSIGN MOD_ASSIGN POWER_ASSIGN
 %token LSHIFT_ASSIGN RSHIFT_ASSIGN COLON COMMA
 %token AND OR NOT EQ NEQ LT LE GT GE
-%token IF ELSE FOR WHILE MUT VAR FN RETURN IMPORT LISTS
+%token IF ELSE FOR WHILE MUT VAR FN RETURN IMPORT
 
 %token <datatype> DATATYPES
 %token <node> IDENTIFIER NUMBER STRING_LITERAL BOOL_LITERAL CHAR_LITERAL
@@ -238,9 +238,9 @@ recursive_type:
     }
     /* The recursive part: list[ <any type> ; <size> ] */
 
-    | LISTS LSQUARE recursive_type opt_list_size RSQUARE {
-        $$ = make_type(LIST, $3);
-        $$->size = $4; 
+    | LSQUARE recursive_type opt_list_size RSQUARE {
+        $$ = make_type(LIST, $2);
+        $$->size = $3; 
     }
     
     | recursive_type AMP  %prec UADDR {
@@ -384,6 +384,16 @@ assignment:
     | VAR lvalue ASSIGN expr {
         $$ = new_assign($2, $4, NULL, false, @$, OP_ASSIGN);
         $$->assign.is_declaration = true;
+        if($2->kind == AST_UNOP && $2->unop.op == OP_DEREF)
+            TQerror_LOC(@3, PARSE_SYNTAX, g_last_parse_err_msg);
+    }
+
+    /* var mut x = ... */
+    | VAR MUT lvalue ASSIGN expr {
+        $$ = new_assign($3, $5, NULL, true, @$, OP_ASSIGN);
+        $$->assign.is_declaration = true;
+        if($3->kind == AST_UNOP && $3->unop.op == OP_DEREF)
+            TQerror_LOC(@4, PARSE_SYNTAX, g_last_parse_err_msg);
     }
 
     | lvalue ASSIGN expr

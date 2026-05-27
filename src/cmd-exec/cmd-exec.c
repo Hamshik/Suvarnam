@@ -48,7 +48,7 @@ FILE *open_file(const char *filename, char **resolved_path_out) {
 bool parse_arguments(int argc, char **argv, Options *opts) {
     // Set defaults
     opts->input_filename = NULL;
-    opts->bin_output_path = " TQ.out";
+    opts->bin_output_path = " SV.out";
     opts->emit_ir = false;
     opts->ir_output_path = "out.ll";
 
@@ -66,7 +66,7 @@ bool parse_arguments(int argc, char **argv, Options *opts) {
                 opts->bin_output_path = argv[i + 1];
                 i += 2;
             } else {
-                syserr("Missing argument for -o\nUsage:  TQ [source] [-o bin_path] [--emit-ir ir_path]");
+                syserr("Missing argument for -o\nUsage:  SV [source] [-o bin_path] [--emit-ir ir_path]");
                 return false;
             }
         } else if (strcmp(argv[i], "--emit-ir") == 0) {
@@ -75,11 +75,11 @@ bool parse_arguments(int argc, char **argv, Options *opts) {
                 opts->ir_output_path = argv[i + 1];
                 i += 2;
             } else {
-                syserr("Missing argument for --emit-ir\nUsage:  TQ [source] [-o bin_path] [--emit-ir ir_path]");
+                syserr("Missing argument for --emit-ir\nUsage:  SV [source] [-o bin_path] [--emit-ir ir_path]");
                 return false;
             }
         } else {
-            syserr(logf_msg("Unknown argument: %s\nUsage:  TQ [source] [-o bin_path] [--emit-ir ir_path]", argv[i]));
+            syserr(logf_msg("Unknown argument: %s\nUsage:  SV [source] [-o bin_path] [--emit-ir ir_path]", argv[i]));
             return false;
         }
     }
@@ -118,7 +118,7 @@ int compile_and_execute(ASTNode_t *root, const Options *opts) {
     error_fatal = true; /* runtime errors should still stop */
     char *ir_text = NULL;
     
-    ast_eval_main(root);
+    // ast_eval_main(root);
     if (codegen(root, opts->emit_ir ? opts->ir_output_path : NULL, &ir_text))
         return 1;
 
@@ -153,12 +153,6 @@ int compile_and_execute(ASTNode_t *root, const Options *opts) {
         NULL
     };
 
-    char* mkdir_argv[] = {
-        "mkdir",
-        "-p",
-        "output"
-    };
-
     if (run_exec(clang_argv[0], clang_argv)) {
         if (!opts->emit_ir)
             unlink(opts->ir_output_path);
@@ -167,13 +161,6 @@ int compile_and_execute(ASTNode_t *root, const Options *opts) {
 
     if (!opts->emit_ir)
         unlink(opts->ir_output_path);
-
-    
-    if (run_exec(mkdir_argv[0], mkdir_argv)) {
-        if (!opts->emit_ir)
-            unlink(opts->ir_output_path);
-        return 1;
-    }
 
     env_clear_all();
     return 0;

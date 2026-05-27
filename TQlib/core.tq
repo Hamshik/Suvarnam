@@ -5,8 +5,8 @@ This is a multi-line comment for TQlib.
 It contains external function declarations.
 '''
 
-'' Implementation: TQ_print_list_interpreter / LLVM: TQ_print_list
-fn TQ_print_list(list[i32] l, i32 size);
+'' Implementation: SV_print_list_interpreter / LLVM: SV_print_list
+fn SV_print_list(list[i32] l, i32 size);
 
 '' Implementation: println_callback / LLVM: println
 fn println(str s);

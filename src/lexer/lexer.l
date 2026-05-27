@@ -163,8 +163,6 @@ mut                 { return MUT; }
 fn                  { return FN; }
 (ret|return)        { return RETURN; }
 
-list                { return LISTS; }
-
 [0-9]+(\.[0-9]+)? {
     yylval->node = new_num(yytext, UNKNOWN, *yylloc);
     

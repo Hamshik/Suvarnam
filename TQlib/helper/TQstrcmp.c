@@ -24,14 +24,14 @@ typedef struct {
     size_t size;     // Number of elements
 } TQList;
 
-void TQ_print_list(TQList* list, int size, bool is_new) {
+void SV_print_list(TQList* list, int size, bool is_new) {
     if (!list || !list->data) return;
 
     printf("[");
     for (size_t i = 0; i < list->size; i++) {
         if (list->base_type == 1) { // It's a nested list
             TQList** sublists = (TQList**)list->data;
-            TQ_print_list(sublists[i], size, is_new); // RECURSE
+            SV_print_list(sublists[i], size, is_new); // RECURSE
         } else { // It's a primitive (e.g., I32)
             int* numbers = (int*)list->data;
             printf("%d", numbers[i]);

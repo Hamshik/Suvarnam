@@ -6,15 +6,10 @@
 #include <cstddef>
 #include <cstdlib>
 
-static bool is_float(ASTNode_t *n){
-
-  ASTNode_t* curr = n;
-  while (curr && curr->type && (curr->type->base == PTR || curr->type->base == LIST)) {
-    curr = curr->index.target;
-    if( curr ->kind == AST_NUM && strchr(curr->literal.raw, '.') != NULL){
-      return true;
-    }
-  }
+static bool is_float(ASTNode_t *n) {
+  if (!n) return false;
+  if (n->kind == AST_NUM && strchr(n->literal.raw, '.') != NULL) return true;
+  if (n->type && (n->type->base == F32 || n->type->base == F64 || n->type->base == F128)) return true;
   return false;
 }
 
@@ -23,13 +18,13 @@ static bool types_match(Type_t *lhs, Type_t *rhs) {
   Type_t *r = rhs;
 
   while (l != nullptr && r != nullptr) {
-    // 1. If base types differ (e.g., LIST vs I32), they don't match
+    // 1. If base types differ (e.g., LIST vs I32) or are both numeric but different, they don't match
     if (l->base != r->base)
       return false;
 
     // 2. If they are both LISTs, check sizes (if fixed)
     if (l->base == LIST) {
-      if (l->size != 0 && r->size != 0 && l->size != r->size) {
+      if (l->size != r->size) {
         return false;
       }
       // Move to the next dimension
@@ -47,10 +42,10 @@ static bool types_match(Type_t *lhs, Type_t *rhs) {
 
 extern "C" Type_t *list_handle(ASTNode_t *n, Type_t *target_type) {
   // 1. Guard: Ensure we are actually looking for a list
-  if (!target_type || target_type->base != LIST) {
-    // panic(&file, n->loc, SEM_ASSIGN_TYPE_MISMATCH, "Target is not a list
-    // type");
-    return nullptr;
+  if (!target_type || target_type->base == UNKNOWN) {
+    target_type = make_type(LIST, nullptr);
+  } else if (target_type->base != LIST) {
+     return nullptr;
   }
 
   ASTNode_t *curr = n->list.elements;
@@ -65,6 +60,12 @@ extern "C" Type_t *list_handle(ASTNode_t *n, Type_t *target_type) {
     // Validate the element against the inner type
     // If element is a list, check_expr calls list_handle (AST recursion)
     // If element is an i32, check_expr handles it directly.
+    if (!expected_inner) {
+        // Auto-inference: use the first element to define the list's inner type
+        expected_inner = check_expr(element);
+        target_type->inner = expected_inner;
+    }
+
     Type_t *actual_element_type = check_expr(element, expected_inner);
 
     // Use the iterative type matcher to ensure types align
@@ -91,10 +92,15 @@ extern "C" Type_t *list_handle(ASTNode_t *n, Type_t *target_type) {
     return nullptr;
   }
 
+  // 🔹 Strict Size Locking: If the target type is unsized, lock it to the actual count.
+  if (target_type->size == 0) {
+    target_type->size = actual_count;
+  }
+
   // If the type has a fixed size (e.g., list[i32; 3]), check it
   if (target_type->size != 0 && target_type->size != actual_count) {
     panic(&file, n->loc, SEM_LIST_SIZE_MISMATCH,
-          "List size does not match type definition");
+        logf_msg("expected %zu no. of elements, got %zu", target_type->size, actual_count));
     return nullptr;
   }
 
@@ -165,17 +171,17 @@ bool islist(ASTNode_t *target) {
     return false;
 
   SemanticSymbolRecord *symbol =
-      TQ::semantic_symbol_table::semantic_find_symbol(target->var);
+      SV::semantic_symbol_table::semantic_find_symbol(target->var);
   if (!symbol)
     return false;
 
   return symbol->type && symbol->type->base == LIST;
 }
 
-Type_t* get_type(Type_t *t){
+Type_t* get_AST_ret(Type_t *t, size_t depth){
   if(!t) return nullptr;
 
-  while(t->inner && (t->base == PTR || t->base == LIST)){
+  while(t->inner && (t->base == PTR || t->base == LIST) && depth-- > 0){
     t = t->inner;
   }
 
@@ -190,7 +196,7 @@ void handle_idx_assign(ASTNode_t *&n, ASTNode_t *&lhs, Type_t *&final_type) {
   // 1. Resolve the base type of the object being indexed
   // We pass final_type here in case the target itself needs inference
   Type_t *current_type = check_expr(lhs->index.target, final_type);
-  Type_t* want = get_type(current_type);
+  Type_t* want = get_AST_ret(current_type, lhs->index.idx->depth);
 
   // 2. Mutability Check
   ASTNode_t *base = lhs->index.target;

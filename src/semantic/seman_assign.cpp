@@ -10,6 +10,21 @@
 
 static bool is_f32(const char *s) { return s && strchr(s, '.') != NULL; }
 
+static void resolve_nested_numerics(ASTNode_t *n, Type_t *t) {
+  if (!n || !t) return;
+  if (n->kind == AST_NUM) {
+    n->type = t; // Force literal to match target width
+    return;
+  }
+  if (n->kind == AST_LIST && t->base == LIST) {
+    for (ASTNode_t *curr = n->list.elements; curr; ) {
+      ASTNode_t *elem = (curr->kind == AST_SEQ) ? curr->seq.a : curr;
+      resolve_nested_numerics(elem, t->inner);
+      curr = (curr->kind == AST_SEQ) ? curr->seq.b : nullptr;
+    }
+  }
+}
+
 // 1. RESPONSIBILITY: Determine the memory location's type (LHS)
 static void resolve_target_type(ASTNode_t *n, Type_t *&type) {
 
@@ -17,6 +32,8 @@ static void resolve_target_type(ASTNode_t *n, Type_t *&type) {
 
   if (lhs->kind == AST_VAR) {
     if (n->assign.is_declaration) {
+      // If no type was provided in parser (auto-inference), initialize as UNKNOWN
+      if (!n->type) n->type = make_type(UNKNOWN, nullptr);
       type = n->type;
     } else {
       type = TQsemantic_lookup(lhs->var);
@@ -42,20 +59,11 @@ static void resolve_target_type(ASTNode_t *n, Type_t *&type) {
 }
 
 // 2. RESPONSIBILITY: Handle Type Inference and Symbol Registration
-static void process_declaration(ASTNode_t *n, Type_t *lhs_t, Type_t *rhs_t) {
+static void process_declaration(ASTNode_t *n, Type_t *&lhs_t, Type_t *rhs_t) {
 
   ASTNode_t *rhs = n->assign.rhs;
-  if (lhs_t && lhs_t->base == UNKNOWN)
-    lhs_t->base = rhs ? rhs->type->inner->base : UNKNOWN;
-
-  // Type inference for numbers
-  if (n->assign.is_declaration && lhs_t->base == UNKNOWN) {
-    // Inherit the shape from the RHS
-    lhs_t->base = rhs_t->base;
-    lhs_t->inner = rhs_t->inner;
-    lhs_t->size = rhs_t->size;
-  } else if (lhs_t->base == UNKNOWN) {
-    lhs_t = rhs_t;
+  if (n->assign.is_declaration && (lhs_t->base == UNKNOWN || !lhs_t)) {
+      lhs_t = rhs_t;
   }
 
   // Special string/char fallback
@@ -71,6 +79,8 @@ static void process_declaration(ASTNode_t *n, Type_t *lhs_t, Type_t *rhs_t) {
       panic(&file, n->loc, SEM_NUMERIC_LITERAL_OVERFLOW, n->assign.lhs->var);
     rhs_t = rhs->type = lhs_t;
   }
+  
+  resolve_nested_numerics(rhs, lhs_t);
 
   if (!TQsemantic_declare(n->assign.lhs->var, lhs_t, n->assign.is_mutable))
     panic(&file, n->loc, SEM_VAR_REDECL, n->assign.lhs->var);
@@ -78,39 +88,18 @@ static void process_declaration(ASTNode_t *n, Type_t *lhs_t, Type_t *rhs_t) {
 
 // 3. RESPONSIBILITY: Final Type & Pointer Consistency
 static void validate_assignment(ASTNode_t *n, Type_t *lhs_t, Type_t *rhs_t) {
+  // If the types are the same pointer, they are already unified (common in auto-inference)
+  if (lhs_t == rhs_t) return;
+
   // Basic type mismatch (excluding numerics which have their own widening
-  // logic)
-  if (lhs_t != rhs_t && !is_numeric(lhs_t->base) && !is_numeric(rhs_t->base))
+  // logic) or if types are not equal structurally.
+  if (!types_are_equal(lhs_t, rhs_t) && !is_numeric(lhs_t->base) && !is_numeric(rhs_t->base))
     panic(&file, n->loc, SEM_ASSIGN_TYPE_MISMATCH, n->assign.lhs->var);
 
   // Pointer specific validation (sub-type matching)
-  if (lhs_t && lhs_t->base == PTR) {
-    if (rhs_t->base != PTR)
-      panic(&file, n->loc, SEM_ASSIGN_TYPE_MISMATCH, n->assign.lhs->var);
-
-    DataTypes_t rhs_sub = n->assign.rhs->type->inner->base;
-    DataTypes_t lhs_sub = n->assign.lhs->type->inner->base;
-    if (lhs_sub != rhs_sub && !(is_numeric(lhs_sub) && is_numeric(rhs_sub)))
-      panic(&file, n->loc, SEM_ASSIGN_TYPE_MISMATCH, n->assign.lhs->var);
-  }
-
-  if (lhs_t && lhs_t->base == LIST) {
-    if (rhs_t->base != LIST && n->assign.lhs->kind != AST_INDEX)
-      panic(&file, n->loc, SEM_ASSIGN_TYPE_MISMATCH, "Expected list");
-
-    // Check inner types (e.g., list[int] vs list[float])
-    if (!types_are_equal(lhs_t->inner, rhs_t->inner) &&
-        n->assign.lhs->kind != AST_INDEX)
-      panic(&file, n->loc, SEM_ASSIGN_TYPE_MISMATCH,
-            "List element type mismatch");
-
-    // Check fixed size (Rust-style)
-    if (lhs_t->size != 0 && n->assign.rhs->kind == AST_LIST) {
-      if (lhs_t->size != n->assign.rhs->list.count)
-        panic(&file, n->assign.lhs->loc, SEM_LIST_SIZE_MISMATCH,
-              "List size mismatch");
-    } else if (lhs_t->size == 0 && n->assign.rhs->kind == AST_LIST)
-      lhs_t->size = n->assign.rhs->list.count;
+  if (lhs_t && lhs_t->base == PTR && rhs_t && rhs_t->base == PTR) {
+    if (!types_are_equal(lhs_t->inner, rhs_t->inner))
+      panic(&file, n->loc, SEM_ASSIGN_TYPE_MISMATCH, "Pointer target type mismatch");
   }
 
   if (lhs_t->base == LIST && rhs_t->base == LIST) {
@@ -120,9 +109,14 @@ static void validate_assignment(ASTNode_t *n, Type_t *lhs_t, Type_t *rhs_t) {
     // Drill down into the inner types of both sides
     while (l_curr->base == LIST && r_curr->base == LIST) {
       // If fixed sizes are defined, check them
-      if (l_curr->size != 0 && r_curr->size != 0 &&
-          l_curr->size != r_curr->size) {
-        panic(&file, n->loc, SEM_LIST_SIZE_MISMATCH, "Dimension size mismatch");
+      if (l_curr->size != r_curr->size) {
+        if (n->assign.is_declaration && l_curr->size == 0) {
+          // Infer the size from the RHS for unsized declarations
+          l_curr->size = r_curr->size;
+        } else {
+          panic(&file, n->loc, SEM_LIST_SIZE_MISMATCH, "Dimension size mismatch");
+          return;
+        }
       }
 
       l_curr = l_curr->inner;
@@ -135,10 +129,11 @@ static void validate_assignment(ASTNode_t *n, Type_t *lhs_t, Type_t *rhs_t) {
 
     // If one is still a LIST but the other reached a primitive (like i32),
     // it's a dimension mismatch (e.g., list[i32] vs list[list[i32]])
-    if (l_curr->base != r_curr->base) {
+    if (!l_curr || !r_curr || l_curr->base != r_curr->base) {
       panic(&file, n->loc, SEM_ASSIGN_TYPE_MISMATCH,
             "Cannot assign nested list to a list of different dimensions");
     }
+
   }
 }
 

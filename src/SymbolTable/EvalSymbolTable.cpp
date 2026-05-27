@@ -98,7 +98,7 @@ RuntimeBinding *runtime_find_binding(RuntimeFrame *start, const char *name) {
 
 } // namespace
 
-namespace  TQ::runtime_symbol_table {
+namespace  SV::runtime_symbol_table {
 
 void env_push() {
   RuntimeFrame *frame = new RuntimeFrame();
@@ -234,4 +234,4 @@ ASTNode_t *fn_lookup(const char *name) {
 
 void fn_clear() { g_runtime_functions.clear(); }
 
-} // namespace  TQ::runtime_symbol_table
+} // namespace  SV::runtime_symbol_table

@@ -5,6 +5,7 @@
 #include "shared/structs.h"
 #include "utils/error_handler/error.h"
 #include <cstddef>
+#include <string.h>
 
 void ensure_semantic(Module_t *m) {
   if (!m || m->semantic_done)
@@ -46,25 +47,31 @@ extern "C" Type_t *check_expr(ASTNode_t *n, Type_t *&type) {
     return n->type;
 
   case AST_NUM:
-    /* Keep unknown here; we decide during declaration binding. */
-    if (!n->type || n->type->base == UNKNOWN)
-      n->type = type;
-    if (n->type && type) {
-      // 2. Now check if the current base is something that has an 'inner' type
-      if (n->type->base == LIST || n->type->base == PTR) {
-        n->type = (type->inner->base == LIST || type->inner->base == PTR) ? nullptr : type->inner;
+    if (!n->type || n->type->base == UNKNOWN) {
+      if (type && type->base != UNKNOWN) {
+        // If the hint is a container, the number needs the inner type
+        if (type->base == LIST || type->base == PTR) {
+          n->type = type->inner;
+        } else {
+          n->type = type;
+        }
       }
     }
 
+    // Default inference if no hint was provided or hint resulted in UNKNOWN
+    if (!n->type || n->type->base == UNKNOWN) {
+      bool is_f = n->literal.raw && strchr(n->literal.raw, '.') != NULL;
+      n->type = make_type(is_f ? F32 : I32, nullptr);
+    }
     return n->type;
 
   case AST_STR:
-    if (n->type)
+    if (!n->type || n->type->base == UNKNOWN)
       n->type = make_type(STRINGS, NULL);
     return n->type;
 
   case AST_CHAR:
-    if (n->type)
+    if (!n->type || n->type->base == UNKNOWN)
       n->type = make_type(CHARACTER, NULL);
     return n->type;
 
@@ -181,7 +188,11 @@ extern "C" Type_t *check_expr(ASTNode_t *n, Type_t *&type) {
   }
 
   case AST_LIST:
-    return list_handle(n, type);
+    {
+      Type_t* inferred_list_type = list_handle(n, type);
+      if (type && type->base == UNKNOWN) type = inferred_list_type; // Update the passed-in reference
+      return inferred_list_type;
+    }
 
   case AST_INDEX:
     return semantic_index_handle(n);

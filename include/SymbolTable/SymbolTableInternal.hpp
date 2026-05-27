@@ -21,7 +21,7 @@ struct SemanticScopeRecord {
   SemanticScopeRecord *parent = nullptr;
 };
 
-namespace  TQ::runtime_symbol_table {
+namespace  SV::runtime_symbol_table {
 
 void env_push();
 void env_pop();
@@ -38,10 +38,10 @@ bool fn_register(ASTNode_t *fn);
 ASTNode_t *fn_lookup(const char *name);
 void fn_clear();
 
-} // namespace  TQ::runtime_symbol_table
+} // namespace  SV::runtime_symbol_table
 
 
-namespace  TQ::semantic_symbol_table {
+namespace  SV::semantic_symbol_table {
 
 Type_t* lookup(const char *name);
 bool declare(const char *name, Type_t* type, bool is_mutable);
@@ -59,6 +59,6 @@ Module_t *get_module(const char *path);
 Module_t *load_module(const char *path, bool &already_imported);
 extern "C" SemanticSymbolRecord *semantic_find_symbol(const char *name);
 
-} // namespace  TQ::semantic_symbol_table
+} // namespace  SV::semantic_symbol_table
 
 #endif

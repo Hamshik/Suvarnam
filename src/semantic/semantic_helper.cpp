@@ -20,14 +20,14 @@ void type_error(ASTNode_t *n, const char *msg) {
 
 bool types_are_equal(Type_t* a, Type_t* b) {
     // 1. If both are null, they are equal (base case)
-    if (a == b) return true; 
+    if (a == nullptr && b == nullptr) return true;
+    // If one is null and the other is not, they are not equal
     if (!a || !b) return false;
 
-    // 2. Check the base type (e.g., LIST vs LIST)
+    if (is_numeric(a->base) && is_numeric(b->base)) return true;
     if (a->base != b->base) return false;
-
+    
     // 3. Check fixed-size for lists (Rust style)
-    // If either has a size > 0, they must match.
     if (a->size != b->size) return false;
 
     // 4. Recursively check the inner types (the "magic" for nested lists)
