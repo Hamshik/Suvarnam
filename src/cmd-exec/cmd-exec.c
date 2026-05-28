@@ -48,7 +48,7 @@ FILE *open_file(const char *filename, char **resolved_path_out) {
 bool parse_arguments(int argc, char **argv, Options *opts) {
     // Set defaults
     opts->input_filename = NULL;
-    opts->bin_output_path = " SV.out";
+    opts->bin_output_path = "SV.bin";
     opts->emit_ir = false;
     opts->ir_output_path = "out.ll";
 
@@ -141,8 +141,8 @@ int compile_and_execute(ASTNode_t *root, const Options *opts) {
 
     char *clang_argv[] = {
         "clang",
-        "TQlib/helper/printer.c",
-        "TQlib/helper/TQstrcmp.c",
+        "SV_lib/helper/printer.c",
+        "SV_lib/helper/SV_strcmp.c",
         opts->ir_output_path,   // your .ll file
         "-Wl,-e,entrypoint",
         "-no-pie",

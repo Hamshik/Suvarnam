@@ -1,19 +1,19 @@
 #include "eval/eval.h"
 #include "shared/structs.h"
 
-bool TQis_float(DataTypes_t t) {
+bool SV_is_float(DataTypes_t t) {
     return t == F32 || t == F64 || t == F128 || t == UF32 || t == UF64 || t == UF128;
 }
 
-bool TQis_unsigned_int(DataTypes_t t) {
+bool SV_is_unsigned_int(DataTypes_t t) {
     return t == U8 || t == U16 || t == U32 || t == U64 || t == U128;
 }
 
-bool TQis_signed_int(DataTypes_t t) {
+bool SV_is_signed_int(DataTypes_t t) {
     return t == I8 || t == I16 || t == I32 || t == I64 ||t == I128 ;
 }
 
-DataTypes_t TQnorm(DataTypes_t t) {
+DataTypes_t SV_norm(DataTypes_t t) {
     switch (t) {
         case UF32: return F32;
         case UF64: return F64;
@@ -22,7 +22,7 @@ DataTypes_t TQnorm(DataTypes_t t) {
     }
 }
 
-DataTypes_t TQpromote_runtime(DataTypes_t a, DataTypes_t b) {
+DataTypes_t SV_promote_runtime(DataTypes_t a, DataTypes_t b) {
     bool a_is_f = (a == F32 || a == F64 || a == F128);
     bool b_is_f = (b == F32 || b == F64 || b == F128);
     bool a_is_uf = (a == UF32 || a == UF64 || a == UF128);
@@ -37,8 +37,8 @@ DataTypes_t TQpromote_runtime(DataTypes_t a, DataTypes_t b) {
         return want_uf ? UF32 : F32;
     }
 
-    bool a_unsigned = TQis_unsigned_int(a);
-    bool b_unsigned = TQis_unsigned_int(b);
+    bool a_unsigned = SV_is_unsigned_int(a);
+    bool b_unsigned = SV_is_unsigned_int(b);
     bool want_unsigned = a_unsigned || b_unsigned;
 
     if (want_unsigned) {
@@ -56,8 +56,8 @@ DataTypes_t TQpromote_runtime(DataTypes_t a, DataTypes_t b) {
     return I8;
 }
 
-long double TQas_f128( TQValue v, DataTypes_t t) {
-    t = TQnorm(t);
+long double SV_as_f128( SV_Value v, DataTypes_t t) {
+    t = SV_norm(t);
     switch (t) {
         case F32: return (long double)v.f32;
         case F64: return (long double)v.f64;
@@ -77,8 +77,8 @@ long double TQas_f128( TQValue v, DataTypes_t t) {
     }
 }
 
-__int128 TQas_i128( TQValue v, DataTypes_t t) {
-    t = TQnorm(t);
+__int128 SV_as_i128( SV_Value v, DataTypes_t t) {
+    t = SV_norm(t);
     switch (t) {
         case I8: return (__int128)v.i8;
         case I16: return (__int128)v.i16;
@@ -98,8 +98,8 @@ __int128 TQas_i128( TQValue v, DataTypes_t t) {
     }
 }
 
-unsigned __int128 TQas_u128( TQValue v, DataTypes_t t) {
-    t = TQnorm(t);
+unsigned __int128 SV_as_u128( SV_Value v, DataTypes_t t) {
+    t = SV_norm(t);
     switch (t) {
         case U8: return (unsigned __int128)v.u8;
         case U16: return (unsigned __int128)v.u16;
@@ -118,8 +118,8 @@ unsigned __int128 TQas_u128( TQValue v, DataTypes_t t) {
     }
 }
 
-TQValue TQfrom_f128(long double x, DataTypes_t t) {
-   TQValue out = {0};
+SV_Value SV_from_f128(long double x, DataTypes_t t) {
+   SV_Value out = {0};
     switch (t) {
         case F32:
         case UF32:
@@ -139,8 +139,8 @@ TQValue TQfrom_f128(long double x, DataTypes_t t) {
     return out;
 }
 
-TQValue TQfrom_i128(__int128 x, DataTypes_t t) {
-   TQValue out = {0};
+SV_Value SV_from_i128(__int128 x, DataTypes_t t) {
+   SV_Value out = {0};
     switch (t) {
         case I8: out.i8 = (int8_t)x; break;
         case I16: out.i16 = (short)x; break;
@@ -152,8 +152,8 @@ TQValue TQfrom_i128(__int128 x, DataTypes_t t) {
     return out;
 }
 
-TQValue TQfrom_u128(unsigned __int128 x, DataTypes_t t) {
-   TQValue out = {0};
+SV_Value SV_from_u128(unsigned __int128 x, DataTypes_t t) {
+   SV_Value out = {0};
     switch (t) {
         case U8: out.u8 = (uint8_t)x; break;
         case U16: out.u16 = (uint16_t)x; break;
@@ -165,32 +165,32 @@ TQValue TQfrom_u128(unsigned __int128 x, DataTypes_t t) {
     return out;
 }
 
-TypedValue TQcast_typed(TypedValue v, Type_t* target) {
+TypedValue SV_cast_typed(TypedValue v, Type_t* target) {
     if (v.type->base == target->base) return v;
 
     if (target->base == BOOL) {
         if (v.type->base == BOOL) return v;
         return (TypedValue){.type = make_type(BOOL, NULL), 
-            .val = ( TQValue){.bval = TQas_f128(v.val, v.type->base) != 0.0L}};
+            .val = ( SV_Value){.bval = SV_as_f128(v.val, v.type->base) != 0.0L}};
     }
 
-    if (TQis_float(target->base)) {
-        long double x = TQas_f128(v.val, v.type->base);
-        return (TypedValue){.type = target, .val = TQfrom_f128(x, target->base)};
+    if (SV_is_float(target->base)) {
+        long double x = SV_as_f128(v.val, v.type->base);
+        return (TypedValue){.type = target, .val = SV_from_f128(x, target->base)};
     }
-    if (TQis_unsigned_int(target->base)) {
-        unsigned __int128 x = TQas_u128(v.val, v.type->base);
-        return (TypedValue){.type = target, .val = TQfrom_u128(x, target->base)};
+    if (SV_is_unsigned_int(target->base)) {
+        unsigned __int128 x = SV_as_u128(v.val, v.type->base);
+        return (TypedValue){.type = target, .val = SV_from_u128(x, target->base)};
     }
-    if (TQis_signed_int(target->base)) {
-        __int128 x = TQas_i128(v.val, v.type->base);
-        return (TypedValue){.type = target, .val = TQfrom_i128(x, target->base)};
+    if (SV_is_signed_int(target->base)) {
+        __int128 x = SV_as_i128(v.val, v.type->base);
+        return (TypedValue){.type = target, .val = SV_from_i128(x, target->base)};
     }
 
     return v;
 }
 
-TQValue TQpow_i128(__int128 a, __int128 b) {
+SV_Value SV_pow_i128(__int128 a, __int128 b) {
     if (b < 0) DIE("negative exponent");
     unsigned __int128 exp = (unsigned __int128)b;
     __int128 base = a;
@@ -200,10 +200,10 @@ TQValue TQpow_i128(__int128 a, __int128 b) {
         exp >>= 1;
         if (exp) base *= base;
     }
-    return ( TQValue){.i128 = result};
+    return ( SV_Value){.i128 = result};
 }
 
-TQValue TQpow_u128(unsigned __int128 a, unsigned __int128 b) {
+SV_Value SV_pow_u128(unsigned __int128 a, unsigned __int128 b) {
     unsigned __int128 exp = b;
     unsigned __int128 base = a;
     unsigned __int128 result = 1;
@@ -212,7 +212,7 @@ TQValue TQpow_u128(unsigned __int128 a, unsigned __int128 b) {
         exp >>= 1;
         if (exp) base *= base;
     }
-    return ( TQValue){.u128 = result};
+    return ( SV_Value){.u128 = result};
 }
 
 OP_kind_t get_assign_op(OP_kind_t op) {
@@ -248,7 +248,7 @@ bool isBoolOP(OP_kind_t op){
     }
 }
 
-unsigned __int128 TQparse_u128(const char *s, int *ok){
+unsigned __int128 SV_parse_u128(const char *s, int *ok){
     if (ok) *ok = 0;
     if (!s || !*s) return 0;
     unsigned __int128 v = 0;
@@ -260,14 +260,14 @@ unsigned __int128 TQparse_u128(const char *s, int *ok){
     return v;
 }
 
-__int128 TQparse_i128(const char *s, int *ok) {
+__int128 SV_parse_i128(const char *s, int *ok) {
     if (ok) *ok = 0;
     if (!s || !*s) return 0;
     int neg = 0;
     if (*s == '-') { neg = 1; s++; }
     else if (*s == '+') { s++; }
     int ok_u = 0;
-    unsigned __int128 u = TQparse_u128(s, &ok_u);
+    unsigned __int128 u = SV_parse_u128(s, &ok_u);
     if (!ok_u) return 0;
     if (ok) *ok = 1;
     return neg ? -(__int128)u : (__int128)u;

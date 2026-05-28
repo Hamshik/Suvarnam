@@ -71,7 +71,6 @@ typedef enum OP_kind {
     OP_LSHIFT_ASSIGN, OP_RSHIFT_ASSIGN,
     OP_INC, OP_DEC,
     OP_ADDR, OP_DEREF,
-    OP_RANGE
 } OP_kind_t;
 
 /* error/warn enums*/
@@ -132,6 +131,7 @@ typedef enum errc {
     SEM_FOR_ITERABLE_INVALID_TYPE = 1108,
     SEM_BREAK_OUTSIDE_LOOP = 1109,
     SEM_CONTINUE_OUTSIDE_LOOP = 1110,
+    SEM_RANGE_STEP_ERROR = 1111,
 
     /*LLVM ERROR*/
     INVAILD_UTF8_CHAR = 2000,
@@ -160,5 +160,5 @@ typedef enum warnc {
     SEM_UNUSED_VAR = 1102,
     SEM_UNUSED_FN = 1103,
     SEM_TYPE_WIDENED = 1104,
-    SEM_UNKNOWN_TYPE = 1199
+    SEM_UNKNOWN_TYPE = 1199,
 } warnc_t;

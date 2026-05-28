@@ -36,23 +36,23 @@ static const char *g_last_parse_err_msg = NULL;
   } while (0)
 #endif
 
-#define TQSET_NODE_LOC(node, loc)                                              \
+#define SV_SET_NODE_LOC(node, loc)                                              \
   do {                                                                         \
     if ((node) != NULL)                                                        \
       (node)->loc = (loc);                                                     \
   } while (0)
 
-#define TQerror_LOC(loc, code, detail) panic(&file, (loc), (code), (detail))
+#define SV_error_LOC(loc, code, detail) panic((loc), (code), (detail))
 
-extern file_t file;
+extern file_t* file;
 
-void TQannotate_decl_list(ASTNode_t *n, DataTypes_t default_t, DataTypes_t default_sub_type, bool is_mutable);
+void SV_annotate_decl_list(ASTNode_t *n, DataTypes_t default_t, DataTypes_t default_sub_type, bool is_mutable);
 
 /* ----------------- external function declaration --------------------------*/
 
-void panic(file_t *file,TQLocation loc, errc_t code, const char *detail);
-void warn(file_t *file, TQLocation loc, warnc_t code, const char *detail);
-unsigned __int128 TQparse_u128(const char *s, int *ok);
+void panic(SV_Location loc, errc_t code, const char *detail);
+void warn(file_t *file, SV_Location loc, warnc_t code, const char *detail);
+unsigned __int128 SV_parse_u128(const char *s, int *ok);
 
 #ifdef __cplusplus
 }

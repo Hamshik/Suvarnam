@@ -4,22 +4,22 @@
 #include "utils/uhash.h"
 #include <stdio.h>
 
-extern file_t file;
+extern file_t* file;
 ASTNode_t *root = NULL; // This is the single correct place for the definition
 static int g_returning = 0;
 static TypedValue g_return_value = (TypedValue){0};
 
 TypedValue ast_eval_main(ASTNode_t *root) {
-  TQruntime_fn_clear();
+  SV_runtime_fn_clear();
   /* first pass: register all function definitions */
   if (root)
     ast_eval(root); /* ast_eval registers functions on AST_FN */
-  ASTNode_t *main_fn = TQruntime_fn_lookup("main");
+  ASTNode_t *main_fn = SV_runtime_fn_lookup("main");
   if (!main_fn) {
-    panic(&file, (TQLocation){1, 1, 0, 0, 0, 0}, SEM_CALL_UNDEF_FN, "main");
+    panic( (SV_Location){1, 1, 0, 0, 0, 0}, SEM_CALL_UNDEF_FN, "main");
     return (TypedValue){0};
   }
-  ASTNode_t *call = new_fn_call("main", NULL, (TQLocation){0});
+  ASTNode_t *call = new_fn_call("main", NULL, (SV_Location){0});
   TypedValue ret = ast_eval(call);
   ast_free(call);
   return ret;
@@ -28,8 +28,8 @@ TypedValue ast_eval_main(ASTNode_t *root) {
 static void fn_register_runtime(ASTNode_t *fn) {
   if (!fn || fn->kind != AST_FN)
     return;
-  if (!TQruntime_fn_register(fn)) {
-    panic(&file, fn->loc, SEM_FN_REDECL, fn->fn_def.name);
+  if (!SV_runtime_fn_register(fn)) {
+    panic( fn->loc, SEM_FN_REDECL, fn->fn_def.name);
   }
 }
 
@@ -54,7 +54,7 @@ TypedValue ast_eval(ASTNode_t *node) {
     return v;
 
   case AST_VAR:
-    v.val = TQruntime_env_get(node->var, node->type, node->loc);
+    v.val = SV_runtime_env_get(node->var, node->type, node->loc);
     // If the node type is UNKNOWN, we should try to determine the type
     // from the environment lookup rather than just trusting node->type.
     v.type = (node->type && node->type->base != UNKNOWN) ? node->type
@@ -69,12 +69,12 @@ TypedValue ast_eval(ASTNode_t *node) {
   case AST_ASSIGN: {
     if (node->assign.op == OP_ASSIGN && node->assign.is_declaration) {
       TypedValue rt0 = ast_eval(node->assign.rhs);
-      TypedValue rt = TQcast_typed(rt0, node->type);
-      TQruntime_env_set_current(node->assign.lhs->var, &rt.val, node->type);
+      TypedValue rt = SV_cast_typed(rt0, node->type);
+      SV_runtime_env_set_current(node->assign.lhs->var, &rt.val, node->type);
       return (TypedValue){.val = rt.val, .type = node->type};
     }
 
-    TQValue val = eval_assign(node->assign.lhs, node->assign.rhs,
+    SV_Value val = eval_assign(node->assign.lhs, node->assign.rhs,
                               node->assign.op, node->type, node->loc);
     return (TypedValue){.val = val, .type = node->type};
   }
@@ -119,8 +119,8 @@ TypedValue ast_eval(ASTNode_t *node) {
                         // Ensure raw is a valid pointer before dereferencing
                         .val =
                             (node->literal.raw && node->literal.raw[0] == 't')
-                                ? (TQValue){.bval = true}
-                                : (TQValue){.bval = false}};
+                                ? (SV_Value){.bval = true}
+                                : (SV_Value){.bval = false}};
 
   case AST_FN:
     fn_register_runtime(node);
@@ -141,7 +141,7 @@ TypedValue ast_eval(ASTNode_t *node) {
   case AST_IMPORT: {
     bool already_imported = false;
     Module_t *module =
-        TQsemantic_load_module(node->importNode.path, &already_imported);
+        SV_semantic_load_module(node->importNode.path, &already_imported);
     if (module && module->ast && !already_imported) {
       ast_eval(module->ast);
     }
@@ -187,7 +187,7 @@ TypedValue ast_eval(ASTNode_t *node) {
 
       // Safety check: ensure we are actually indexing a list
       if (current_target.type->base != LIST || current_target.val.raw == NULL) {
-        panic(&file, node->index.target->loc, RT_INDEX_OUT_OF_BOUNDS, node->index.target->var);
+        panic( node->index.target->loc, RT_INDEX_OUT_OF_BOUNDS, node->index.target->var);
         break;
       }
 
@@ -209,7 +209,7 @@ TypedValue ast_eval(ASTNode_t *node) {
   }
 
   default:
-    panic(&file, node ? node->loc : (TQLocation){0}, RT_UNKNOWN_AST, NULL);
+    panic( node ? node->loc : (SV_Location){0}, RT_UNKNOWN_AST, NULL);
     return (TypedValue){0};
   }
 }

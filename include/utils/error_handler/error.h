@@ -17,8 +17,8 @@ int digits_int(int v);
 int starts_with(const char *s, const char *prefix);
 char *read_entire_path(FILE *file, size_t *out_len);
 
-void panic(file_t *file, TQLocation loc, errc_t code, const char *detail);
-void warn(file_t *file, TQLocation loc, warnc_t code, const char *detail);
+void panic(SV_Location loc, errc_t code, const char *detail);
+void warn(SV_Location loc, warnc_t code, const char *detail);
 void syserr(const char *context);
 void syswarn(const char *context);
 

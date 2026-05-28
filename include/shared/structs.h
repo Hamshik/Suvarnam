@@ -14,7 +14,7 @@ typedef struct file_t {
     FILE* source;
 } file_t;
 
-extern file_t file;
+extern file_t *file;
 extern size_t err_no;
 extern size_t warn_no;
 extern bool isError;
@@ -22,14 +22,14 @@ extern bool isWarning;
 extern bool error_fatal;
 
 /* Extended source location that includes absolute byte offsets. */
-typedef struct TQLocation {
+typedef struct SV_Location {
   size_t first_line;
   size_t first_column;
   size_t first_pos; /* 0-based byte offset */
   size_t last_line;
   size_t last_column;
   size_t last_pos;  /* 0-based byte offset */
-} TQLocation;
+} SV_Location;
 
 typedef struct idx_expr{
     struct ASTNode* expr_node; // for expr like [i[0] + 1] ect
@@ -37,16 +37,16 @@ typedef struct idx_expr{
     struct idx_expr* next; // next of i[]of i[][]... <- this one
 } idx_expr_t;
 
-typedef struct TQPtr {
+typedef struct SV_Ptr {
     size_t frame_id;
     char *name;
-} TQPtr;
+} SV_Ptr;
 
-typedef struct TQRange {
+typedef struct SV_Range {
     int64_t start;
     int64_t end;
     int64_t step;
-} TQRange;
+} SV_Range;
 
 typedef union {
     /* signed numeric type */
@@ -67,15 +67,15 @@ typedef union {
     uint64_t u64;
     unsigned __int128 u128;
 
-    TQPtr ptr;
-    TQRange range;
+    SV_Ptr ptr;
+    SV_Range range;
 
     bool bval;
     char* chars;
     char* str;
 
     void* raw;
-} TQValue;
+} SV_Value;
 
 
 typedef struct Types{
@@ -86,7 +86,7 @@ typedef struct Types{
 
 typedef struct {
     Type_t* type;
-    TQValue val;
+    SV_Value val;
 } TypedValue;
 typedef struct Param {
     char *name;
@@ -99,7 +99,7 @@ typedef struct ASTNode {
     Type_t* type;
     
     bool ismut;
-    TQLocation loc; /* 0-based byte offset (start) */ /* 0-based byte offset (end) */ 
+    SV_Location loc; /* 0-based byte offset (start) */ /* 0-based byte offset (end) */ 
 
     union {
         // variables

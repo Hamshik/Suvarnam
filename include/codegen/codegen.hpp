@@ -6,14 +6,14 @@ extern "C" {
 
 #include "shared/structs.h"
 
-extern file_t file;
+extern file_t* file;
 /* If ll_path is non-NULL, writes IR there. If ir_out is non-NULL, allocates a
  * NUL-terminated copy of the textual IR (caller free). Returns 0 on success. */
 
 int codegen(ASTNode_t *root, const char *ll_path, char **ir_out);
-unsigned __int128  TQparse_u128(const char *s, int *ok);
-__int128  TQparse_i128(const char *s, int *ok);
-void panic(file_t *file, TQLocation loc, errc_t code, const char *detail);
+unsigned __int128  SV_parse_u128(const char *s, int *ok);
+__int128  SV_parse_i128(const char *s, int *ok);
+void panic( SV_Location loc, errc_t code, const char *detail);
 void syserr(const char *context);
 
 #ifdef __cplusplus
@@ -41,6 +41,7 @@ enum class Utf8Error {
 using namespace llvm;
 using LocalMap = std::unordered_map<std::string, AllocaInst *>;
 using argvec = std::vector<llvm::Value *>;
+struct RangeScalars { llvm::Value *start, *end, *step; };
 
 bool is_unsigned_dtype(DataTypes_t t);
 bool is_float_dtype(DataTypes_t t);
@@ -84,9 +85,11 @@ uint32_t decode_utf8(const char *raw_ptr, size_t raw_len, size_t *byte_len,
 llvm::Value* generateList(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b, IRBuilder<> &entryBuilder, LocalMap &locals);
 Value *generateListAccess(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b, IRBuilder<> &entryBuilder, LocalMap &locals);
 Value *generateListElementPtr(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b, IRBuilder<> &entryBuilder, LocalMap &locals);
-char* TQconcat(const char *a, const char *b);
+char* SV_concat(const char *a, const char *b);
 Value *to_i8_ptr(Value *v, IRBuilder<> &b) ;
 Value *emit_char_to_string(Value *ch, LLVMContext &ctx, IRBuilder<> &b);
 Value *emit_char(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b);
 Value *emit_strs(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b);
+llvm::Value* emit_range(ASTNode_t *n, llvm::LLVMContext &ctx, llvm::IRBuilder<> &b,
+                           llvm::IRBuilder<> &entryBuilder, LocalMap &locals);
 #endif

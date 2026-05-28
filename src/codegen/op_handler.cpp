@@ -20,19 +20,6 @@ llvm::Value *emit_binop(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
 
   switch (n->bin.op) {
 
-  case OP_RANGE: {
-    // Create a struct { i64 start, i64 end }
-    llvm::Type *i64 = llvm::Type::getInt64Ty(ctx);
-    llvm::StructType *rangeTy = llvm::StructType::get(ctx, {i64, i64});
-    
-    llvm::Value *rangeVal = llvm::UndefValue::get(rangeTy);
-    llvm::Value *start = b.CreateIntCast(L, i64, !is_unsigned);
-    llvm::Value *end = b.CreateIntCast(R, i64, !is_unsigned);
-    
-    rangeVal = b.CreateInsertValue(rangeVal, start, 0);
-    return b.CreateInsertValue(rangeVal, end, 1);
-  }
-
   case OP_ADD: {
     if (n->type->base == STRINGS) return emit_add_strs(n, ctx, b, entryBuilder, locals, L, R);
 

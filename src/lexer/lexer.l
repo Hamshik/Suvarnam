@@ -12,10 +12,10 @@
 
     #include "lexer/lexer.h"
 
-    static int TQbrace_depth = 0;
-    static int TQcomment_start_line = 1;
-    static int TQcomment_start_col = 1;
-    static int TQcomment_start_pos = 0;
+    static int SV_brace_depth = 0;
+    static int SV_comment_start_line = 1;
+    static int SV_comment_start_col = 1;
+    static int SV_comment_start_pos = 0;
 
 %}
 
@@ -26,20 +26,20 @@
 [ \t\r\n]+                   { /* skip */ }
 
 "'''"                        {
-    TQcomment_start_line = yylloc->first_line;
-    TQcomment_start_col = yylloc->first_column;
-    TQcomment_start_pos = yylloc->first_pos;
+    SV_comment_start_line = yylloc->first_line;
+    SV_comment_start_col = yylloc->first_column;
+    SV_comment_start_pos = yylloc->first_pos;
     BEGIN(COMMENT3);
 }
 <COMMENT3>"'''"               { BEGIN(INITIAL); }
 <COMMENT3>\n                  { /* skip */ }
 <COMMENT3>.                   { /* skip */ }
 <COMMENT3><<EOF>>             {
-    panic(&file,
-          (TQLocation){
-            TQcomment_start_line,
-            TQcomment_start_col,
-            TQcomment_start_pos,
+    panic(
+          (SV_Location){
+            SV_comment_start_line,
+            SV_comment_start_col,
+            SV_comment_start_pos,
             0,0,0
           },
           LEX_UNCLOSED_COMMENT,
@@ -56,11 +56,11 @@
     int err_i = -1;
     const char *err_msg = NULL;
 
-    char *s = TQunescape_string(inner, inner_len, &out_len, &err_i, &err_msg);
+    char *s = SV_unescape_string(inner, inner_len, &out_len, &err_i, &err_msg);
     if (!s) {
         int off = (err_i >= 0) ? err_i : 0;
-        panic(&file,
-            (TQLocation){
+        panic(
+            (SV_Location){
               yylloc->first_line,
               yylloc->first_column + 1 + off,
               yylloc->first_pos + 1 + off,
@@ -83,11 +83,11 @@
     int err_i = -1;
     const char *err_msg = NULL;
 
-    char *s = TQunescape_string(inner, inner_len, &out_len, &err_i, &err_msg);
+    char *s = SV_unescape_string(inner, inner_len, &out_len, &err_i, &err_msg);
     if (!s || out_len == 0) {
         int off = (err_i >= 0) ? err_i : 0;
-        panic(&file,
-            (TQLocation){
+        panic(
+            (SV_Location){
               yylloc->first_line,
               yylloc->first_column + 1 + off,
               yylloc->first_pos + 1 + off,
@@ -100,9 +100,9 @@
     }
 
     /* enforce exactly one UTF-8 codepoint */
-    if (!TQutf8_single(s, out_len)) {
-        panic(&file,
-            (TQLocation){
+    if (!SV_utf8_single(s, out_len)) {
+        panic(
+            (SV_Location){
               yylloc->first_line,
               yylloc->first_column + 1,
               yylloc->first_pos + 1,
@@ -219,8 +219,8 @@ fn                  { return FN; }
 ">="                { return GE; }
 "<"                 { return LT; }
 ">"                 { return GT; }
-"{"                 { TQbrace_depth++; return LBRACE; }
-"}"                 { if (  TQbrace_depth > 0) TQbrace_depth--; return RBRACE; }
+"{"                 { SV_brace_depth++; return LBRACE; }
+"}"                 { if (  SV_brace_depth > 0) SV_brace_depth--; return RBRACE; }
 ".."                { return DOT_DOT;}
 
 [a-zA-Z_][a-zA-Z0-9_]*|[a-zA-Z_] {
@@ -232,20 +232,20 @@ fn                  { return FN; }
     unsigned char b0 = (unsigned char)yytext[0];
     char detail[32];
     snprintf(detail, sizeof(detail), "0x%02X", b0);
-    TQLocation loc;
+    SV_Location loc;
     if (yylloc) {
         loc = *yylloc;
     } else {
-        TQlexer_get_cursor(&loc);
+        SV_lexer_get_cursor(&loc);
     }
-    panic(&file, loc, LEX_UNKNOWN_CHAR, detail);
+    panic( loc, LEX_UNKNOWN_CHAR, detail);
 }
 
 <<EOF>>             {
-    if (TQbrace_depth > 0) {
-        TQLocation loc;
-        TQlexer_get_cursor(&loc);
-        panic(&file, loc, PARSE_UNCLOSED_BRACE, NULL);
+    if (SV_brace_depth > 0) {
+        SV_Location loc;
+        SV_lexer_get_cursor(&loc);
+        panic( loc, PARSE_UNCLOSED_BRACE, NULL);
     }
     return 0;
 }

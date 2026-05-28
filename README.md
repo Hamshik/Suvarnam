@@ -30,11 +30,21 @@ Use the provided build script to compile the project:
 cmake --build build
 ```
 
-### Compiling and Running Programs
-To compile a `.tq` source file:
+**before running thid cmd run**
 
 ```bash
-./bin/Complier source/test.tq
+cmake -S . -B build
 ```
 
-This will generate an executable in the `output/` directory.
+### Compiling and Running Programs
+To compile a `.sv` source file:
+
+```bash
+./build/suvarnam source/test.sv
+```
+
+This will generate an executable in the `SV.bin` file or **you can do this instead**.
+
+```bash
+./build/suvarnam path/to/source_file.sv -o path/to/output_file.bin
+```

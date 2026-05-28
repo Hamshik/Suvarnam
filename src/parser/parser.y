@@ -1,7 +1,7 @@
 %define api.pure full
 %define parse.error verbose
 
-%define api.location.type { TQLocation }
+%define api.location.type { SV_Location }
 %locations
 
 %expect 0
@@ -17,6 +17,8 @@
     #include <stdio.h>
     #include <stdlib.h>
     #include <string.h>
+
+    char *logf_msg(const char *fmt, ...);
 }
 
 %union{
@@ -54,7 +56,7 @@
 
 %type <node>  top_level_stmts block if_stmt for_stmt while_stmt import_stmt expr_stmts call_stmt
 %type <node> fn_def param return_stmt opt_args args list_stmt expr_stmt top_level_stmt index_stmt fn_block_t
-%type <node> lvalue import_list expr assignment program iterable 
+%type <node> lvalue import_list expr assignment program range 
 %type <paramlist> opt_params params
 %type <type> recursive_type
 %type <size> opt_list_size
@@ -108,20 +110,20 @@ top_level_stmts: /* empty */    { $$ = NULL; }
 
 expr_stmt:
     assignment SEMICOLON        { $$ = $1; }
-    | assignment error          { TQerror_LOC(@2, PARSE_MISSING_SEMI, g_last_parse_err_msg); yyerrok; $$ = $1; }
+    | assignment error          { SV_error_LOC(@2, PARSE_MISSING_SEMI, g_last_parse_err_msg); yyerrok; $$ = $1; }
     | expr SEMICOLON            { $$ = $1; }
-    | expr error                { TQerror_LOC(@2, PARSE_MISSING_SEMI, g_last_parse_err_msg); yyerrok; $$ = $1; }
+    | expr error                { SV_error_LOC(@2, PARSE_MISSING_SEMI, g_last_parse_err_msg); yyerrok; $$ = $1; }
     | block                     { $$ = $1; }
     | return_stmt SEMICOLON     { $$ = $1; }
-    | return_stmt error         { TQerror_LOC(@2, PARSE_MISSING_SEMI, g_last_parse_err_msg); yyerrok; $$ = $1; }
-    | error SEMICOLON           { panic(&file, @1, PARSE_SYNTAX, g_last_parse_err_msg); yyerrok; $$ = NULL; }
+    | return_stmt error         { SV_error_LOC(@2, PARSE_MISSING_SEMI, g_last_parse_err_msg); yyerrok; $$ = $1; }
+    | error SEMICOLON           { panic( @1, PARSE_SYNTAX, g_last_parse_err_msg); yyerrok; $$ = NULL; }
     | if_stmt                   { $$ = $1; }
     | for_stmt                  { $$ = $1; }
     | while_stmt                { $$ = $1; }
     | CONTINUE SEMICOLON       { $$= new_continue(@$); }
     | BREAK SEMICOLON           { $$= new_break(@$); }
     | error {
-        panic(&file, @$, PARSE_SYNTAX, g_last_parse_err_msg);
+        panic( @$, PARSE_SYNTAX, g_last_parse_err_msg);
         yyerrok;
         $$ = NULL; 
     }
@@ -163,7 +165,7 @@ if_stmt:
         { $$ = new_if($3, $5, $7, @$); }
 ;
 
-iterable:
+range:
       expr DOT_DOT expr 
         { $$ = new_range($1, $3, NULL, false); }
     | expr DOT_DOT expr DOT_DOT expr 
@@ -172,24 +174,24 @@ iterable:
         { $$ = new_range($1, $4, NULL, true); }
     | expr DOT_DOT ASSIGN expr DOT_DOT expr 
         { $$ = new_range($1, $4, $6, true); }
-    | IDENTIFIER { $$ = $1; }
 ;
+
 for_stmt:
       // like for i : 0..1
-      FOR LPAREN IDENTIFIER[id] IN iterable[iter] RPAREN expr_stmt[body]
+      FOR LPAREN IDENTIFIER[id] IN expr[iter] RPAREN expr_stmt[body]
     {
         $$ = new_for($id->var, $iter, $body, @$, false);
         free($id);
     }
-    | FOR LPAREN MUT IDENTIFIER[id] IN iterable[iter] RPAREN expr_stmt[body]
+    | FOR LPAREN MUT IDENTIFIER[id] IN expr[iter] RPAREN expr_stmt[body]
     { 
         $$ = new_for($id->var, $iter, $body, @$, true); 
         free($id);
     }
     // like for 0..1
-    | FOR LPAREN iterable[iter] RPAREN expr_stmt[body]
+    | FOR LPAREN range[iter] RPAREN expr_stmt[body]
     {
-        $$ = new_for(NULL, $iter, $body, @$, false);
+        $$ = new_for("__SV temp idx__", $iter, $body, @$, false);
     }
 ;
 
@@ -199,7 +201,7 @@ while_stmt:
     | WHILE LPAREN expr[cond] RPAREN COLON LPAREN assignment[assigns] RPAREN expr_stmt[body]
     {
         if($assigns->assign.op == OP_ASSIGN)
-            panic(&file, @1, PARSE_SYNTAX, "expr expects operational assignment not just plain assign");
+            panic( @1, PARSE_SYNTAX, "expr expects operational assignment not just plain assign");
         $$ = new_while($cond, $body, $assigns, @$);
     }
 ;
@@ -260,7 +262,7 @@ params:
 
 opt_list_size:
     SEMICOLON        { $$ = 0; } // Handle list[int; ]
-    | SEMICOLON NUMBER { $$ = (size_t)TQparse_u128($2->literal.raw, NULL); }
+    | SEMICOLON NUMBER { $$ = (size_t)SV_parse_u128($2->literal.raw, NULL); }
 ;
 
 recursive_type:
@@ -382,10 +384,11 @@ expr:
     | IDENTIFIER DEC %prec POSTFIX
         { $$ = new_unop($1, @$, OP_DEC); }
 
-    | LPAREN expr RPAREN            { $$ = $2; }
-    | call_stmt                     { $$ = $$; }
+    | LPAREN expr RPAREN          { $$ = $2; }
+    | call_stmt                   { $$ = $$; }
     | list_stmt                   { $$ = $1; } 
     | index_stmt                  { $$ = $1; }
+    | LBRACE range[iter] RBRACE      { $$ = $iter; }  
 
 ;
 
@@ -401,7 +404,7 @@ assignment:
         $$ = new_assign($3, $5, $2, false, @$, OP_ASSIGN);
         $$->assign.is_declaration = true;
         if($3->kind == AST_UNOP && $3->unop.op == OP_DEREF)
-            TQerror_LOC(@3, PARSE_SYNTAX, g_last_parse_err_msg);
+            SV_error_LOC(@3, PARSE_SYNTAX, g_last_parse_err_msg);
     }
 
     /* var mut x = ... */
@@ -409,14 +412,14 @@ assignment:
         $$ = new_assign($4, $6, $3, true, @$, OP_ASSIGN);
         $$->assign.is_declaration = true;
         if($4->kind == AST_UNOP && $4->unop.op == OP_DEREF)
-            TQerror_LOC(@4, PARSE_SYNTAX, g_last_parse_err_msg);
+            SV_error_LOC(@4, PARSE_SYNTAX, g_last_parse_err_msg);
     }
 
     | VAR lvalue ASSIGN expr {
         $$ = new_assign($2, $4, NULL, false, @$, OP_ASSIGN);
         $$->assign.is_declaration = true;
         if($2->kind == AST_UNOP && $2->unop.op == OP_DEREF)
-            TQerror_LOC(@3, PARSE_SYNTAX, g_last_parse_err_msg);
+            SV_error_LOC(@3, PARSE_SYNTAX, g_last_parse_err_msg);
     }
 
     /* var mut x = ... */
@@ -424,7 +427,7 @@ assignment:
         $$ = new_assign($3, $5, NULL, true, @$, OP_ASSIGN);
         $$->assign.is_declaration = true;
         if($3->kind == AST_UNOP && $3->unop.op == OP_DEREF)
-            TQerror_LOC(@4, PARSE_SYNTAX, g_last_parse_err_msg);
+            SV_error_LOC(@4, PARSE_SYNTAX, g_last_parse_err_msg);
     }
 
     | lvalue ASSIGN expr

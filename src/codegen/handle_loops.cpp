@@ -1,181 +1,128 @@
 #include "codegen/codegen.hpp"
-#include <vector>
 #include <string>
+#include <vector>
 
 struct LoopContext {
-    llvm::BasicBlock *continuationBB; // Targets for 'continue'
-    llvm::BasicBlock *exitBB;         // Targets for 'break'
+  llvm::BasicBlock *continuationBB; // Targets for 'continue'
+  llvm::BasicBlock *exitBB;         // Targets for 'break'
 };
 
+llvm::Value *unpack_list_element(llvm::Value *iterableVal, llvm::Value *idx, llvm::Type *llvmLoopT, 
+                                 llvm::IRBuilder<> &b, llvm::Type *i64Ty);
+
+RangeScalars unpack_range_iterable(ASTNode_t *iterable, llvm::Type *llvmLoopT, 
+                                   llvm::LLVMContext &ctx, llvm::IRBuilder<> &b, 
+                                   llvm::IRBuilder<> &entryBuilder, LocalMap &locals);
 // Stack to handle nested loops securely
 std::vector<LoopContext> loopStack;
-
-// // Helper to determine if a basic block already has a terminating branch/return instruction
-// bool blockTerminated(llvm::IRBuilder<>& b) {
-//     llvm::BasicBlock* curBB = b.GetInsertBlock();
-//     return curBB && curBB->getTerminator() != nullptr;
-// }
 
 llvm::Value *emit_forloops(ASTNode_t *n, llvm::LLVMContext &ctx, llvm::IRBuilder<> &b,
                            llvm::IRBuilder<> &entryBuilder, LocalMap &locals) {
   ASTNode_t *iterable = n->fornode.iterable;
-  if (!iterable)
-    return nullptr;
+  if (!iterable) return nullptr;
 
   llvm::Function *fn = b.GetInsertBlock()->getParent();
-
-  // 1. Anchor entryBuilder immediately at the top of the function entry block
   llvm::BasicBlock &entryBlock = fn->getEntryBlock();
-  if (!entryBlock.empty()) {
-    entryBuilder.SetInsertPoint(&entryBlock.front());
+  // 1. Anchor entryBuilder safely at the very top of the function entry block
+  if (entryBlock.empty()) {
+    entryBuilder.SetInsertPoint(&entryBlock); // Passes a BasicBlock*
   } else {
-    entryBuilder.SetInsertPoint(&entryBlock);
+    entryBuilder.SetInsertPoint(&entryBlock.front()); // Passes an Instruction*
   }
 
-  // 2. Evaluate the iterable (returns raw array pointer or range struct pointer)
-  llvm::Value *iterableVal = emit_expr(iterable, ctx, b, entryBuilder, locals);
-  if (!iterableVal)
-    return nullptr;
-
-  // Determine element structural scalar types
-  DataTypes_t elemT = (iterable->type && iterable->type->inner)
-                          ? iterable->type->inner->base
-                          : I64;
+  // Determine structural types securely
+  bool isExclusiveRange = (iterable->kind == AST_RANGE) ? iterable->range.isexslusive : false;
+  DataTypes_t elemT = (iterable->type && iterable->type->inner) ? iterable->type->inner->base : I64;
   llvm::Type *llvmLoopT = ir_type(elemT, ctx);
+  llvm::Type *i64Ty = llvm::Type::getInt64Ty(ctx);
 
-  llvm::Value *startV = nullptr;
-  llvm::Value *endV = nullptr;
-  llvm::Value *stepV = nullptr;
-  llvm::Value *dataPtr = nullptr;
+  llvm::Value *iterableVal = emit_expr(iterable, ctx, b, entryBuilder, locals);
+  if (!iterableVal) return nullptr;
+
+  bool isListLoop = (iterable->kind != AST_RANGE) && (!iterable->type || iterable->type->base != RANGE);
+
+  // Initialize tracking value structures via single responsibility methods
+  llvm::Value *startV = nullptr, *endV = nullptr, *stepV = nullptr;
   llvm::AllocaInst *indexPtr = nullptr;
 
-  bool isListLoop = !(iterable->kind == AST_RANGE || (iterable->kind == AST_BINOP && iterable->bin.op == OP_RANGE));
-
   if (!isListLoop) {
-    // --- UNIVERSAL RANGE HANDLING ---
-    llvm::StructType *rangeStructTy = llvm::StructType::getTypeByName(ctx, "struct.range");
-    if (!rangeStructTy) {
-      std::vector<llvm::Type*> rangeFields = { llvmLoopT, llvmLoopT, llvmLoopT };
-      rangeStructTy = llvm::StructType::create(ctx, rangeFields, "struct.range");
-    }
-
-    llvm::Value *startPtr = b.CreateStructGEP(rangeStructTy, iterableVal, 0, "range.start.ptr");
-    startV = b.CreateLoad(llvmLoopT, startPtr, "range.start");
-
-    llvm::Value *endPtr = b.CreateStructGEP(rangeStructTy, iterableVal, 1, "range.end.ptr");
-    endV = b.CreateLoad(llvmLoopT, endPtr, "range.end");
-
-    llvm::Value *stepPtr = b.CreateStructGEP(rangeStructTy, iterableVal, 2, "range.step.ptr");
-    stepV = b.CreateLoad(llvmLoopT, stepPtr, "range.step");
+    auto [s, e, st] = unpack_range_iterable(iterable, llvmLoopT, ctx, b, entryBuilder, locals);
+    startV = s; endV = e; stepV = st;
+    if (!startV) return nullptr;
   } else {
-    // --- PURE RAW POINTER LIST HANDLING (COMPILE-TIME LENGTH) ---
-    dataPtr = iterableVal; 
-
-    uint64_t staticLength = 0;
-    if (iterable->type) {
-        staticLength = iterable->type->size; 
-    }
-    if (staticLength == 0) staticLength = 3; 
-
-    startV = llvm::ConstantInt::get(llvm::Type::getInt64Ty(ctx), 0);
-    endV = llvm::ConstantInt::get(llvm::Type::getInt64Ty(ctx), staticLength);
-    stepV = llvm::ConstantInt::get(llvm::Type::getInt64Ty(ctx), 1);
-
-    indexPtr = entryBuilder.CreateAlloca(llvm::Type::getInt64Ty(ctx), nullptr, "loop.index.ptr");
+    uint64_t staticLength = iterable->type ? iterable->type->size : 0;
+    startV = llvm::ConstantInt::get(i64Ty, 0);
+    endV   = llvm::ConstantInt::get(i64Ty, staticLength);
+    stepV  = llvm::ConstantInt::get(i64Ty, 1);
+    indexPtr = entryBuilder.CreateAlloca(i64Ty, nullptr, "loop.index.ptr");
     b.CreateStore(startV, indexPtr);
   }
 
-  // Allocate the user's explicit loop iteration counter variable ('i')
+  // Allocate user iterator register space
   std::string varName = n->fornode.iterator_var_name;
   llvm::AllocaInst *varPtr = entryBuilder.CreateAlloca(llvmLoopT, nullptr, varName);
   locals[varName] = varPtr;
+  if (!isListLoop) b.CreateStore(startV, varPtr);
 
-  if (!isListLoop) {
-    b.CreateStore(startV, varPtr); 
-  }
-
-  // Generate Loop Blocks
-  llvm::BasicBlock *condBB = llvm::BasicBlock::Create(ctx, "for.cond", fn);
-  llvm::BasicBlock *bodyBB = llvm::BasicBlock::Create(ctx, "for.body", fn);
-  llvm::BasicBlock *stepBB = llvm::BasicBlock::Create(ctx, "for.step", fn);
+  // Structural Blocks Allocation
+  llvm::BasicBlock *condBB  = llvm::BasicBlock::Create(ctx, "for.cond", fn);
+  llvm::BasicBlock *bodyBB  = llvm::BasicBlock::Create(ctx, "for.body", fn);
+  llvm::BasicBlock *stepBB  = llvm::BasicBlock::Create(ctx, "for.step", fn);
   llvm::BasicBlock *afterBB = llvm::BasicBlock::Create(ctx, "for.end", fn);
 
-  // Push context: continue goes to stepBB, break goes to afterBB
   loopStack.push_back({stepBB, afterBB});
   b.CreateBr(condBB);
 
-  // --- 1. COND BLOCK ---
+  // --- 1. CONDITION BLOCK ---
   b.SetInsertPoint(condBB);
-
-  llvm::Value *curCounter =
-      isListLoop ? b.CreateLoad(llvm::Type::getInt64Ty(ctx), indexPtr, "loop.index")
-                 : b.CreateLoad(llvmLoopT, varPtr, varName);
-
   llvm::Value *cmp = nullptr;
-
   if (isListLoop) {
-    cmp = b.CreateICmpULT(curCounter, endV, "loop.cmp");
+    llvm::Value *curIdx = b.CreateLoad(i64Ty, indexPtr, "loop.index");
+    cmp = b.CreateICmpULT(curIdx, endV, "loop.cmp");
   } else {
-    bool isExclusive = n->fornode.iterable->range.isexslusive; 
+    llvm::Value *curV = b.CreateLoad(llvmLoopT, varPtr, varName);
     bool stepNeg = false;
     if (auto *ci = llvm::dyn_cast<llvm::ConstantInt>(stepV)) stepNeg = ci->isNegative();
 
     if (is_unsigned_dtype(elemT)) {
-      cmp = isExclusive ? b.CreateICmpULT(curCounter, endV) : b.CreateICmpULE(curCounter, endV);
+      cmp = isExclusiveRange ? b.CreateICmpULT(curV, endV) : b.CreateICmpULE(curV, endV);
     } else if (stepNeg) {
-      cmp = isExclusive ? b.CreateICmpSGT(curCounter, endV) : b.CreateICmpSGE(curCounter, endV);
+      cmp = isExclusiveRange ? b.CreateICmpSGT(curV, endV) : b.CreateICmpSGE(curV, endV);
     } else {
-      cmp = isExclusive ? b.CreateICmpSLT(curCounter, endV) : b.CreateICmpSLE(curCounter, endV);
+      cmp = isExclusiveRange ? b.CreateICmpSLT(curV, endV) : b.CreateICmpSLE(curV, endV);
     }
   }
-
   b.CreateCondBr(cmp, bodyBB, afterBB);
 
   // --- 2. BODY BLOCK ---
   b.SetInsertPoint(bodyBB);
-
   if (isListLoop) {
-    llvm::Value *idx = b.CreateLoad(llvm::Type::getInt64Ty(ctx), indexPtr, "loop.index.val");
-    llvm::Value *elemPtr = nullptr;
-
-    if (iterableVal->getType()->isArrayTy()) {
-      llvm::Value *indices[] = {llvm::ConstantInt::get(llvm::Type::getInt64Ty(ctx), 0), idx};
-      elemPtr = b.CreateInBoundsGEP(iterableVal->getType(), iterableVal, indices, "elem.ptr");
-    } else {
-      elemPtr = b.CreateInBoundsGEP(llvmLoopT, dataPtr, idx, "elem.ptr");
-    }
-
-    llvm::Value *elemVal = b.CreateLoad(llvmLoopT, elemPtr, "elem.val");
-    b.CreateStore(elemVal, varPtr); 
+    llvm::Value *idx = b.CreateLoad(i64Ty, indexPtr, "loop.index.val");
+    llvm::Value *elemVal = unpack_list_element(iterableVal, idx, llvmLoopT, b, i64Ty);
+    b.CreateStore(elemVal, varPtr);
   }
 
-  // Execute instructions in the loop body block sequential chain
   emit_expr(n->fornode.body, ctx, b, entryBuilder, locals);
-  
-  if (!blockTerminated(b))
-    b.CreateBr(stepBB);
+  if (!blockTerminated(b)) b.CreateBr(stepBB);
 
   // --- 3. STEP BLOCK ---
-  // Any 'continue' statement jumps straight here, safely running inline updates 
-  // without skipping index increment rules or leaking old indexes to the next pass.
   b.SetInsertPoint(stepBB);
   if (isListLoop) {
-    llvm::Value *curIdx = b.CreateLoad(llvm::Type::getInt64Ty(ctx), indexPtr, "loop.index");
-    llvm::Value *nextIdx = b.CreateAdd(curIdx, stepV, "loop.index.next");
-    b.CreateStore(nextIdx, indexPtr);
+    llvm::Value *curIdx = b.CreateLoad(i64Ty, indexPtr, "loop.index");
+    b.CreateStore(b.CreateAdd(curIdx, stepV, "loop.index.next"), indexPtr);
   } else {
     llvm::Value *curV = b.CreateLoad(llvmLoopT, varPtr, varName);
-    llvm::Value *nextV = b.CreateAdd(curV, stepV, "loop.next");
-    b.CreateStore(nextV, varPtr);
+    b.CreateStore(b.CreateAdd(curV, stepV, "loop.next"), varPtr);
   }
   b.CreateBr(condBB);
 
-  // --- 4. AFTER BLOCK ---
+  // --- 4. END BLOCK ---
   b.SetInsertPoint(afterBB);
-
   loopStack.pop_back();
   return nullptr;
 }
+
+
 
 llvm::Value *emit_whileloop(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
                             IRBuilder<> &entryBuilder, LocalMap &locals) {
@@ -186,14 +133,16 @@ llvm::Value *emit_whileloop(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
   BasicBlock *exprBB = BasicBlock::Create(ctx, "while.expr", fn);
   BasicBlock *afterBB = BasicBlock::Create(ctx, "while.end", fn);
 
-  // Zig specific: 'continue' calls target exprBB so inline modifications execution runs!
+  // Zig specific: 'continue' calls target exprBB so inline modifications
+  // execution runs!
   loopStack.push_back({exprBB, afterBB});
 
   b.CreateBr(condBB);
 
   // --- 1. CONDITION BLOCK ---
   b.SetInsertPoint(condBB);
-  llvm::Value *condV = emit_expr(n->whilenode.cond, ctx, b, entryBuilder, locals);
+  llvm::Value *condV =
+      emit_expr(n->whilenode.cond, ctx, b, entryBuilder, locals);
   if (!condV) {
     condV = ConstantInt::getTrue(ctx);
   }
@@ -202,7 +151,7 @@ llvm::Value *emit_whileloop(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
   // --- 2. BODY BLOCK ---
   b.SetInsertPoint(bodyBB);
   emit_expr(n->whilenode.body, ctx, b, entryBuilder, locals);
-  
+
   if (!blockTerminated(b))
     b.CreateBr(exprBB);
 

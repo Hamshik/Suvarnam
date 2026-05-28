@@ -6,7 +6,7 @@ llvm::Value *emit_assing(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
   ASTNode_t *lhs = n->assign.lhs;
   if (!lhs) return nullptr;
 
-  std::string name = lhs->var ? lhs->var : "";
+  const char* name = lhs->var;
   
   DataTypes_t t = n->type->base != UNKNOWN
                       ? n->type->base

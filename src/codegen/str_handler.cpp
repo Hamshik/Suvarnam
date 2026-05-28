@@ -96,7 +96,7 @@ Value *emit_char_to_string(Value *ch, LLVMContext &ctx, IRBuilder<> &b) {
 
 Value *emit_char(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b) {
   if (!n->literal.raw) {
-    panic(&file, n->loc,INVAILD_UTF8_CHAR, nullptr);
+    panic(n->loc,INVAILD_UTF8_CHAR, nullptr);
     return nullptr;
   }
 
@@ -116,7 +116,7 @@ Value *emit_char(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b) {
     else if (err == Utf8Error::InvalidUtf8)
       msg = n->literal.raw;
 
-    panic(&file, n->loc, INVAILD_UTF8_CHAR,
+    panic(n->loc, INVAILD_UTF8_CHAR,
           msg ? msg : "unknown");
     return nullptr;
   }

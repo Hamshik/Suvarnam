@@ -1,4 +1,5 @@
 #include "codegen/codegen.hpp"
+#include <llvm-22/llvm/IR/Value.h>
 #include <vector>
 
 struct LoopContext {
@@ -70,8 +71,9 @@ Value *emit_expr(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
     return emit_whileloop(n, ctx, b, entryBuilder, locals);
   case AST_FOR:
     return emit_forloops(n, ctx, b, entryBuilder, locals);
-  case AST_RANGE:
-    return emit_binop(n, ctx, b, entryBuilder, locals);
+
+  case AST_RANGE: 
+    return emit_range(n, ctx, b, entryBuilder, locals);
 
   case AST_IF:
     return emit_if(n, ctx, b, entryBuilder, locals);

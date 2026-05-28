@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-extern file_t file;
+extern file_t* file;
 extern bool isWarning;
 extern size_t warn_no;
 
@@ -25,7 +25,7 @@ static const Type_t _T_VOID    = { VOID,    NULL, 0 };
 #define T_VOID    (&_T_VOID)
 
 /* --- 128-bit Integer IO Helpers --- */
-static void TQwrite_u128(FILE *out, unsigned __int128 x) {
+static void SV_write_u128(FILE *out, unsigned __int128 x) {
     if (x == 0) { fputc('0', out); return; }
     char buf[64];
     size_t i = 0;
@@ -36,17 +36,17 @@ static void TQwrite_u128(FILE *out, unsigned __int128 x) {
     while (i--) fputc(buf[i], out);
 }
 
-static void TQwrite_i128(FILE *out, __int128 x) {
+static void SV_write_i128(FILE *out, __int128 x) {
     if (x < 0) {
         fputc('-', out);
-        TQwrite_u128(out, (unsigned __int128)(-x));
+        SV_write_u128(out, (unsigned __int128)(-x));
     } else {
-        TQwrite_u128(out, (unsigned __int128)x);
+        SV_write_u128(out, (unsigned __int128)x);
     }
 }
 
 /* --- Core Value Printing --- */
-static void TQwrite_value(FILE *out, TQValue v, Type_t* t) {
+static void SV_write_value(FILE *out, SV_Value v, Type_t* t) {
     if (!t) { fputs("<null-type>", out); return; }
     
     switch (t->base) {
@@ -54,12 +54,12 @@ static void TQwrite_value(FILE *out, TQValue v, Type_t* t) {
         case I16:       fprintf(out, "%hd", v.i16); break;
         case I32:       fprintf(out, "%d", v.i32); break;
         case I64:       fprintf(out, "%" PRId64, v.i64); break;
-        case I128:      TQwrite_i128(out, v.i128); break;
+        case I128:      SV_write_i128(out, v.i128); break;
         case U8:        fprintf(out, "%u", (unsigned)v.u8); break;
         case U16:       fprintf(out, "%u", (unsigned)v.u16); break;
         case U32:       fprintf(out, "%" PRIu32, v.u32); break;
         case U64:       fprintf(out, "%" PRIu64, v.u64); break;
-        case U128:      TQwrite_u128(out, v.u128); break;
+        case U128:      SV_write_u128(out, v.u128); break;
         case F32:       fprintf(out, "%f", v.f32); break;
         case F64:       fprintf(out, "%g", v.f64); break;
         case F128:      fprintf(out, "%Lg", v.f128); break;
@@ -85,7 +85,7 @@ static const Type_t* g_rm_params[]      = { T_PTR };
 static const Type_t* g_mem_params[]     = { T_PTR, T_PTR, T_UNKNOWN, T_UNKNOWN }; // 4 for memncpy
 static const Type_t* g_hlt_params[]     = { T_I32 };
 
-static const TQstd_sig_t g_builtins[] = {
+static const SV_std_sig_t g_builtins[] = {
     { "print",    (Type_t**)g_print_params,   1, (Type_t*)T_VOID },
     { "println",  (Type_t**)g_print_params,   1, (Type_t*)T_VOID },
     { "alloc",    (Type_t**)g_alloc_params,   1, (Type_t*)T_PTR  },
@@ -97,7 +97,7 @@ static const TQstd_sig_t g_builtins[] = {
     { "hlt",      (Type_t**)g_hlt_params,      1, (Type_t*)T_VOID }
 };
 
-const TQstd_sig_t* TQstd_sig(const char *name) {
+const SV_std_sig_t* SV_std_sig(const char *name) {
     if (!name) return NULL;
     size_t count = sizeof(g_builtins) / sizeof(g_builtins[0]);
     for (size_t i = 0; i < count; i++) {
@@ -107,20 +107,20 @@ const TQstd_sig_t* TQstd_sig(const char *name) {
 }
 
 /* --- Runtime Implementation --- */
-TypedValue TQstd_call(const char *name, const TypedValue *argv, int argc, TQLocation loc, bool *ok) {
+TypedValue SV_std_call(const char *name, const TypedValue *argv, int argc, SV_Location loc, bool *ok) {
     if (ok) *ok = false;
-    const TQstd_sig_t *sig = TQstd_sig(name);
+    const SV_std_sig_t *sig = SV_std_sig(name);
     if (!sig) return (TypedValue){0};
     if (ok) *ok = true;
 
     if (argc != sig->param_count && strcmp(name, "memncpy") != 0) {
-        panic(&file, loc, RT_ARGC_MISMATCH, name);
+        panic( loc, RT_ARGC_MISMATCH, name);
         return (TypedValue){.type = (Type_t*)T_VOID};
     }
 
     /* Print / Println */
     if (strcmp(name, "print") == 0 || strcmp(name, "println") == 0) {
-        if (argc >= 1) TQwrite_value(stdout, argv[0].val, argv[0].type);
+        if (argc >= 1) SV_write_value(stdout, argv[0].val, argv[0].type);
         if (strcmp(name, "println") == 0) fputc('\n', stdout);
         fflush(stdout);
         return (TypedValue){.type = (Type_t*)T_VOID};

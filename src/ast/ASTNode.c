@@ -3,7 +3,7 @@
 #include "ast/ast.h"
 #include <string.h>
 
-ASTNode_t* new_num(char *rawval, DataTypes_t datatype, TQLocation loc) {
+ASTNode_t* new_num(char *rawval, DataTypes_t datatype, SV_Location loc) {
     ASTNode_t *node = ast_alloc();
     node->kind = AST_NUM;
     node->type = make_type(datatype, NULL);
@@ -13,7 +13,7 @@ ASTNode_t* new_num(char *rawval, DataTypes_t datatype, TQLocation loc) {
     return node;
 }
 
-ASTNode_t *new_str(char *rawval, TQLocation loc) {
+ASTNode_t *new_str(char *rawval, SV_Location loc) {
     ASTNode_t *node = ast_alloc();
     node->kind = AST_STR;
     node->type = make_type(STRINGS, NULL);
@@ -23,7 +23,7 @@ ASTNode_t *new_str(char *rawval, TQLocation loc) {
     return node;
 }
 
-ASTNode_t *new_char_bytes(const char *bytes, size_t len, TQLocation loc) {
+ASTNode_t *new_char_bytes(const char *bytes, size_t len, SV_Location loc) {
     ASTNode_t *node = ast_alloc();
     node->kind = AST_CHAR;
     node->type = make_type(CHARACTER, NULL);
@@ -38,7 +38,7 @@ ASTNode_t *new_char_bytes(const char *bytes, size_t len, TQLocation loc) {
     return node;
 }
 
-ASTNode_t* new_bool(bool val, TQLocation loc) {
+ASTNode_t* new_bool(bool val, SV_Location loc) {
     ASTNode_t *node = ast_alloc();
     node->kind = AST_BOOL;
     node->type = make_type(BOOL, NULL);
@@ -48,7 +48,7 @@ ASTNode_t* new_bool(bool val, TQLocation loc) {
     return node;
 }
 
-ASTNode_t* new_var(const char *name, DataTypes_t datatype, TQLocation loc) {
+ASTNode_t* new_var(const char *name, DataTypes_t datatype, SV_Location loc) {
     ASTNode_t *node = ast_alloc();
     node->kind = AST_VAR;
     node->var = strdup(name);
@@ -58,7 +58,7 @@ ASTNode_t* new_var(const char *name, DataTypes_t datatype, TQLocation loc) {
     return node;
 }
 
-ASTNode_t* new_unop(ASTNode_t *operand, TQLocation loc, OP_kind_t op) {
+ASTNode_t* new_unop(ASTNode_t *operand, SV_Location loc, OP_kind_t op) {
     ASTNode_t *node = ast_alloc();
     node->kind = AST_UNOP;
     node->unop.op = op;
@@ -70,7 +70,7 @@ ASTNode_t* new_unop(ASTNode_t *operand, TQLocation loc, OP_kind_t op) {
     return node;
 }
 
-ASTNode_t* new_binop(ASTNode_t *left, ASTNode_t *right, TQLocation loc, OP_kind_t op) {
+ASTNode_t* new_binop(ASTNode_t *left, ASTNode_t *right, SV_Location loc, OP_kind_t op) {
     ASTNode_t *node = ast_alloc();
     node->kind = AST_BINOP;
     node->type = make_type(UNKNOWN, NULL); // Resolved during semantic analysis
@@ -82,7 +82,7 @@ ASTNode_t* new_binop(ASTNode_t *left, ASTNode_t *right, TQLocation loc, OP_kind_
     return node;
 }
 
-ASTNode_t* new_assign(ASTNode_t *lhs, ASTNode_t *rhs, Type_t* datatype, bool is_mutable, TQLocation loc, OP_kind_t op) {
+ASTNode_t* new_assign(ASTNode_t *lhs, ASTNode_t *rhs, Type_t* datatype, bool is_mutable, SV_Location loc, OP_kind_t op) {
     ASTNode_t *node = ast_alloc();
     node->kind = AST_ASSIGN;
     node->assign.op = op;
@@ -103,7 +103,7 @@ ASTNode_t* new_seq(ASTNode_t *a, ASTNode_t *b) {
     return node;
 }
 
-ASTNode_t* new_if(ASTNode_t *cond, ASTNode_t *thenB, ASTNode_t *elseB, TQLocation loc) {
+ASTNode_t* new_if(ASTNode_t *cond, ASTNode_t *thenB, ASTNode_t *elseB, SV_Location loc) {
     ASTNode_t *node = ast_alloc();
     node->kind = AST_IF;
     node->ifnode.cond = cond;
@@ -114,7 +114,7 @@ ASTNode_t* new_if(ASTNode_t *cond, ASTNode_t *thenB, ASTNode_t *elseB, TQLocatio
     return node;
 }
 
-ASTNode_t* new_for(const char* var, ASTNode_t *interable, ASTNode_t *body, TQLocation loc, bool ismut) {
+ASTNode_t* new_for(const char* var, ASTNode_t *interable, ASTNode_t *body, SV_Location loc, bool ismut) {
     ASTNode_t *node = ast_alloc();
     node->kind = AST_FOR;
     node->fornode.iterable = interable;
@@ -126,7 +126,7 @@ ASTNode_t* new_for(const char* var, ASTNode_t *interable, ASTNode_t *body, TQLoc
     return node;
 }
 
-ASTNode_t* new_while(ASTNode_t *cond, ASTNode_t *body, ASTNode_t* expr, TQLocation loc) {
+ASTNode_t* new_while(ASTNode_t *cond, ASTNode_t *body, ASTNode_t* expr, SV_Location loc) {
     ASTNode_t *node = ast_alloc();
     node->kind = AST_WHILE;
     node->whilenode.cond = cond;
@@ -137,7 +137,7 @@ ASTNode_t* new_while(ASTNode_t *cond, ASTNode_t *body, ASTNode_t* expr, TQLocati
     return node;
 }
 
-ASTNode_t *new_fn_def(const char *name, Param_t *params, int param_count, Type_t *ret_type, ASTNode_t *body, TQLocation loc){
+ASTNode_t *new_fn_def(const char *name, Param_t *params, int param_count, Type_t *ret_type, ASTNode_t *body, SV_Location loc){
     ASTNode_t *node = ast_alloc();
     node->kind = AST_FN;
     node->fn_def.name = strdup(name);
@@ -150,7 +150,7 @@ ASTNode_t *new_fn_def(const char *name, Param_t *params, int param_count, Type_t
     return node;
 }
 
-ASTNode_t* new_fn_call(const char *name, ASTNode_t *args, TQLocation loc){
+ASTNode_t* new_fn_call(const char *name, ASTNode_t *args, SV_Location loc){
     ASTNode_t *node = ast_alloc();
     node->kind = AST_CALL;
     node->call.name = strdup(name);
@@ -160,7 +160,7 @@ ASTNode_t* new_fn_call(const char *name, ASTNode_t *args, TQLocation loc){
     return node;
 }
 
-ASTNode_t* new_return(ASTNode_t *value, TQLocation loc) {
+ASTNode_t* new_return(ASTNode_t *value, SV_Location loc) {
     ASTNode_t *node = ast_alloc();
     node->kind = AST_RETURN;
     node->ret_stmt.value = value;
@@ -169,7 +169,7 @@ ASTNode_t* new_return(ASTNode_t *value, TQLocation loc) {
     return node;
 }
 
-ASTNode_t* new_list(ASTNode_t *elements, TQLocation loc) {
+ASTNode_t* new_list(ASTNode_t *elements, SV_Location loc) {
     ASTNode_t *node = ast_alloc();
     node->kind = AST_LIST;
     node->list.elements = elements;
@@ -181,7 +181,7 @@ ASTNode_t* new_list(ASTNode_t *elements, TQLocation loc) {
     return node;
 }
 
-ASTNode_t* new_index(ASTNode_t *target, idx_expr_t *index, bool islhs , TQLocation loc) {
+ASTNode_t* new_index(ASTNode_t *target, idx_expr_t *index, bool islhs , SV_Location loc) {
     ASTNode_t *node = ast_alloc();
     node->kind = AST_INDEX;
     node->index.target = target;
@@ -192,7 +192,7 @@ ASTNode_t* new_index(ASTNode_t *target, idx_expr_t *index, bool islhs , TQLocati
     return node;
 }
 
-ASTNode_t* new_import_node(const char *path, TQLocation loc) {
+ASTNode_t* new_import_node(const char *path, SV_Location loc) {
     ASTNode_t *node = ast_alloc();
     node->kind = AST_IMPORT;
     node->importNode.path = strdup(path);
@@ -212,7 +212,7 @@ ASTNode_t* new_range(ASTNode_t* start, ASTNode_t* end, ASTNode_t* step, bool ise
     return node;
 }
 
-ASTNode_t* new_break(TQLocation loc) {
+ASTNode_t* new_break(SV_Location loc) {
     ASTNode_t *node = ast_alloc();
     node->kind = AST_BREAK;
     node->type = NULL;
@@ -220,7 +220,7 @@ ASTNode_t* new_break(TQLocation loc) {
     return node;
 }
 
-ASTNode_t* new_continue(TQLocation loc){
+ASTNode_t* new_continue(SV_Location loc){
     ASTNode_t* node = ast_alloc();
     node->kind = AST_CONTINUE;
     node->type = NULL;

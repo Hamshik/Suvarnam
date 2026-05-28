@@ -20,7 +20,7 @@ Type_t* binop(ASTNode_t *n, Type_t* type) {
 
   // 2. Disallow Pointer Arithmetic (as per your requirement)
   if (lt->base == PTR || rt->base == PTR) {
-    panic(&file, n->loc, SEM_NUMOP_NEEDS_NUM, "pointer arithmetic not supported");
+    panic(n->loc, SEM_NUMOP_NEEDS_NUM, "pointer arithmetic not supported");
   }
 
   // 3. String Concatenation & multiplication
@@ -32,24 +32,11 @@ Type_t* binop(ASTNode_t *n, Type_t* type) {
     bool is_valid_add = (n->bin.op == OP_ADD) && (lt->base == STRINGS && rt->base == STRINGS);
 
     if (!is_valid_mul && !is_valid_add) {
-      panic(&file, n->loc, SEM_STRING_OP_INVALID, NULL);
+      panic(n->loc, SEM_STRING_OP_INVALID, NULL);
     }
 
     // Re-use a global type pointer if possible to save memory
     n->type = make_type(STRINGS, NULL); 
-    return n->type;
-  }
-
-  // 4. Range Operator (e.g., 0..10)
-  if (n->bin.op == OP_RANGE) {
-    if (!is_numeric(lt->base) || !is_numeric(rt->base)) {
-      panic(&file, n->loc, SEM_NUMOP_NEEDS_NUM, "Range operands must be numeric");
-    }
-    DataTypes_t common = promote(lt->base, rt->base);
-    // Propagate the promoted type to children so codegen emits correct widths
-    force_numeric_type(n->bin.left, common);
-    force_numeric_type(n->bin.right, common);
-    n->type = make_type(RANGE, make_type(common, NULL));
     return n->type;
   }
 
@@ -62,7 +49,7 @@ Type_t* binop(ASTNode_t *n, Type_t* type) {
           if ((n->bin.op == OP_EQ || n->bin.op == OP_NEQ) && types_are_equal(lt, rt)) {
               // Valid (e.g., comparing two lists or strings)
           } else {
-              panic(&file, n->loc, SEM_CMP_NEEDS_NUM, NULL);
+              panic(n->loc, SEM_CMP_NEEDS_NUM, NULL);
           }
       }
       n->type = make_type(BOOL, NULL);
@@ -70,19 +57,19 @@ Type_t* binop(ASTNode_t *n, Type_t* type) {
 
     case OP_AND: case OP_OR:
       if (lt->base != BOOL || rt->base != BOOL)
-        panic(&file, n->loc, SEM_LOGIC_NEEDS_BOOL, NULL);
+        panic(n->loc, SEM_LOGIC_NEEDS_BOOL, NULL);
       n->type = make_type(BOOL, NULL);
       return n->type;
 
     default:
       // 5. Arithmetic & Bitwise
       if (!is_numeric(lt->base) || !is_numeric(rt->base))
-        panic(&file, n->loc, SEM_NUMOP_NEEDS_NUM, NULL);
+        panic(n->loc, SEM_NUMOP_NEEDS_NUM, NULL);
 
       if (n->bin.op == OP_LSHIFT || n->bin.op == OP_RSHIFT ||
           n->bin.op == OP_BITAND || n->bin.op == OP_BITOR || n->bin.op == OP_BITXOR) {
         if (!is_integer(lt->base) || !is_integer(rt->base)) {
-          panic(&file, n->loc, SEM_NUMOP_NEEDS_NUM, "bitwise ops require integer types");
+          panic(n->loc, SEM_NUMOP_NEEDS_NUM, "bitwise ops require integer types");
         }
       }
 

@@ -24,8 +24,8 @@ static ResolvedSig get_call_sig(const char* name) {
   ResolvedSig sig = {nullptr, nullptr, 0, false};
   if (!name) return sig;
   
-  // 1. Check the Symbol Table (includes both User functions and TQlib prototypes)
-  if (FnSymbol_t *f = TQsemantic_fn_lookup(name)) {
+  // 1. Check the Symbol Table (includes both User functions and SV_lib prototypes)
+  if (FnSymbol_t *f = SV_semantic_fn_lookup(name)) {
     sig.ret = f->ret;
     sig.param_count = f->param_count;
     sig.exists = true;
@@ -52,17 +52,17 @@ Type_t* handle_fn(ASTNode_t *n) {
      n->fn_def.ret = make_type(VOID, nullptr);
   }
 
-  if (!TQsemantic_fn_declare(n->fn_def.name, n->fn_def.params,
+  if (!SV_semantic_fn_declare(n->fn_def.name, n->fn_def.params,
                               n->fn_def.param_count, n->fn_def.ret)) {
-    panic(&file, n->loc, SEM_FN_REDECL, n->fn_def.name);
+    panic( n->loc, SEM_FN_REDECL, n->fn_def.name);
   }
 
-  TQsemantic_scope_push();
+  SV_semantic_scope_push();
   for (int i = 0; i < n->fn_def.param_count; i++) {
     if (!n->fn_def.params[i].type) n->fn_def.params[i].type = make_type(UNKNOWN, nullptr);
     
-    if (!TQsemantic_declare(n->fn_def.params[i].name, n->fn_def.params[i].type, true))
-      panic(&file, n->loc, SEM_DUP_PARAM,
+    if (!SV_semantic_declare(n->fn_def.params[i].name, n->fn_def.params[i].type, true))
+      panic( n->loc, SEM_DUP_PARAM,
             n->fn_def.params[i].name);
   }
 
@@ -77,7 +77,7 @@ Type_t* handle_fn(ASTNode_t *n) {
   g_current_fn_ret_type = saved_current_fn_ret_type; // Restore old g_current_fn_ret_type
   g_in_fn = saved_in_fn;
 
-  TQsemantic_scope_pop();
+  SV_semantic_scope_pop();
   return nullptr;
 }
 
@@ -88,7 +88,7 @@ Type_t* call(ASTNode_t *n) {
   if (strcmp(n->call.name, "len") == 0) {
     Type_t* arg_type = check_expr(n->call.args);
     if (!arg_type || arg_type->base != LIST) {
-      panic(&file, n->loc, SEM_INDEX_NOT_ARRAY, "len() expects a list argument");
+      panic( n->loc, SEM_INDEX_NOT_ARRAY, "len() expects a list argument");
       return nullptr;
     }
     // Return I32 for the length
@@ -99,7 +99,7 @@ Type_t* call(ASTNode_t *n) {
   ResolvedSig sig = get_call_sig(n->call.name);
   
   if (!sig.exists) {
-    panic(&file, n->loc, SEM_CALL_UNDEF_FN, n->call.name);
+    panic( n->loc, SEM_CALL_UNDEF_FN, n->call.name);
     return nullptr; // Return early to avoid redundant errors like ARGC_MISMATCH
   }
 
@@ -114,7 +114,7 @@ Type_t* call(ASTNode_t *n) {
   }
 
   if (argc != sig.param_count)
-    panic(&file, n->loc, SEM_ARGC_MISMATCH, n->call.name);
+    panic( n->loc, SEM_ARGC_MISMATCH, n->call.name);
 
   // walk args in the same order as we built them (left then seq.b chain)
   ASTNode_t *arg = n->call.args;
@@ -122,7 +122,7 @@ Type_t* call(ASTNode_t *n) {
 
   // We re-lookup FnSymbol if it exists just to get access to the params array 
   // because our struct uses Type_t** which is hard to map from FnSymbol_t's param struct.
-  FnSymbol_t *f = TQsemantic_fn_lookup(n->call.name);
+  FnSymbol_t *f = SV_semantic_fn_lookup(n->call.name);
   BuiltinFunction* b = BuiltinRegistry::instance().lookup(n->call.name);
 
   for (int i = 0; i < param_count; i++) {
@@ -141,7 +141,7 @@ Type_t* call(ASTNode_t *n) {
     if (!at) return nullptr; // Propagate error if check_expr failed
 
     if (at && want && want->base != UNKNOWN && !types_are_equal(at, want)) {
-      panic(&file, n->loc, SEM_ARG_TYPE_MISMATCH,
+      panic( n->loc, SEM_ARG_TYPE_MISMATCH,
             n->call.name);
     }
 
@@ -160,13 +160,13 @@ Type_t* call(ASTNode_t *n) {
 
 Type_t* ret(ASTNode_t *n) {
   if (!g_in_fn) {
-    panic(&file, n->loc, SEM_RETURN_OUTSIDE_FN, "Return statement outside of a function.");
+    panic( n->loc, SEM_RETURN_OUTSIDE_FN, "Return statement outside of a function.");
   }
 
   // Case 1: Function declared to return VOID
   if (g_current_fn_ret_type && g_current_fn_ret_type->base == VOID) {
     if (n->ret_stmt.value) {
-      panic(&file, n->loc, SEM_RETURN_TYPE_MISMATCH, "Function declared to return VOID, but a value is returned.");
+      panic( n->loc, SEM_RETURN_TYPE_MISMATCH, "Function declared to return VOID, but a value is returned.");
       return nullptr;
     }
     // Correctly returning VOID type
@@ -175,7 +175,7 @@ Type_t* ret(ASTNode_t *n) {
 
   // Case 2: Function declared to return a value (not VOID)
   if (!n->ret_stmt.value) {
-    panic(&file, n->loc, SEM_RETURN_TYPE_MISMATCH, "Function declared to return a value, but nothing is returned.");
+    panic( n->loc, SEM_RETURN_TYPE_MISMATCH, "Function declared to return a value, but nothing is returned.");
     return nullptr;
   }
 
@@ -194,7 +194,7 @@ Type_t* ret(ASTNode_t *n) {
 
   // Compare the return expression's type with the function's declared return type
   if (g_current_fn_ret_type && !types_are_equal(rt, g_current_fn_ret_type)) {
-    panic(&file, n->loc, SEM_RETURN_TYPE_MISMATCH, "Return expression type does not match function return type.");
+    panic( n->loc, SEM_RETURN_TYPE_MISMATCH, "Return expression type does not match function return type.");
     return nullptr;
     }
   return rt;

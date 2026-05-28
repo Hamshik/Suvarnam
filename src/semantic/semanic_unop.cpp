@@ -4,7 +4,7 @@
 #include "semantic/semantic.hpp" // for check_expr, type_error, is_numeric, is_integer
 #include <cstddef>
 
-extern file_t file; // global file
+extern file_t* file; // global file
 
 Type_t* unop(ASTNode_t *n, Type_t* type) {
 
@@ -49,13 +49,13 @@ Type_t* unop(ASTNode_t *n, Type_t* type) {
   }
 
   if (!is_numeric(t->base))
-    panic(&file, n->loc, SEM_UNARY_NEEDS_NUM, NULL);
+    panic(n->loc, SEM_UNARY_NEEDS_NUM, NULL);
 
   if ((n->unop.op == OP_INC || n->unop.op == OP_DEC) && !n->unop.operand->ismut) 
-    panic(&file, n->loc, SEM_ASSIGN_IMMUTABLE, "cannot increment/decrement immutable variable");
+    panic(n->loc, SEM_ASSIGN_IMMUTABLE, "cannot increment/decrement immutable variable");
 
   if (n->unop.op == OP_BITNOT && !is_integer(t->base)) {
-    panic(&file, n->loc, SEM_UNARY_NEEDS_NUM,
+    panic(n->loc, SEM_UNARY_NEEDS_NUM,
           "bitwise not requires integer type");
   }
 

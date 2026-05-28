@@ -5,33 +5,33 @@
 /* Bison %locations: Flex does not maintain columns for you.
    Track (line, column) ourselves and update it for every match,
    including skipped whitespace/comments. Columns/pos are byte-based. */
-static int TQlex_line = 1;
-static int TQlex_col = 1;
-static int TQlex_pos = 0; /* 0-based byte offset */
+static int SV_lex_line = 1;
+static int SV_lex_col = 1;
+static int SV_lex_pos = 0; /* 0-based byte offset */
 
-static int TQhex_val(unsigned char c) {
+static int SV_hex_val(unsigned char c) {
     if (c >= '0' && c <= '9') return (int)(c - '0');
     if (c >= 'a' && c <= 'f') return 10 + (int)(c - 'a');
     if (c >= 'A' && c <= 'F') return 10 + (int)(c - 'A');
     return -1;
 }
 
-void TQlexer_reset_loc(void) {
-    TQlex_line = 1;
-    TQlex_col = 1;
-    TQlex_pos = 0;
+void SV_lexer_reset_loc(void) {
+    SV_lex_line = 1;
+    SV_lex_col = 1;
+    SV_lex_pos = 0;
 }
 
-void TQlexer_update_loc(YYLTYPE *loc, const char *text, int len) {
+void SV_lexer_update_loc(YYLTYPE *loc, const char *text, int len) {
     if (!loc) return;
 
-    loc->first_line = TQlex_line;
-    loc->first_column = TQlex_col;
-    loc->first_pos = TQlex_pos;
+    loc->first_line = SV_lex_line;
+    loc->first_column = SV_lex_col;
+    loc->first_pos = SV_lex_pos;
 
-    int line = TQlex_line;
-    int col = TQlex_col;
-    int pos = TQlex_pos;
+    int line = SV_lex_line;
+    int col = SV_lex_col;
+    int pos = SV_lex_pos;
 
     for (int i = 0; i < len; i++) {
         if (text[i] == '\n') {
@@ -47,16 +47,16 @@ void TQlexer_update_loc(YYLTYPE *loc, const char *text, int len) {
     loc->last_column = (col > 1) ? (col - 1) : 1;
     loc->last_pos = (pos > 0) ? (pos - 1) : 0;
 
-    TQlex_line = line;
-    TQlex_col = col;
-    TQlex_pos = pos;
+    SV_lex_line = line;
+    SV_lex_col = col;
+    SV_lex_pos = pos;
 }
 
-void TQlexer_get_cursor(TQLocation *loc) {
-    if (loc) *loc = (TQLocation){TQlex_line, TQlex_col, TQlex_pos,0,0,0};
+void SV_lexer_get_cursor(SV_Location *loc) {
+    if (loc) *loc = (SV_Location){SV_lex_line, SV_lex_col, SV_lex_pos,0,0,0};
 }
 
-bool TQutf8_single(const char *bytes, size_t len)
+bool SV_utf8_single(const char *bytes, size_t len)
 {
     if (!bytes || len == 0) return false;
     const unsigned char *s = (const unsigned char *)bytes;
@@ -84,7 +84,7 @@ bool TQutf8_single(const char *bytes, size_t len)
     return i == len;
 }
 
-char *  TQunescape_string(const char *in, size_t in_len, size_t *out_len, int *err_index, const char **err_msg) {
+char *  SV_unescape_string(const char *in, size_t in_len, size_t *out_len, int *err_index, const char **err_msg) {
     if (err_index) *err_index = -1;
     if (err_msg) *err_msg = "invalid escape sequence";
     if (out_len) *out_len = 0;
@@ -140,7 +140,7 @@ char *  TQunescape_string(const char *in, size_t in_len, size_t *out_len, int *e
                     free(out);
                     return NULL;
                 }
-                int h1 = TQhex_val((unsigned char)in[i + 1]);
+                int h1 = SV_hex_val((unsigned char)in[i + 1]);
                 if (h1 < 0) {
                     if (err_index) *err_index = (int)(i - 1);
                     if (err_msg) *err_msg = "expected hex digits after \\x";
@@ -150,7 +150,7 @@ char *  TQunescape_string(const char *in, size_t in_len, size_t *out_len, int *e
                 int v = h1;
                 i += 1;
                 if (i + 1 < in_len) {
-                    int h2 = TQhex_val((unsigned char)in[i + 1]);
+                    int h2 = SV_hex_val((unsigned char)in[i + 1]);
                     if (h2 >= 0) {
                         v = (v << 4) | h2;
                         i += 1;

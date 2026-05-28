@@ -41,15 +41,15 @@ typedef struct {
     void* data;      // The actual array
     int base_type;   // 0 for I32, 1 for LIST, etc.
     size_t size;     // Number of elements
-} TQList;
+} SV_List;
 
-void SV_print_list(TQList* list, int size, bool is_new) {
+void SV_print_list(SV_List* list, int size, bool is_new) {
     if (!list || !list->data) return;
 
     printf("[");
     for (size_t i = 0; i < list->size; i++) {
         if (list->base_type == 1) { // It's a nested list
-            TQList** sublists = (TQList**)list->data;
+            SV_List** sublists = (SV_List**)list->data;
             SV_print_list(sublists[i], size, is_new); // RECURSE
         } else { // It's a primitive (e.g., I32)
             int* numbers = (int*)list->data;

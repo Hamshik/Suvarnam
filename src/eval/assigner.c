@@ -7,12 +7,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-extern file_t file;
+extern file_t* file;
 
 /* Prototype for semantic mutability check */
-bool TQsemantic_is_mutable(const char *name);
+bool SV_semantic_is_mutable(const char *name);
 
-void assign_value(DataTypes_t dt, TQValue *dst, TQValue src) {
+void assign_value(DataTypes_t dt, SV_Value *dst, SV_Value src) {
   switch (dt) {
   case I8:
     dst->i8 = src.i8;
@@ -98,10 +98,10 @@ void assign_value(DataTypes_t dt, TQValue *dst, TQValue src) {
 // leading to segfaults when handle_num() tries to dereference it.
 // Instead, we update the string representation so handle_num can re-parse it.
 
-static void update_val(TQValue r, ASTNode_t *dst) {
+static void update_val(SV_Value r, ASTNode_t *dst) {
   if (!dst)
     return;
-  TQLocation loc = dst->loc;
+  SV_Location loc = dst->loc;
   DataTypes_t datatypes = dst->type->base;
   char buf[128];
   char *new_raw = NULL;
@@ -147,7 +147,7 @@ static void update_val(TQValue r, ASTNode_t *dst) {
     strcpy(buf, r.bval ? "true" : "false");
     break;
   default:
-    panic(&file, loc, RT_ASSIGN_UNSUPPORTED,
+    panic( loc, RT_ASSIGN_UNSUPPORTED,
           "Update for this type in list index not supported");
     return;
   }
@@ -161,36 +161,36 @@ static void update_val(TQValue r, ASTNode_t *dst) {
   dst->literal.raw = new_raw;
 }
 
-TQValue eval_assign(ASTNode_t *lhs, ASTNode_t *rhs, OP_kind_t op, Type_t *type,
-                    TQLocation loc) {
+SV_Value eval_assign(ASTNode_t *lhs, ASTNode_t *rhs, OP_kind_t op, Type_t *type,
+                    SV_Location loc) {
   TypedValue rt0 = ast_eval(rhs);
-  TypedValue rt = TQcast_typed(rt0, type);
-  TQValue r = rt.val;
-  TQValue v = {0};
+  TypedValue rt = SV_cast_typed(rt0, type);
+  SV_Value r = rt.val;
+  SV_Value v = {0};
 
   if (!lhs) {
-    panic(&file, loc, RT_ASSIGN_TARGET_NOT_VAR, NULL);
-    return (TQValue){0};
+    panic( loc, RT_ASSIGN_TARGET_NOT_VAR, NULL);
+    return (SV_Value){0};
   }
 
   /* Assignment to variable */
   if (lhs->kind == AST_VAR) {
     if (op == OP_ASSIGN) {
       if (!lhs->ismut) {
-        panic(&file, loc, RT_ASSIGN_UNSUPPORTED,
+        panic( loc, RT_ASSIGN_UNSUPPORTED,
               "Cannot assign to immutable variable");
-        return (TQValue){0};
+        return (SV_Value){0};
       }
       set_var(lhs->var, &r, type);
       return r;
     }
 
-    TQValue cur = getvar(lhs->var, type, loc);
+    SV_Value cur = getvar(lhs->var, type, loc);
     OP_kind_t operation = get_assign_op(op);
     if (!lhs->ismut) {
-      panic(&file, loc, RT_ASSIGN_UNSUPPORTED,
+      panic( loc, RT_ASSIGN_UNSUPPORTED,
             "Cannot update immutable variable");
-      return (TQValue){0};
+      return (SV_Value){0};
     }
 
     switch (type->base) {
@@ -209,24 +209,24 @@ TQValue eval_assign(ASTNode_t *lhs, ASTNode_t *rhs, OP_kind_t op, Type_t *type,
     case UF32:
     case UF64:
     case UF128:
-      v = TQeval_binop_numeric(operation, type->base, cur, r);
+      v = SV_eval_binop_numeric(operation, type->base, cur, r);
       break;
     case BOOL:
       v = eval_bool(operation, BOOL, cur, r);
       break;
     case STRINGS:
-      v = (TQValue){.str = do_operation_str(cur.str, r.str, operation)};
+      v = (SV_Value){.str = do_operation_str(cur.str, r.str, operation)};
       break;
     case CHARACTER:
       v.chars = r.chars;
       break;
     case PTR:
-      panic(&file, loc, RT_ASSIGN_UNSUPPORTED,
+      panic( loc, RT_ASSIGN_UNSUPPORTED,
             "pointer compound assignment not supported");
-      return (TQValue){0};
+      return (SV_Value){0};
     default:
-      panic(&file, loc, RT_ASSIGN_UNSUPPORTED, NULL);
-      return (TQValue){0};
+      panic( loc, RT_ASSIGN_UNSUPPORTED, NULL);
+      return (SV_Value){0};
     }
     set_var(lhs->var, &v, type);
     return v;
@@ -238,16 +238,16 @@ TQValue eval_assign(ASTNode_t *lhs, ASTNode_t *rhs, OP_kind_t op, Type_t *type,
   if (lhs->kind == AST_UNOP && lhs->unop.op == OP_DEREF) {
     TypedValue pv = ast_eval(lhs->unop.operand);
     if (pv.type->base != PTR || pv.val.ptr.name == NULL) {
-      panic(&file, loc, RT_DANGLING_PTR, NULL);
-      return (TQValue){0};
+      panic( loc, RT_DANGLING_PTR, NULL);
+      return (SV_Value){0};
     }
     TypedValue *target =
         getvar_ref_at(pv.val.ptr.frame_id, pv.val.ptr.name, loc);
     if (!target)
-      return (TQValue){0};
+      return (SV_Value){0};
     if (target->type != type) {
-      panic(&file, loc, RT_VAR_TYPE_MISMATCH, pv.val.ptr.name);
-      return (TQValue){0};
+      panic( loc, RT_VAR_TYPE_MISMATCH, pv.val.ptr.name);
+      return (SV_Value){0};
     }
 
     if (op == OP_ASSIGN) {
@@ -255,7 +255,7 @@ TQValue eval_assign(ASTNode_t *lhs, ASTNode_t *rhs, OP_kind_t op, Type_t *type,
       return r;
     }
 
-    TQValue cur = target->val;
+    SV_Value cur = target->val;
     OP_kind_t operation = get_assign_op(op);
     switch (type->base) {
     case I8:
@@ -273,12 +273,12 @@ TQValue eval_assign(ASTNode_t *lhs, ASTNode_t *rhs, OP_kind_t op, Type_t *type,
     case UF32:
     case UF64:
     case UF128:
-      v = TQeval_binop_numeric(operation, type->base, cur, r);
+      v = SV_eval_binop_numeric(operation, type->base, cur, r);
       break;
     default:
-      panic(&file, loc, RT_ASSIGN_UNSUPPORTED,
+      panic( loc, RT_ASSIGN_UNSUPPORTED,
             "unsupported deref assignment type");
-      return (TQValue){0};
+      return (SV_Value){0};
     }
     assign_value(type->base, &target->val, v);
     return v;
@@ -292,9 +292,9 @@ TQValue eval_assign(ASTNode_t *lhs, ASTNode_t *rhs, OP_kind_t op, Type_t *type,
       base_var = base_var->index.target;
 
     if (base_var && base_var->kind == AST_VAR && !base_var->ismut) {
-      panic(&file, loc, RT_ASSIGN_UNSUPPORTED,
+      panic( loc, RT_ASSIGN_UNSUPPORTED,
             "Cannot assign to immutable variable");
-      return (TQValue){0};
+      return (SV_Value){0};
     }
 
     // 2. Traverse down to the final container
@@ -308,17 +308,17 @@ TQValue eval_assign(ASTNode_t *lhs, ASTNode_t *rhs, OP_kind_t op, Type_t *type,
       // 1. Structural Check
       if (!current_container.type || current_container.type->base != LIST ||
           !current_container.val.raw) {
-        panic(&file, curr_idx_node->expr_node->loc, SEM_INDEX_NOT_ARRAY,
+        panic( curr_idx_node->expr_node->loc, SEM_INDEX_NOT_ARRAY,
               "Target is not a list");
-        return (TQValue){0};
+        return (SV_Value){0};
       }
 
       // 2. Bounds Check (CRITICAL)
       // We must use the dynamic size of the list in memory
       if (idx < 0 || (size_t)idx >= current_container.type->size) {
-        panic(&file, curr_idx_node->expr_node->loc, RT_INDEX_OUT_OF_BOUNDS,
+        panic( curr_idx_node->expr_node->loc, RT_INDEX_OUT_OF_BOUNDS,
               logf_msg("Index %d out of bounds for list of size %zu", idx, current_container.type->size));
-        return (TQValue){0};
+        return (SV_Value){0};
       }
 
       TypedValue *elements = (TypedValue *)current_container.val.raw;
@@ -335,6 +335,6 @@ TQValue eval_assign(ASTNode_t *lhs, ASTNode_t *rhs, OP_kind_t op, Type_t *type,
     }
   }
 
-  panic(&file, loc, RT_ASSIGN_TARGET_NOT_VAR, NULL);
-  return (TQValue){0};
+  panic( loc, RT_ASSIGN_TARGET_NOT_VAR, NULL);
+  return (SV_Value){0};
 }

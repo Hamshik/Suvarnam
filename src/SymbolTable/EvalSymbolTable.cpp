@@ -8,7 +8,7 @@
 #include <string>
 #include <unordered_map>
 
-extern file_t file;
+extern file_t* file;
 
 namespace {
 
@@ -20,12 +20,12 @@ void reset_runtime_value(TypedValue &value) {
   }
 
   value.type = nullptr;
-  value.val =  TQValue{};
+  value.val =  SV_Value{};
 }
 
-void store_runtime_value(TypedValue &slot, Type_t* type, const TQValue &value) {
+void store_runtime_value(TypedValue &slot, Type_t* type, const SV_Value &value) {
   reset_runtime_value(slot);
-  TQValue fresh{};
+  SV_Value fresh{};
   assign_value(type->base, &fresh, value);
   slot.type = type;
   slot.val = fresh;
@@ -36,7 +36,7 @@ struct RuntimeBinding {
 
   RuntimeBinding() {
     typed_value.type = nullptr;
-    typed_value.val =  TQValue{};
+    typed_value.val =  SV_Value{};
   }
 
   ~RuntimeBinding() { reset_runtime_value(typed_value); }
@@ -46,7 +46,7 @@ struct RuntimeBinding {
 
   RuntimeBinding(RuntimeBinding &&other) noexcept : typed_value(other.typed_value) {
     other.typed_value.type = nullptr;
-    other.typed_value.val =  TQValue{};
+    other.typed_value.val =  SV_Value{};
   }
 
   RuntimeBinding &operator=(RuntimeBinding &&other) noexcept {
@@ -54,7 +54,7 @@ struct RuntimeBinding {
       reset_runtime_value(typed_value);
       typed_value = other.typed_value;
       other.typed_value.type = nullptr;
-      other.typed_value.val =  TQValue{};
+      other.typed_value.val =  SV_Value{};
     }
     return *this;
   }
@@ -132,7 +132,7 @@ void env_clear_all() {
   fn_clear();
 }
 
-void env_set(const char *name,  TQValue *val, Type_t* type) {
+void env_set(const char *name,  SV_Value *val, Type_t* type) {
   RuntimeBinding *binding = runtime_find_binding(runtime_env_top(), name);
   if (binding) {
     store_runtime_value(binding->typed_value, type, *val);
@@ -142,75 +142,75 @@ void env_set(const char *name,  TQValue *val, Type_t* type) {
   env_set_current(name, val, type);
 }
 
-void env_set_current(const char *name,  TQValue *val, Type_t* type) {
+void env_set_current(const char *name,  SV_Value *val, Type_t* type) {
   RuntimeFrame *frame = runtime_env_top();
   auto [it, inserted] = frame->vars.try_emplace(name);
   (void)inserted;
   store_runtime_value(it->second.typed_value, type, *val);
 }
 
- TQValue env_get(const char *name, Type_t* datatype, TQLocation loc) {
+ SV_Value env_get(const char *name, Type_t* datatype, SV_Location loc) {
   RuntimeBinding *binding = runtime_find_binding(runtime_env_top(), name);
   if (!binding) {
-    panic(&file, loc, RT_VAR_NOT_DEFINED, name);
-    return  TQValue{};
+    panic( loc, RT_VAR_NOT_DEFINED, name);
+    return  SV_Value{};
   }
 
   if (binding->typed_value.type != datatype &&
       !is_numeric(binding->typed_value.type->base) && !is_numeric(datatype->base)) {
-    panic(&file, loc, RT_VAR_TYPE_MISMATCH, name);
-    return  TQValue{};
+    panic( loc, RT_VAR_TYPE_MISMATCH, name);
+    return  SV_Value{};
   }
 
   return binding->typed_value.val;
 }
 
-TypedValue *env_get_ref(const char *name, TQLocation loc) {
+TypedValue *env_get_ref(const char *name, SV_Location loc) {
   RuntimeBinding *binding = runtime_find_binding(runtime_env_top(), name);
   if (binding) {
     return &binding->typed_value;
   }
 
-  panic(&file, loc, RT_VAR_NOT_DEFINED, name);
+  panic( loc, RT_VAR_NOT_DEFINED, name);
   return nullptr;
 }
 
-int env_frame_id_of(const char *name, TQLocation loc) {
+int env_frame_id_of(const char *name, SV_Location loc) {
   for (RuntimeFrame *it = runtime_env_top(); it; it = it->parent) {
     if (it->vars.find(name) != it->vars.end()) {
       return it->id;
     }
   }
 
-  panic(&file, loc, RT_VAR_NOT_DEFINED, name);
+  panic( loc, RT_VAR_NOT_DEFINED, name);
   return -1;
 }
 
-TypedValue *env_get_ref_at(int frame_id, const char *name, TQLocation loc) {
+TypedValue *env_get_ref_at(int frame_id, const char *name, SV_Location loc) {
   RuntimeFrame *frame = runtime_find_frame(frame_id);
   if (!frame) {
-    panic(&file, loc, RT_DANGLING_PTR, name);
+    panic( loc, RT_DANGLING_PTR, name);
     return nullptr;
   }
 
   auto found = frame->vars.find(name);
   if (found == frame->vars.end()) {
-    panic(&file, loc, RT_VAR_NOT_DEFINED, name);
+    panic( loc, RT_VAR_NOT_DEFINED, name);
     return nullptr;
   }
 
   return &found->second.typed_value;
 }
 
-void env_set_at(int frame_id, const char *name,  TQValue *val,
-                Type_t* type, TQLocation loc) {
+void env_set_at(int frame_id, const char *name,  SV_Value *val,
+                Type_t* type, SV_Location loc) {
   TypedValue *target = env_get_ref_at(frame_id, name, loc);
   if (!target) {
     return;
   }
 
   if (target->type != type) {
-    panic(&file, loc, RT_VAR_TYPE_MISMATCH, name);
+    panic( loc, RT_VAR_TYPE_MISMATCH, name);
     return;
   }
 

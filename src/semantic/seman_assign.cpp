@@ -36,15 +36,15 @@ static void resolve_target_type(ASTNode_t *n, Type_t *&type) {
       if (!n->type) n->type = make_type(UNKNOWN, nullptr);
       type = n->type;
     } else {
-      type = TQsemantic_lookup(lhs->var);
+      type = SV_semantic_lookup(lhs->var);
       // Ensure the variable node correctly inherits the symbol's mutability
-      lhs->ismut = TQsemantic_is_mutable(lhs->var);
+      lhs->ismut = SV_semantic_is_mutable(lhs->var);
     }
   }
 
   else if (lhs->kind == AST_UNOP && lhs->unop.op == OP_DEREF) {
     if (n->assign.is_declaration)
-      panic(&file, n->loc, SEM_ASSIGN_TARGET_NOT_VAR,
+      panic(n->loc, SEM_ASSIGN_TARGET_NOT_VAR,
             "cannot declare through deref");
     type = check_expr(lhs);
   }
@@ -54,7 +54,7 @@ static void resolve_target_type(ASTNode_t *n, Type_t *&type) {
   }
 
   else {
-    panic(&file, n->loc, SEM_ASSIGN_TARGET_NOT_VAR, NULL);
+    panic(n->loc, SEM_ASSIGN_TARGET_NOT_VAR, NULL);
   }
 }
 
@@ -76,14 +76,14 @@ static void process_declaration(ASTNode_t *n, Type_t *&lhs_t, Type_t *rhs_t) {
   if (lhs_t->base != UNKNOWN && rhs && rhs->kind == AST_NUM) {
     if (!literal_fits_type(rhs, lhs_t->base) ||
         (is_signed_numeric(rhs_t->base) && is_unsigned_numeric(lhs_t->base)))
-      panic(&file, n->loc, SEM_NUMERIC_LITERAL_OVERFLOW, n->assign.lhs->var);
+      panic(n->loc, SEM_NUMERIC_LITERAL_OVERFLOW, n->assign.lhs->var);
     rhs_t = rhs->type = lhs_t;
   }
   
   resolve_nested_numerics(rhs, lhs_t);
 
-  if (!TQsemantic_declare(n->assign.lhs->var, lhs_t, n->assign.is_mutable))
-    panic(&file, n->loc, SEM_VAR_REDECL, n->assign.lhs->var);
+  if (!SV_semantic_declare(n->assign.lhs->var, lhs_t, n->assign.is_mutable))
+    panic(n->loc, SEM_VAR_REDECL, n->assign.lhs->var);
 }
 
 // 3. RESPONSIBILITY: Final Type & Pointer Consistency
@@ -94,12 +94,12 @@ static void validate_assignment(ASTNode_t *n, Type_t *lhs_t, Type_t *rhs_t) {
   // Basic type mismatch (excluding numerics which have their own widening
   // logic) or if types are not equal structurally.
   if (!types_are_equal(lhs_t, rhs_t) && !is_numeric(lhs_t->base) && !is_numeric(rhs_t->base))
-    panic(&file, n->loc, SEM_ASSIGN_TYPE_MISMATCH, n->assign.lhs->var);
+    panic(n->loc, SEM_ASSIGN_TYPE_MISMATCH, n->assign.lhs->var);
 
   // Pointer specific validation (sub-type matching)
   if (lhs_t && lhs_t->base == PTR && rhs_t && rhs_t->base == PTR) {
     if (!types_are_equal(lhs_t->inner, rhs_t->inner))
-      panic(&file, n->loc, SEM_ASSIGN_TYPE_MISMATCH, "Pointer target type mismatch");
+      panic(n->loc, SEM_ASSIGN_TYPE_MISMATCH, "Pointer target type mismatch");
   }
 
   if (lhs_t->base == LIST && rhs_t->base == LIST) {
@@ -114,7 +114,7 @@ static void validate_assignment(ASTNode_t *n, Type_t *lhs_t, Type_t *rhs_t) {
           // Infer the size from the RHS for unsized declarations
           l_curr->size = r_curr->size;
         } else {
-          panic(&file, n->loc, SEM_LIST_SIZE_MISMATCH, "Dimension size mismatch");
+          panic(n->loc, SEM_LIST_SIZE_MISMATCH, "Dimension size mismatch");
           return;
         }
       }
@@ -130,7 +130,7 @@ static void validate_assignment(ASTNode_t *n, Type_t *lhs_t, Type_t *rhs_t) {
     // If one is still a LIST but the other reached a primitive (like i32),
     // it's a dimension mismatch (e.g., list[i32] vs list[list[i32]])
     if (!l_curr || !r_curr || l_curr->base != r_curr->base) {
-      panic(&file, n->loc, SEM_ASSIGN_TYPE_MISMATCH,
+      panic(n->loc, SEM_ASSIGN_TYPE_MISMATCH,
             "Cannot assign nested list to a list of different dimensions");
     }
 
@@ -156,16 +156,16 @@ Type_t *assign(ASTNode_t *n, Type_t *type) {
     process_declaration(n, lhs_t, rhs_t);
   } else {
     if (!lhs_t || lhs_t->base == UNKNOWN)
-      panic(&file, n->loc, SEM_VAR_UNDECL, n->assign.lhs->var);
+      panic(n->loc, SEM_VAR_UNDECL, n->assign.lhs->var);
 
     if (n->assign.lhs->kind == AST_VAR) {
-      exitcode_t ac = TQsemantic_assign_check(n->assign.lhs->var, rhs_t->base,
+      exitcode_t ac = SV_semantic_assign_check(n->assign.lhs->var, rhs_t->base,
                                               n->assign.rhs->type->base);
       if (ac != SUCCESS) {
         errc err = (ac == NOT_DECLARED)    ? SEM_VAR_UNDECL
                    : (ac == TYPE_MISMATCH) ? SEM_ASSIGN_TYPE_MISMATCH
                                            : SEM_ASSIGN_IMMUTABLE;
-        panic(&file, n->loc, err, n->assign.lhs->var);
+        panic(n->loc, err, n->assign.lhs->var);
       }
     }
 
@@ -174,21 +174,21 @@ Type_t *assign(ASTNode_t *n, Type_t *type) {
 
       // Safety check: Parser should have provided at least one index
       if (!curr_idx) {
-        panic(&file, n->loc, SEM_INTERNAL_ERROR,
+        panic(n->loc, SEM_INTERNAL_ERROR,
               "Array access missing index structure");
       }
 
       // Traverse the chain of [i][j][k]
       while (curr_idx != nullptr) {
         if (!curr_idx->expr_node) {
-          panic(&file, n->loc, SEM_INTERNAL_ERROR,
+          panic(n->loc, SEM_INTERNAL_ERROR,
                 "Empty expression node in index");
         }
 
         // Check if the index itself is a valid integer type
         Type_t *itype = check_expr(curr_idx->expr_node);
         if (!itype || (itype->base != I32 && itype->base != I64)) {
-          panic(&file, curr_idx->expr_node->loc, SEM_INDEX_NOT_INT,
+          panic( curr_idx->expr_node->loc, SEM_INDEX_NOT_INT,
                 "List index must be an integer");
         }
 

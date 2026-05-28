@@ -1,4 +1,5 @@
 #include "codegen/codegen.hpp"
+#include <cstdio>
 
 __int128 parse_i128(const char *s, int *ok) {
   if (ok)
@@ -13,7 +14,7 @@ __int128 parse_i128(const char *s, int *ok) {
     s++;
   }
   int ok_u = 0;
-  unsigned __int128 u = TQparse_u128(s, &ok_u);
+  unsigned __int128 u = SV_parse_u128(s, &ok_u);
   if (!ok_u)
     return 0;
   if (ok)
@@ -101,8 +102,17 @@ Type *ir_type(DataTypes_t t, LLVMContext &ctx) {
     return PointerType::getUnqual(ctx);
   case CHARACTER:
     return Type::getInt32Ty(ctx);
+  case RANGE: {
+    // A range is represented as an aggregate value of: { i64 start, i64 end, i64 step }
+    llvm::Type *i64Ty = llvm::Type::getInt64Ty(ctx);
+    return llvm::StructType::get(ctx, { i64Ty, i64Ty, i64Ty });
+  }
+  case VOID:
+    return Type::getVoidTy(ctx);
+
   default:
-    return Type::getVoidTy(ctx); /* fallback */
+    fprintf(stderr, "CODEGEN ERROR: UNhandled type \n");
+    return nullptr;
   }
 }
 
@@ -124,7 +134,7 @@ llvm::Value *emit_number(ASTNode_t *n, LLVMContext &ctx) {
     int ok = 0;
     __int128 v = parse_i128(n->literal.raw, &ok);
     if (!ok) {
-      panic(&file, n->loc, RT_NUM_LITERAL_UNSUPPORTED, NULL);
+      panic(n->loc, RT_NUM_LITERAL_UNSUPPORTED, NULL);
       return nullptr;
     }
     uint64_t words[2];
@@ -153,7 +163,7 @@ llvm::Value *emit_number(ASTNode_t *n, LLVMContext &ctx) {
     int ok = 0;
     unsigned __int128 v = parse_u128(n->literal.raw, &ok);
     if (!ok) {
-      panic(&file, n->loc, RT_NUM_LITERAL_UNSUPPORTED, NULL);
+      panic(n->loc, RT_NUM_LITERAL_UNSUPPORTED, NULL);
       return nullptr;
     }
     uint64_t words[2];
@@ -179,7 +189,7 @@ llvm::Value *emit_number(ASTNode_t *n, LLVMContext &ctx) {
     return ConstantFP::get(Type::getFP128Ty(ctx),
                            strtold(n->literal.raw, NULL));
   default:
-    panic(&file, n->loc, RT_NUM_LITERAL_UNSUPPORTED, NULL);
+    panic(n->loc, RT_NUM_LITERAL_UNSUPPORTED, NULL);
     return nullptr;
   }
 }

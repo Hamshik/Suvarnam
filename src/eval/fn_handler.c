@@ -2,7 +2,7 @@
 
 
 TypedValue eval_call(ASTNode_t *node, bool g_returning, TypedValue g_return_value) {
-  ASTNode_t *fn = TQruntime_fn_lookup(node->call.name);
+  ASTNode_t *fn = SV_runtime_fn_lookup(node->call.name);
 
   // Evaluate args left-to-right into a small array.
   int argc = 0;
@@ -32,25 +32,25 @@ TypedValue eval_call(ASTNode_t *node, bool g_returning, TypedValue g_return_valu
 
   if (!fn) {
     bool ok = 0;
-    TypedValue out = TQstd_call(node->call.name, argv, argc, node->loc, &ok);
+    TypedValue out = SV_std_call(node->call.name, argv, argc, node->loc, &ok);
     free(argv);
     if (!ok)
-      panic(&file, node->loc, RT_CALL_UNDEF_FN, node->call.name);
+      panic( node->loc, RT_CALL_UNDEF_FN, node->call.name);
     return out;
   }
 
   if (argc != fn->fn_def.param_count) {
-    panic(&file, node->loc, RT_ARGC_MISMATCH, node->call.name);
+    panic( node->loc, RT_ARGC_MISMATCH, node->call.name);
     free(argv);
     return (TypedValue){0};
   }
 
   // New call frame.
-  TQruntime_env_push();
+  SV_runtime_env_push();
   for (int i = 0; i < fn->fn_def.param_count; i++) {
-    TypedValue casted = TQcast_typed(argv[i], fn->fn_def.params[i].type);
-    TQValue vv = casted.val;
-    TQruntime_env_set_current(fn->fn_def.params[i].name, &vv, fn->fn_def.params[i].type);
+    TypedValue casted = SV_cast_typed(argv[i], fn->fn_def.params[i].type);
+    SV_Value vv = casted.val;
+    SV_runtime_env_set_current(fn->fn_def.params[i].name, &vv, fn->fn_def.params[i].type);
   }
 
   int saved_returning = g_returning;
@@ -66,7 +66,7 @@ TypedValue eval_call(ASTNode_t *node, bool g_returning, TypedValue g_return_valu
   g_returning = saved_returning;
   g_return_value = saved_return_value;
 
-  TQruntime_env_pop();
+  SV_runtime_env_pop();
   free(argv);
 
   return ret;

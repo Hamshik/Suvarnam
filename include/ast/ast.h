@@ -11,27 +11,27 @@ extern "C" {
 #include <stdint.h>
 
 /* Constructors */
-ASTNode_t *new_num(char *rawval, DataTypes_t datatype, TQLocation loc);
-ASTNode_t *new_str(char *rawval, TQLocation loc);
-ASTNode_t *new_char_bytes(const char *bytes, size_t len, TQLocation loc);
-ASTNode_t *new_var(const char *name, DataTypes_t datatype, TQLocation loc);
-ASTNode_t *new_binop(ASTNode_t *l, ASTNode_t *r, TQLocation loc, OP_kind_t op);
-ASTNode_t *new_unop(ASTNode_t *e, TQLocation loc, OP_kind_t op);
-ASTNode_t *new_assign(ASTNode_t *lhs, ASTNode_t *rhs, Type_t* datatype, bool is_mutable, TQLocation loc, OP_kind_t op);
-ASTNode_t *new_if(ASTNode_t *cond, ASTNode_t *thenB, ASTNode_t *elseB, TQLocation loc);
-ASTNode_t *new_for(const char* var, ASTNode_t *interable, ASTNode_t *body, TQLocation loc, bool ismut);
+ASTNode_t *new_num(char *rawval, DataTypes_t datatype, SV_Location loc);
+ASTNode_t *new_str(char *rawval, SV_Location loc);
+ASTNode_t *new_char_bytes(const char *bytes, size_t len, SV_Location loc);
+ASTNode_t *new_var(const char *name, DataTypes_t datatype, SV_Location loc);
+ASTNode_t *new_binop(ASTNode_t *l, ASTNode_t *r, SV_Location loc, OP_kind_t op);
+ASTNode_t *new_unop(ASTNode_t *e, SV_Location loc, OP_kind_t op);
+ASTNode_t *new_assign(ASTNode_t *lhs, ASTNode_t *rhs, Type_t* datatype, bool is_mutable, SV_Location loc, OP_kind_t op);
+ASTNode_t *new_if(ASTNode_t *cond, ASTNode_t *thenB, ASTNode_t *elseB, SV_Location loc);
+ASTNode_t *new_for(const char* var, ASTNode_t *interable, ASTNode_t *body, SV_Location loc, bool ismut);
 ASTNode_t *new_seq(ASTNode_t *a, ASTNode_t *b);
-ASTNode_t *new_while(ASTNode_t *cond, ASTNode_t *body, ASTNode_t* expr,TQLocation loc);
-ASTNode_t* new_bool(bool val, TQLocation loc);
-ASTNode_t* new_fn_def(const char *name, Param_t *params, int param_count, Type_t* ret_type, ASTNode_t *body, TQLocation loc);
-ASTNode_t* new_fn_call(const char *name, ASTNode_t *args, TQLocation loc);
-ASTNode_t* new_return(ASTNode_t *value, TQLocation loc);
-ASTNode_t* new_import_node(const char *path, TQLocation loc);
-ASTNode_t* new_list(ASTNode_t *elements,TQLocation loc);
-ASTNode_t* new_index(ASTNode_t *var, idx_expr_t* index, bool islhs, TQLocation loc);
+ASTNode_t *new_while(ASTNode_t *cond, ASTNode_t *body, ASTNode_t* expr,SV_Location loc);
+ASTNode_t* new_bool(bool val, SV_Location loc);
+ASTNode_t* new_fn_def(const char *name, Param_t *params, int param_count, Type_t* ret_type, ASTNode_t *body, SV_Location loc);
+ASTNode_t* new_fn_call(const char *name, ASTNode_t *args, SV_Location loc);
+ASTNode_t* new_return(ASTNode_t *value, SV_Location loc);
+ASTNode_t* new_import_node(const char *path, SV_Location loc);
+ASTNode_t* new_list(ASTNode_t *elements,SV_Location loc);
+ASTNode_t* new_index(ASTNode_t *var, idx_expr_t* index, bool islhs, SV_Location loc);
 ASTNode_t* new_range(ASTNode_t* start, ASTNode_t* end, ASTNode_t* step, bool isexslusive);
-ASTNode_t* new_break(TQLocation loc);
-ASTNode_t* new_continue(TQLocation loc);
+ASTNode_t* new_break(SV_Location loc);
+ASTNode_t* new_continue(SV_Location loc);
 
 
 /* Eval + memory */
@@ -40,18 +40,18 @@ ASTNode_t *ast_alloc(void);
 Type_t* make_type(DataTypes_t base, Type_t* inner);
 
 /* Env */
-void set_var(const char *name, TQValue *val, Type_t* datatype);
-void set_var_current(const char *name, TQValue *val, DataTypes_t datatype);
-  TQValue getvar(const char *name, Type_t* type, TQLocation loc);
+void set_var(const char *name, SV_Value *val, Type_t* datatype);
+void set_var_current(const char *name, SV_Value *val, DataTypes_t datatype);
+  SV_Value getvar(const char *name, Type_t* type, SV_Location loc);
 void env_push(void);
 void env_pop(void);
 void env_clear_all(void);
-void assign_value(DataTypes_t dt, TQValue *dest, TQValue src);
-TQValue eval_assign(ASTNode_t *lhs, ASTNode_t *rhs, OP_kind_t op, Type_t* type , TQLocation loc);
-TypedValue *getvar_ref(const char *name, TQLocation loc);
-int env_frame_id_of(const char *name, TQLocation loc);
-TypedValue *getvar_ref_at(int frame_id, const char *name, TQLocation loc);
-void set_var_at(int frame_id, const char *name, TQValue *val, Type_t* type, TQLocation loc);
+void assign_value(DataTypes_t dt, SV_Value *dest, SV_Value src);
+SV_Value eval_assign(ASTNode_t *lhs, ASTNode_t *rhs, OP_kind_t op, Type_t* type , SV_Location loc);
+TypedValue *getvar_ref(const char *name, SV_Location loc);
+int env_frame_id_of(const char *name, SV_Location loc);
+TypedValue *getvar_ref_at(int frame_id, const char *name, SV_Location loc);
+void set_var_at(int frame_id, const char *name, SV_Value *val, Type_t* type, SV_Location loc);
 
 #ifdef __cplusplus
 }

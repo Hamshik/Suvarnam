@@ -2,8 +2,8 @@
 // #include "shared/structs.h"
 // #include "utils/uhash.h"
 
-// TQValue default_step(DataTypes_t type) {
-//   TQValue step = {0};
+// SV_Value default_step(DataTypes_t type) {
+//   SV_Value step = {0};
 //   switch (type) {
 //   case I8:
 //     step.i8 = 1;
@@ -57,7 +57,7 @@
 //   return step;
 // }
 
-// bool step_is_positive(DataTypes_t type, TQValue step) {
+// bool step_is_positive(DataTypes_t type, SV_Value step) {
 //   switch (type) {
 //   case I8:
 //     return step.i8 > 0;
@@ -94,7 +94,7 @@
 //   }
 // }
 
-// bool step_is_zero(DataTypes_t type, TQValue step) {
+// bool step_is_zero(DataTypes_t type, SV_Value step) {
 //   switch (type) {
 //   case I8:
 //     return step.i8 == 0;
@@ -131,8 +131,8 @@
 //   }
 // }
 
-// bool should_continue_for(DataTypes_t type, TQValue cur, TQValue end,
-//                          TQValue step) {
+// bool should_continue_for(DataTypes_t type, SV_Value cur, SV_Value end,
+//                          SV_Value step) {
 //   if (step_is_positive(type, step)) {
 //     switch (type) {
 //     case I8:
@@ -206,8 +206,8 @@
 //   }
 // }
 
-// TQValue add_step_for(DataTypes_t type, TQValue cur, TQValue step) {
-//   TQValue next = cur;
+// SV_Value add_step_for(DataTypes_t type, SV_Value cur, SV_Value step) {
+//   SV_Value next = cur;
 //   switch (type) {
 //   case I8:
 //     next.i8 = (int8_t)(next.i8 + step.i8);
@@ -265,7 +265,7 @@
 //   if (!node->fornode.init || node->fornode.init->kind != AST_ASSIGN ||
 //       node->fornode.init->assign.lhs->kind != AST_VAR ||
 //       node->fornode.init->assign.op != OP_ASSIGN) {
-//     panic(&file, node->loc, RT_FOR_INIT_INVALID, NULL);
+//     panic( node->loc, RT_FOR_INIT_INVALID, NULL);
 //     return (TypedValue){0};
 //   }
 
@@ -273,16 +273,16 @@
 //   DataTypes_t loop_type = node->fornode.init->type->base;
 //   const char *loop_name = node->fornode.init->assign.lhs->var;
 
-//   TypedValue endt = TQcast_typed(ast_eval(node->fornode.end), node->fornode.init->type);
-//   TQValue endv_cast = endt.val;
+//   TypedValue endt = SV_cast_typed(ast_eval(node->fornode.end), node->fornode.init->type);
+//   SV_Value endv_cast = endt.val;
 //   TypedValue stept =
 //       node->fornode.step
-//           ? TQcast_typed(ast_eval(node->fornode.step), node->fornode.init->type)
+//           ? SV_cast_typed(ast_eval(node->fornode.step), node->fornode.init->type)
 //           : (TypedValue){.type = node->fornode.init->type, .val = default_step(loop_type)};
-//   TQValue stepv = stept.val;
+//   SV_Value stepv = stept.val;
 
 //   if (step_is_zero(loop_type, stepv)) {
-//     panic(&file, node->loc, RT_FOR_STEP_ZERO, NULL);
+//     panic( node->loc, RT_FOR_STEP_ZERO, NULL);
 //     return (TypedValue){0};
 //   }
 
@@ -290,14 +290,14 @@
 
 //   while (should_continue_for(
 //       loop_type,
-//       TQruntime_env_get(loop_name, node->fornode.init->type, node->loc),
+//       SV_runtime_env_get(loop_name, node->fornode.init->type, node->loc),
 //       endv_cast, stepv)) {
 //     last = ast_eval(node->fornode.body);
 //     if (g_returning)
 //       return g_return_value;
-//     TQValue cur = TQruntime_env_get(loop_name, node->fornode.init->type, node->loc);
-//     TQValue next = add_step_for(loop_type, cur, stepv);
-//     TQruntime_env_set(loop_name, &next, node->fornode.init->type);
+//     SV_Value cur = SV_runtime_env_get(loop_name, node->fornode.init->type, node->loc);
+//     SV_Value next = add_step_for(loop_type, cur, stepv);
+//     SV_runtime_env_set(loop_name, &next, node->fornode.init->type);
 //   }
 
 //   return last;

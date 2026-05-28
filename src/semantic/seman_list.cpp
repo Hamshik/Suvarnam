@@ -70,7 +70,7 @@ extern "C" Type_t *list_handle(ASTNode_t *n, Type_t *target_type) {
 
     // Use the iterative type matcher to ensure types align
     if (!types_match(expected_inner, actual_element_type)) {
-      panic(&file, element->loc, SEM_ASSIGN_TYPE_MISMATCH,
+      panic( element->loc, SEM_ASSIGN_TYPE_MISMATCH,
             "List element type mismatch");
       return nullptr;
     }
@@ -87,7 +87,7 @@ extern "C" Type_t *list_handle(ASTNode_t *n, Type_t *target_type) {
 
   // 3. Validation of counts and sizes
   if (actual_count == 0) {
-    panic(&file, n->loc, SEM_LIST_EMPTY,
+    panic(n->loc, SEM_LIST_EMPTY,
           "Lists must contain at least one element");
     return nullptr;
   }
@@ -99,7 +99,7 @@ extern "C" Type_t *list_handle(ASTNode_t *n, Type_t *target_type) {
 
   // If the type has a fixed size (e.g., list[i32; 3]), check it
   if (target_type->size != 0 && target_type->size != actual_count) {
-    panic(&file, n->loc, SEM_LIST_SIZE_MISMATCH,
+    panic(n->loc, SEM_LIST_SIZE_MISMATCH,
         logf_msg("expected %zu no. of elements, got %zu", target_type->size, actual_count));
     return nullptr;
   }
@@ -119,7 +119,7 @@ extern "C" Type_t *semantic_index_handle(ASTNode_t *n) {
     return nullptr;
 
   if (target_base->base != LIST) {
-    panic(&file, n->index.target->loc, SEM_INDEX_NOT_ARRAY, NULL);
+    panic(n->index.target->loc, SEM_INDEX_NOT_ARRAY, NULL);
     return nullptr;
   }
 
@@ -134,7 +134,7 @@ extern "C" Type_t *semantic_index_handle(ASTNode_t *n) {
     if (!expr) {
       // This is where you were seeing NULL because you were
       // looking in the wrong struct member previously.
-      panic(&file, n->loc, SEM_INTERNAL_ERROR, "Expr node is null");
+      panic(n->loc, SEM_INTERNAL_ERROR, "Expr node is null");
     }
 
     // 2. Check the expression type. 
@@ -146,7 +146,7 @@ extern "C" Type_t *semantic_index_handle(ASTNode_t *n) {
     Type_t *idx_type = check_expr(expr);
 
     if (!idx_type || (idx_type->base != I32 && idx_type->base != I64)) {
-      panic(&file, expr->loc, SEM_INDEX_NOT_INT, NULL);
+      panic( expr->loc, SEM_INDEX_NOT_INT, NULL);
     }
 
     // 3. Move to the next dimension in the linked list
@@ -203,9 +203,9 @@ void handle_idx_assign(ASTNode_t *&n, ASTNode_t *&lhs, Type_t *&final_type) {
   while (base->kind == AST_INDEX) base = base->index.target;
 
   if (base->kind == AST_VAR) {
-    base->ismut = TQsemantic_is_mutable(base->var);
+    base->ismut = SV_semantic_is_mutable(base->var);
     if (!base->ismut) {
-      panic(&file, n->loc, SEM_ASSIGN_IMMUTABLE, base->var);
+      panic(n->loc, SEM_ASSIGN_IMMUTABLE, base->var);
     }
   }
 
@@ -213,7 +213,7 @@ void handle_idx_assign(ASTNode_t *&n, ASTNode_t *&lhs, Type_t *&final_type) {
   idx_expr_t *curr_idx = lhs->index.idx;
   while (curr_idx != nullptr) {
     if (!current_type || current_type->base != LIST) {
-      panic(&file, curr_idx->expr_node->loc, SEM_ASSIGN_TYPE_MISMATCH,
+      panic( curr_idx->expr_node->loc, SEM_ASSIGN_TYPE_MISMATCH,
             "Indexing depth exceeds array dimensions");
       return;
     }
@@ -225,7 +225,7 @@ void handle_idx_assign(ASTNode_t *&n, ASTNode_t *&lhs, Type_t *&final_type) {
     Type_t *itype = check_expr(curr_idx->expr_node); 
 
     if (!itype || !is_numeric(itype->base) || is_float(curr_idx->expr_node)) {
-      panic(&file, curr_idx->expr_node->loc, SEM_INDEX_NOT_INT, NULL);
+      panic( curr_idx->expr_node->loc, SEM_INDEX_NOT_INT, NULL);
       break;
     }
 

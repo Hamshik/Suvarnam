@@ -2,11 +2,12 @@
 #define TACA_SYMBOL_TABLE_INTERNAL_HPP
 
 #include "SymbolTable.hpp"
+#include "shared/structs.h"
 #include <string>
 #include <unordered_map>
 
 extern "C" {
-extern file_t file;
+extern file_t* file;
 }
 struct SemanticSymbolRecord {
   Type_t* type = nullptr;
@@ -14,6 +15,7 @@ struct SemanticSymbolRecord {
   DataTypes_t last_maxed_type = UNKNOWN;
   bool is_mutable = false;
   bool is_used = false;
+  ASTNode_t* node_ptr = nullptr;
 };
 
 struct SemanticScopeRecord {
@@ -26,13 +28,13 @@ namespace  SV::runtime_symbol_table {
 void env_push();
 void env_pop();
 void env_clear_all();
-void env_set(const char *name,  TQValue *val, Type_t* type);
-void env_set_current(const char *name,  TQValue *val, Type_t* type);
- TQValue env_get(const char *name, Type_t* datatype, TQLocation loc);
-TypedValue *env_get_ref(const char *name, TQLocation loc);
-int env_frame_id_of(const char *name, TQLocation loc);
-TypedValue *env_get_ref_at(int frame_id, const char *name, TQLocation loc);
-void env_set_at(int frame_id, const char *name,  TQValue *val, Type_t* type, TQLocation loc);
+void env_set(const char *name,  SV_Value *val, Type_t* type);
+void env_set_current(const char *name,  SV_Value *val, Type_t* type);
+ SV_Value env_get(const char *name, Type_t* datatype, SV_Location loc);
+TypedValue *env_get_ref(const char *name, SV_Location loc);
+int env_frame_id_of(const char *name, SV_Location loc);
+TypedValue *env_get_ref_at(int frame_id, const char *name, SV_Location loc);
+void env_set_at(int frame_id, const char *name,  SV_Value *val, Type_t* type, SV_Location loc);
 
 bool fn_register(ASTNode_t *fn);
 ASTNode_t *fn_lookup(const char *name);

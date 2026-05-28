@@ -6,13 +6,13 @@
 #include "utils/colors.h"
 #include "utils/error_handler/error.h"
 
-extern file_t file;
+extern file_t* file;
 
 /* Helpers */
 void type_error(ASTNode_t *n, const char *msg) {
   if (n && n->type)
     n->type = make_type(UNKNOWN, NULL);
-  panic(&file, n ? (TQLocation){0} : n->loc,
+  panic(n ? (SV_Location){0} : n->loc,
         SEM_BINOP_INVALID, msg ? msg : NULL);
   return;
 }

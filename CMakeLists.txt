@@ -1,7 +1,7 @@
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 cmake_minimum_required(VERSION 3.15)
-project(taca_compiler LANGUAGES C CXX)
+project(suvarnam_compiler LANGUAGES C CXX)
 
 # 1. Standard Settings
 set(CMAKE_CXX_STANDARD 17)
@@ -59,16 +59,19 @@ file(GLOB_RECURSE ALL_SOURCES CONFIGURE_DEPENDS
 )
 
 # Remove the original parser.c and lexer.c if they exist in src to avoid double-definition
-list(REMOVE_ITEM ALL_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/parser/parser.c")
-list(REMOVE_ITEM ALL_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/lexer/lexer.c")
+# Robust artifact removal engine
+list(REMOVE_ITEM ALL_SOURCES 
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/parser/parser.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/lexer/lexer.c"
+    "${CMAKE_CURRENT_BINARY_DIR}/parser.c"
+    "${CMAKE_CURRENT_BINARY_DIR}/lexer.c"
+)
 
 # 7. Define the Executable
-add_executable(taca 
+add_executable(suvarnam 
     ${ALL_SOURCES}
     ${BISON_MyParser_OUTPUTS}
     ${FLEX_MyLexer_OUTPUTS}
-    src/codegen/emit_assign.cpp
-    src/codegen/str_op_handler.cpp
 )
 
 # 8. Map LLVM Components to Libraries
@@ -83,7 +86,7 @@ llvm_map_components_to_libnames(llvm_libs
 )
 
 # 9. Linking
-target_link_libraries(taca PRIVATE ${llvm_libs})
+target_link_libraries(suvarnam PRIVATE ${llvm_libs})
 
 # Set output directory to bin/ as per your structure
-set_target_properties(taca PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/bin")
+set_target_properties(suvarnam PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/build")

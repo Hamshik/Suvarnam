@@ -1,23 +1,26 @@
 #include "cmd-exec/cmd-exec.h"
+#include "shared/structs.h"
 #include <stdlib.h>
 
 extern FILE *yyin;
-file_t file = {0};
 extern ASTNode_t* root;
+file_t *file;
 
 int yyparse();
 
 int main(int argc, char **argv) {
+    file = malloc(sizeof(file_t));
+    
     Options opts;
     if (!parse_arguments(argc, argv, &opts)) {
         return EXIT_FAILURE;
     }
 
-    if (!setup_input_file(&opts, &file)) {
+    if (!setup_input_file(&opts, file)) {
         return EXIT_FAILURE;
     }
 
-    yyin = file.source;
+    yyin = file->source;
     yyrestart(yyin);
 
     yyparse();
@@ -31,9 +34,9 @@ int main(int argc, char **argv) {
         return EXIT_FAILURE;
     }
 
-    if (file.source != stdin)
-        fclose(file.source);
-    if (opts.input_filename && file.filename && file.filename != opts.input_filename)
-        free(file.filename);
+    if (file->source != stdin)
+        fclose(file->source);
+    if (opts.input_filename && file->filename && file->filename != opts.input_filename)
+        free(file->filename);
     return 0;
 }

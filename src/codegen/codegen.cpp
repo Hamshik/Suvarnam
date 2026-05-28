@@ -1,10 +1,8 @@
 #include "codegen/codegen.hpp"
 #include "SymbolTable/SymbolTable.hpp"
-#include "stdlibs/stdlibs.h"
 #include "utils/colors.h"
 #include <iostream>
 #include <unordered_set>
-#include "stdlibs/stdlibs.h"
 
 using namespace llvm;
 
@@ -56,7 +54,7 @@ static void emit_functions(ASTNode_t *root, Module &mod, LLVMContext &ctx) {
             auto [_, inserted] = visited_modules.emplace(path);
             if (!inserted) return;
 
-            Module_t *imported = TQsemantic_load_module(path, nullptr);
+            Module_t *imported = SV_semantic_load_module(path, nullptr);
             if (imported && imported->ast) {
                 walk(imported->ast);
             }
@@ -94,7 +92,7 @@ static Function* emit_init(ASTNode_t *root, Module &mod, LLVMContext &ctx) {
             auto [_, inserted] = visited_modules.emplace(path);
             if (!inserted) return;
 
-            Module_t *imported = TQsemantic_load_module(path, nullptr);
+            Module_t *imported = SV_semantic_load_module(path, nullptr);
             if (imported && imported->ast) {
                 emit_nonfn(imported->ast);
             }
@@ -136,7 +134,14 @@ static bool emit_entry(Module &mod, LLVMContext &ctx, Function *initFn) {
 
     b.CreateCall(initFn);
 
-    Function *exitFn = get_exit(mod, ctx);
+    Function *exitFn = mod.getFunction("exit");
+    if (!exitFn) {
+        FunctionType *ft = FunctionType::get(Type::getVoidTy(ctx),    // return void
+                                            {Type::getInt32Ty(ctx)}, // takes int
+                                            false);
+
+        exitFn = Function::Create(ft, Function::ExternalLinkage, "exit", mod);
+    }
 
     Value *ret = b.CreateCall(userMain);
 
@@ -180,7 +185,7 @@ static bool emit_ir(Module &mod, const char *path, char **out) {
 
 extern "C" int codegen(ASTNode_t *root, const char *ll_path, char **ir_out) {
     LLVMContext ctx;
-    Module mod(" TQModule", ctx);
+    Module mod(" SV_Module", ctx);
 
     if (!setup_target(mod))
         return 1;

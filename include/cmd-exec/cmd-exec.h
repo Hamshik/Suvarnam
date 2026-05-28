@@ -32,5 +32,5 @@ void env_clear_all();
 
 /*------------external fn declaration -----------------------------------*/
 void syserr(const char *context);
-void panic(file_t *file, TQLocation loc, errc_t code, const char *detail);
+void panic( SV_Location loc, errc_t code, const char *detail);
 char* logf_msg(const char *fmt, ...);

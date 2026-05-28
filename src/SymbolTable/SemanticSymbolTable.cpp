@@ -46,7 +46,7 @@ Type_t* lookup(const char *name) {
   return symbol ? symbol->type : nullptr;
 }
 
-bool declare(const char *name, Type_t* type, bool is_mutable) {
+bool declare(const char *name, Type_t* type,bool is_mutable) {
   SemanticScopeRecord *scope = semantic_scope_top();
   auto [it, inserted] = scope->symbols.try_emplace(name);
   if (!inserted) {
@@ -203,7 +203,7 @@ Module_t *load_module(const char *path, bool &already_imported) {
 
   FILE *source = fopen(path, "r");
   if (!source) {
-    panic(&file, (TQLocation){0}, SEM_IMPORT_FILE_NOT_FOUND, path);
+    panic( (SV_Location){0}, SEM_IMPORT_FILE_NOT_FOUND, path);
     return nullptr;
   }
 

@@ -1,10 +1,10 @@
 #include "parser/parser_helpers.h"
 
-void TQannotate_decl_list(ASTNode_t *n, DataTypes_t default_t, DataTypes_t default_sub_type, bool is_mutable) {
+void SV_annotate_decl_list(ASTNode_t *n, DataTypes_t default_t, DataTypes_t default_sub_type, bool is_mutable) {
     if (!n) return;
     if (n->kind == AST_SEQ) {
-        TQannotate_decl_list(n->seq.a, default_t, default_sub_type, is_mutable);
-        TQannotate_decl_list(n->seq.b, default_t, default_sub_type, is_mutable);
+        SV_annotate_decl_list(n->seq.a, default_t, default_sub_type, is_mutable);
+        SV_annotate_decl_list(n->seq.b, default_t, default_sub_type, is_mutable);
         return;
     }
     if (n->kind != AST_ASSIGN) return;

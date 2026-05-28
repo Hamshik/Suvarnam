@@ -15,7 +15,7 @@ bool isWarning = false;
 bool error_fatal = true;
 
 
-void panic(file_t *file, TQLocation loc, errc_t code, const char *detail)
+void panic(SV_Location loc, errc_t code, const char *detail)
 {
     const char *filename = (file && file->filename) ? file->filename : "<input>";
     const char *base = errc_msg(code);
@@ -70,7 +70,7 @@ void panic(file_t *file, TQLocation loc, errc_t code, const char *detail)
     if (error_fatal) exit(EXIT_FAILURE);
 }
 
-void warn(file_t *file, TQLocation loc, warnc_t code, const char *detail)
+void warn(SV_Location loc, warnc_t code, const char *detail)
 {
     const char *filename = (file && file->filename) ? file->filename : "<input>";
     const char *base = warnc_msg(code);
