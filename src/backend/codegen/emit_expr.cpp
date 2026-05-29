@@ -126,6 +126,9 @@ Value *emit_expr(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
   case AST_INDEX:
     return generateListAccess(n, ctx, b, entryBuilder, locals);
 
+  case AST_BLOCK:
+    return emit_expr(n->block.block, ctx, b, entryBuilder, locals);
+
   default:
     printf("Warning: Unhandled AST node kind in codegen\n");
     return nullptr;

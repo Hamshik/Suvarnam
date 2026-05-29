@@ -1,5 +1,5 @@
 #include "codegen/codegen.hpp"
-#include "builtin/BuiltinRegistry.hpp"
+#include "SymbolTable/BuiltinRegistry.hpp"
 #include <cstddef>
 #include <iostream>
 #include <llvm-22/llvm/Support/Alignment.h>

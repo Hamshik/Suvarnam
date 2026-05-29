@@ -1,5 +1,5 @@
 #include "codegen/codegen.hpp"
-#include "builtin/BuiltinRegistry.hpp"
+#include "SymbolTable/BuiltinRegistry.hpp"
 #include <cstring>
 
 

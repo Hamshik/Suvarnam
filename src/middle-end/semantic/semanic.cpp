@@ -1,6 +1,6 @@
 #include "ast/ast.h"
 #include "semantic/semantic.hpp"
-#include "builtin/BuiltinRegistry.hpp"
+#include "SymbolTable/BuiltinRegistry.hpp"
 #include "shared/enums.h"
 #include "shared/structs.h"
 #include "utils/error_handler/error.h"
@@ -180,6 +180,9 @@ extern "C" Type_t *check_expr(ASTNode_t *n, Type_t *&type) {
 
   case AST_INDEX:
     return semantic_index_handle(n);
+
+  case AST_BLOCK:
+    return check_expr(n->block.block, type);
 
   default:
     panic(n->loc, SEM_UNKNOWN_AST, NULL);

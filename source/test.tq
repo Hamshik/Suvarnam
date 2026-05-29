@@ -1,5 +1,5 @@
 fn main(){
-    for(i in {1..10..-1}){
-        printlni(i);
-    }
+    var i = [[10,10], [10,10]];
+    printlni(i[0][0]);
+    printlni(i[0][1]);
 }

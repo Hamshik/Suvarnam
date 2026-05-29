@@ -1,5 +1,5 @@
 #include "semantic/semantic.hpp"
-#include "builtin/BuiltinRegistry.hpp"
+#include "SymbolTable/BuiltinRegistry.hpp"
 #include "shared/enums.h"
 #include "shared/structs.h"
 #include <float.h>

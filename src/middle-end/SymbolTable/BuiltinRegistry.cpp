@@ -1,4 +1,4 @@
-#include "builtin/BuiltinRegistry.hpp"
+#include "SymbolTable/BuiltinRegistry.hpp"
 #include "semantic/semantic.hpp"
 #include "shared/enums.h"
 #include <iostream>

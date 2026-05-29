@@ -176,7 +176,6 @@ ASTNode_t* new_list(ASTNode_t *elements, SV_Location loc) {
     node->list.count = 0; // Initialize to 0 to avoid massive unsigned underflow
     node->type = make_type(LIST, NULL); // Base list type
     if (node->type) node->type->size = 0;
-    node->list.max_nested_dept = 0;
     node->loc = loc;
     return node;
 }

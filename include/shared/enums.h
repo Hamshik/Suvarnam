@@ -24,7 +24,9 @@ typedef enum ASTKind {
     AST_RANGE,
     AST_INDEX,
     AST_CONTINUE,
-    AST_BREAK
+    AST_BREAK,
+    AST_BLOCK,
+    AST_DECL
 } ASTKind_t;
 
 typedef enum DataTypes{

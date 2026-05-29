@@ -37,15 +37,20 @@ find_package(FLEX REQUIRED)
 
 # 5.1 Tell the compiler to look in the build folder for the generated parser.h
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
-include_directories(include)
+include_directories(
+    include/backend
+    include/middle-end
+    include/frontend
+    include
+)
 
 # 5. Generate Parser and Lexer
 # We generate them in the BUILD directory, not the SOURCE directory
-BISON_TARGET(MyParser src/parser/parser.y 
+BISON_TARGET(MyParser src/frontend/parser/parser.y 
              ${CMAKE_CURRENT_BINARY_DIR}/parser.c
              DEFINES_FILE ${CMAKE_CURRENT_BINARY_DIR}/parser.h)
 
-FLEX_TARGET(MyLexer src/lexer/lexer.l
+FLEX_TARGET(MyLexer src/frontend/lexer/lexer.l
             ${CMAKE_CURRENT_BINARY_DIR}/lexer.c)
 
 ADD_FLEX_BISON_DEPENDENCY(MyLexer MyParser)

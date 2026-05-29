@@ -30,14 +30,14 @@ TypedValue eval_call(ASTNode_t *node, bool g_returning, TypedValue g_return_valu
       arg = NULL;
   }
 
-  if (!fn) {
-    bool ok = 0;
-    TypedValue out = SV_std_call(node->call.name, argv, argc, node->loc, &ok);
-    free(argv);
-    if (!ok)
-      panic( node->loc, RT_CALL_UNDEF_FN, node->call.name);
-    return out;
-  }
+  // if (!fn) {
+  //   bool ok = 0;
+  //   TypedValue out = SV_std_call(node->call.name, argv, argc, node->loc, &ok);
+  //   free(argv);
+  //   if (!ok)
+  //     panic( node->loc, RT_CALL_UNDEF_FN, node->call.name);
+  //   return out;
+  // }
 
   if (argc != fn->fn_def.param_count) {
     panic( node->loc, RT_ARGC_MISMATCH, node->call.name);
