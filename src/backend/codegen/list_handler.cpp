@@ -31,7 +31,7 @@ FunctionCallee get_builtin_llvm_fn(const char* name, Module &m, LLVMContext &ctx
     return m.getOrInsertFunction(name, ftype);
 }
 
-void emit_list_print_call(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b, IRBuilder<> &entryBuilder, LocalMap &locals) {
+void emit_list_print_call(MASTNode *n, LLVMContext &ctx, IRBuilder<> &b, IRBuilder<> &entryBuilder, Codegen::Scope &locals) {
     Module *m = b.GetInsertBlock()->getModule();
     
     // 1. Get the function reference from the registry
@@ -45,14 +45,14 @@ void emit_list_print_call(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b, IRBuil
     Value *listPtr = emit_expr(n, ctx, b, entryBuilder, locals);
 
     // 3. Get the size (from your AST metadata)
-    Value *listSize = b.getInt32(n->list.count);
+    Value *listSize = b.getInt32(n->type->size);
 
     // 4. Generate the call: SV_print_list(listPtr, listSize)
     b.CreateCall(printFn, {listPtr, listSize});
 }
 
-Value *generateList(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
-                    IRBuilder<> &entryBuilder, LocalMap &locals) {
+Value *generateList(MASTNode *n, LLVMContext &ctx, IRBuilder<> &b,
+                    IRBuilder<> &entryBuilder, Codegen::Scope &locals) {
   if (!n->type || !n->type->inner) {
     std::cerr
         << "Codegen Error: List type or inner element type is missing at line "
@@ -69,7 +69,7 @@ Value *generateList(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
     return nullptr;
   }
 
-  ArrayType *arrayType = ArrayType::get(elemType, n->list.count);
+  ArrayType *arrayType = ArrayType::get(elemType, n->type->size);
   Function *currentFn = b.GetInsertBlock()->getParent();
   Module *m = b.GetInsertBlock()->getModule();
 
@@ -84,45 +84,38 @@ Value *generateList(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
   // Otherwise, use the Stack (AllocaInst) for automatic local cleanup.
   if (currentFn && currentFn->getName() == "init") {
     const DataLayout &DL = m->getDataLayout();
-    uint64_t totalSize = n->list.count * DL.getTypeAllocSize(elemType);
+    uint64_t totalSize = n->type->size * DL.getTypeAllocSize(elemType);
     Function *mallocFn = get_malloc_fn(*m, ctx);
     allocatedPtr = b.CreateCall(mallocFn, {b.getInt64(totalSize)}, "list_heap");
     typedPtr = b.CreateBitCast(allocatedPtr, PointerType::getUnqual(ctx));
   } else {
-    allocatedPtr = entryBuilder.CreateAlloca(arrayType, nullptr, "list_stack");
+    allocatedPtr = entryBuilder.CreateAlloca(arrayType, nullptr, "list_stack_alloc");
     typedPtr = b.CreateInBoundsGEP(arrayType, allocatedPtr,
                                    {b.getInt32(0), b.getInt32(0)});
   }
 
-  ASTNode_t *curr = n->list.elements;
-  uint32_t index = 0;
-
-  while (curr) {
-    ASTNode_t *exprNode = (curr->kind == AST_SEQ) ? curr->seq.a : curr;
+  for (uint32_t index = 0; index < n->element.elements->size(); ++index) {
+    MASTNode *exprNode = (*n->element.elements)[index];
     Value *elementVal = emit_expr(exprNode, ctx, b, entryBuilder, locals);
 
     // Calculate element address using typedPtr
     Value *elementAddr =
-        b.CreateInBoundsGEP(elemType, typedPtr, b.getInt32(index++));
-
+        b.CreateInBoundsGEP(elemType, typedPtr, b.getInt32(index));
     b.CreateStore(elementVal, elementAddr);
-
-    if (curr->kind != AST_SEQ)
-      break;
-    curr = curr->seq.b;
   }
 
   // Return as generic pointer (i8*)
   return b.CreateBitCast(typedPtr, ir_type(LIST, ctx));
 }
 
-Value *generateListElementPtr(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
-                              IRBuilder<> &entryBuilder, LocalMap &locals) {
+Value *generateListElementPtr(MASTNode *n, LLVMContext &ctx, IRBuilder<> &b,
+                              IRBuilder<> &entryBuilder, Codegen::Scope &locals) {
   Value *currentPtr = emit_expr(n->index.target, ctx, b, entryBuilder, locals);
   Type_t *current_type_data = n->index.target->type;
-  idx_expr_t *curr_idx_node = n->index.idx;
+  std::vector<MASTNode*> &indices = *n->index.idx;
 
-  while (curr_idx_node != nullptr) {
+  for (size_t i = 0; i < indices.size(); ++i) {
+    MASTNode* idx_expr_node = indices[i];
     // 1. Peek at the semantic type
     if (!current_type_data || current_type_data->base != LIST) {
       // This should technically be caught by Semantics,
@@ -132,8 +125,7 @@ Value *generateListElementPtr(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
       return nullptr;
     }
 
-    Value *indexVal =
-        emit_expr(curr_idx_node->expr_node, ctx, b, entryBuilder, locals);
+    Value *indexVal = emit_expr(idx_expr_node, ctx, b, entryBuilder, locals);
 
     // 2. Identify the element type (e.g., I32 or LIST)
     Type_t *inner_type = current_type_data->inner;
@@ -146,7 +138,7 @@ Value *generateListElementPtr(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
         b.CreateInBoundsGEP(llvmElemType, typedPtr, indexVal, "ptr_step");
 
     // 4. THE CHECK: Do we need to load a pointer to go deeper?
-    if (curr_idx_node->next != nullptr) {
+    if (i < indices.size() - 1) {
       // If the inner type isn't a list, but we have more indices,
       // the user wrote something like 'integer_var[0]'
       if (inner_type->base != LIST) {
@@ -159,21 +151,19 @@ Value *generateListElementPtr(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
                                 "sub_list_load");
       current_type_data = inner_type; // Move type pointer deeper
     }
-
-    curr_idx_node = curr_idx_node->next;
   }
 
   return currentPtr;
 }
 
-Value *generateListAccess(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
-                          IRBuilder<> &entryBuilder, LocalMap &locals) {
+Value *generateListAccess(MASTNode *n, LLVMContext &ctx, IRBuilder<> &b,
+                          IRBuilder<> &entryBuilder, Codegen::Scope &locals) {
   Value *elementAddr = generateListElementPtr(n, ctx, b, entryBuilder, locals);
   if (!elementAddr)
     return nullptr;
 
   // 1. Get the actual base type (e.g., i32) resolved by semantics
-  Type *elementType = ir_type(get_AST_ret(n->type, n->index.idx->depth)->base , ctx);
+  Type *elementType = ir_type(n->type->base , ctx);
 
   if (elementType->isVoidTy()) {
     fprintf(stderr, "Error: Invalid element type at line %zu\n",

@@ -1,6 +1,8 @@
+#include "MAST-Gen/Mast_gen.hpp"
 #include "ast/ast.h"
 #include "semantic/semantic.hpp"
 #include "SymbolTable/BuiltinRegistry.hpp"
+#include "shared/M_node.hpp"
 #include "shared/enums.h"
 #include "shared/structs.h"
 #include "utils/error_handler/error.h"
@@ -11,7 +13,25 @@ Type_t* check_unconditional_branches(ASTNode_t* n, Type_t* type);
 Type_t* check_while_loop(ASTNode_t* n, Type_t* type);
 Type_t* check_range(ASTNode_t* n, Type_t* type);
 Type_t* check_for_loop(ASTNode_t* n, Type_t* type);
+extern "C" {
+void yyrestart(FILE *f);
+int yyparse();
+}
 
+extern ASTNode_t *root;
+
+ASTNode_t* parse_file(FILE *f) {
+    ASTNode_t *old_root = root;   // save current AST
+
+    root = NULL;                  // reset for new parse
+    yyrestart(f);
+    yyparse();
+
+    ASTNode_t *new_root = root;   // get parsed AST
+    root = old_root;              // restore old AST
+
+    return new_root;
+}
 
 void ensure_semantic(Module_t *m) {
   if (!m || m->semantic_done)
@@ -75,6 +95,7 @@ extern "C" Type_t *check_expr(ASTNode_t *n, Type_t *&type) {
   case AST_STR:
     if (!n->type || n->type->base == UNKNOWN)
       n->type = make_type(STRINGS, NULL);
+    n->type->size = n->literal.len;
     return n->type;
 
   case AST_CHAR:

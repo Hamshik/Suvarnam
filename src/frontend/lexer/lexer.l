@@ -221,8 +221,8 @@ fn                  { return FN; }
 ">"                 { return GT; }
 "{"                 { SV_brace_depth++; return LBRACE; }
 "}"                 { if (  SV_brace_depth > 0) SV_brace_depth--; return RBRACE; }
-".."                { return DOT_DOT;}
-
+".."                { return DOT_DOT; }
+"@"                 { return AT; }
 [a-zA-Z_][a-zA-Z0-9_]*|[a-zA-Z_] {
     yylval->node = new_var(yytext, UNKNOWN, *yylloc);
     return IDENTIFIER;

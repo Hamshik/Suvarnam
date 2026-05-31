@@ -42,7 +42,7 @@ bool SV_runtime_fn_register(ASTNode_t *fn) {
   return  SV::runtime_symbol_table::fn_register(fn);
 }
 
-ASTNode_t *  SV_runtime_fn_lookup(const char *name) {
+ASTNode_t *SV_runtime_fn_lookup(const char *name) {
   return  SV::runtime_symbol_table::fn_lookup(name);
 }
 
@@ -52,8 +52,8 @@ Type_t* SV_semantic_lookup(const char *name) {
   return  SV::semantic_symbol_table::lookup(name);
 }
 
-bool SV_semantic_declare(const char *name, Type_t* type, bool is_mutable) {
-  return  SV::semantic_symbol_table::declare(name, type, is_mutable);
+bool SV_semantic_declare(const char *name, Type_t* type, ASTNode_t* node,bool is_mutable) {
+  return  SV::semantic_symbol_table::declare(name, type, node, is_mutable);
 }
 
 exitcode_t SV_semantic_exists(const char *name, Type_t* type) {

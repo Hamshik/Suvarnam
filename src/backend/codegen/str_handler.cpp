@@ -94,15 +94,15 @@ Value *emit_char_to_string(Value *ch, LLVMContext &ctx, IRBuilder<> &b) {
   return mem;
 }
 
-Value *emit_char(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b) {
-  if (!n->literal.raw) {
+Value *emit_char(MASTNode *n, LLVMContext &ctx, IRBuilder<> &b) {
+  if (!n->literals.val.chars) {
     panic(n->loc,INVAILD_UTF8_CHAR, nullptr);
     return nullptr;
   }
 
   size_t len = 0;
   Utf8Error err = Utf8Error::None;
-  uint32_t codepoint = decode_utf8(n->literal.raw, n->literal.len, &len, &err);
+  uint32_t codepoint = decode_utf8(n->literals.val.chars, n->type->size, &len, &err);
 
   // Error Handling
   if (err != Utf8Error::None) {
@@ -114,7 +114,7 @@ Value *emit_char(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b) {
       msg = "Character literal cannot be empty";
 
     else if (err == Utf8Error::InvalidUtf8)
-      msg = n->literal.raw;
+      msg = n->literals.val.chars;
 
     panic(n->loc, INVAILD_UTF8_CHAR,
           msg ? msg : "unknown");
@@ -125,11 +125,11 @@ Value *emit_char(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b) {
   return ConstantInt::get(ir_type(CHARACTER, ctx), codepoint);
 }
 
-Value *emit_strs(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b) {
+Value *emit_strs(MASTNode *n, LLVMContext &ctx, IRBuilder<> &b) {
   auto module = b.GetInsertBlock()->getModule();
 
-  const char *data = n->literal.raw ? n->literal.raw : "";
-  size_t len = n->literal.len;
+  const char *data = n->literals.val.chars ? n->literals.val.chars : "";
+  size_t len = n->type->size;
 
   if (len == 0)
     len = strlen(data);

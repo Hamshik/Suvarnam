@@ -72,7 +72,6 @@ typedef union {
 
     bool bval;
     char* chars;
-    char* str;
 
     void* raw;
 } SV_Value;

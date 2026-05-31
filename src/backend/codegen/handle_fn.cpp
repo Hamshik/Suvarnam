@@ -3,89 +3,101 @@
 #include <cstring>
 
 
+#include "codegen/codegen.hpp"
+#include "SymbolTable/BuiltinRegistry.hpp"
+#include <cstring>
+
 FunctionCallee get_builtin_llvm_fn(const char* name, Module &m, LLVMContext &ctx);
 
-Function *get_or_create_prototype(ASTNode_t *fn_ast, Module &mod,
+Function *get_or_create_prototype(MASTNode *fn_ast, Module &mod,
                                   LLVMContext &ctx) {
   std::vector<Type *> params;
-  for (int i = 0; i < fn_ast->fn_def.param_count; ++i) {
-    params.push_back(ir_type(fn_ast->fn_def.params[i].type->base, ctx));
+  for (auto* p : *fn_ast->fn.params) {
+    params.push_back(ir_type(p->type->base, ctx));
   }
-  Type *retTy = ir_type(fn_ast->fn_def.ret->base, ctx);
-  if (retTy->isVoidTy() && fn_ast->fn_def.ret->base == UNKNOWN)
+  Type *retTy = ir_type(fn_ast->type->base, ctx);
+  if (retTy->isVoidTy() && fn_ast->type->base == UNKNOWN)
     retTy = Type::getInt32Ty(ctx);
   FunctionType *ft = FunctionType::get(retTy, params, false);
-  Function *fn = mod.getFunction(fn_ast->fn_def.name);
+  Function *fn = mod.getFunction(fn_ast->fn.name);
   if (!fn) {
-    fn = Function::Create(ft, Function::ExternalLinkage, fn_ast->fn_def.name,
+    fn = Function::Create(ft, Function::ExternalLinkage, fn_ast->fn.name,
                           mod);
   }
   return fn;
 }
 
-void emit_function(ASTNode_t *fn_ast, Module &mod, LLVMContext &ctx) {
+void emit_function(MASTNode *fn_ast, Module &mod, LLVMContext &ctx) {
   Function *fn = get_or_create_prototype(fn_ast, mod, ctx);
   if (!fn)
     return;
+    
   BasicBlock *entry = BasicBlock::Create(ctx, "entry", fn);
   IRBuilder<> b(entry);
-  IRBuilder<> entryBuilder(entry, entry->begin());
-  LocalMap locals;
+  
+  // 🎯 FIX: Force entryBuilder to point directly to the beginning of the entry block.
+  // This guarantees that any alloca instruction is injected at the very top of main().
+  IRBuilder<> entryBuilder(ctx);
+  entryBuilder.SetInsertPoint(entry, entry->begin());
+  
+  Codegen::Scope locals;
 
-  // map params
-  unsigned idx = 0;
+  // Add function arguments to local scope if necessary
+  size_t idx = 0;
   for (auto &arg : fn->args()) {
-    const char *pname = fn_ast->fn_def.params[idx].name;
-    arg.setName(pname);
-    AllocaInst *alloca = get_or_create_alloca(
-        pname, fn_ast->fn_def.params[idx].type->base, ctx, entryBuilder, locals);
-    b.CreateStore(&arg, alloca);
-    ++idx;
+    const char *pname = (*fn_ast->fn.params)[idx]->name;
+    Type *t = arg.getType();
+    
+    // Use entryBuilder to safely allocate arguments at the function head
+    AllocaInst *alloca_inst = entryBuilder.CreateAlloca(t, nullptr, pname);
+    b.CreateStore(&arg, alloca_inst);
+    locals[pname] = alloca_inst;
+    idx++;
   }
 
-  emit_expr(fn_ast->fn_def.body, ctx, b, entryBuilder, locals);
+  for(auto stmt : *fn_ast->fn.body)
+    // Process function body block
+    emit_expr(stmt, ctx, b, entryBuilder, locals);
+
+  // Fallback return if block isn't explicitly terminated
   if (!blockTerminated(b)) {
-    if (fn->getReturnType()->isVoidTy())
+    if (fn->getReturnType()->isVoidTy()) {
       b.CreateRetVoid();
-    else if (strcmp(fn_ast->fn_def.name, "main") == 0)
-      b.CreateRet(ConstantInt::get(Type::getInt32Ty(ctx), 0));
-    else
-      b.CreateRet(ConstantInt::get(Type::getInt32Ty(ctx), 0));
+    } else {
+      b.CreateRet(ConstantInt::get(fn->getReturnType(), 0));
+    }
   }
 }
 
-llvm::Value *emit_call(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
-                       IRBuilder<> &entryBuilder, LocalMap &locals) {
+llvm::Value *emit_call(MASTNode *n, LLVMContext &ctx, IRBuilder<> &b,
+                       IRBuilder<> &entryBuilder, Codegen::Scope &locals) {
 
   argvec args;
 
   // 🔹 Evaluate arguments
-  for (ASTNode_t *it = n->call.args; it;) {
-    ASTNode_t *cur = (it->kind == AST_SEQ) ? it->seq.a : it;
-
-    if (cur) {
-      llvm::Value *v = emit_expr(cur, ctx, b, entryBuilder, locals);
+  if (n->call.args) {
+    for (MASTNode *arg_node : *n->call.args) {
+      llvm::Value *v = emit_expr(arg_node, ctx, b, entryBuilder, locals);
       if (!v)
         v = ConstantInt::get(Type::getInt32Ty(ctx), 0);
       args.push_back(v);
     }
-
-    it = (it->kind == AST_SEQ) ? it->seq.b : nullptr;
   }
 
   Module *m = b.GetInsertBlock()->getModule();
-  const char *fname = n->call.name;
+  const char *fname = n->call.target_fn;
 
   if (!fname || fname[0] == '\0') {
     syserr("ERROR: function call with empty name\n");
   }
 
   // 🔹 Directly inject the list size as a constant for the 'len' built-in
-  if (strcmp(fname, "len") == 0) {
-    ASTNode_t *it = n->call.args;
-    ASTNode_t *arg = (it && it->kind == AST_SEQ) ? it->seq.a : it;
-    if (arg && arg->type && arg->type->base == LIST) {
+  if (fname && strcmp(fname, "len") == 0) {
+    if (n->call.args && !n->call.args->empty()) {
+      MASTNode *arg = n->call.args->front();
+      if (arg && arg->type && arg->type->base == LIST) {
       return ConstantInt::get(Type::getInt32Ty(ctx), arg->type->size);
+    }
     }
   }
 

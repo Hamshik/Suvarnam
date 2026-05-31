@@ -116,94 +116,59 @@ Type *ir_type(DataTypes_t t, LLVMContext &ctx) {
   }
 }
 
-llvm::Value *emit_number(ASTNode_t *n, LLVMContext &ctx) {
+llvm::Value *emit_number(MASTNode *n, LLVMContext &ctx) {
   switch (n->type->base) {
   case I8:
     return ConstantInt::get(Type::getInt8Ty(ctx),
-                            strtoll(n->literal.raw, NULL, 0), true);
+                            n->literals.val.i8, 1, true);
   case I16:
     return ConstantInt::get(Type::getInt16Ty(ctx),
-                            strtoll(n->literal.raw, NULL, 0), true);
+                            n->literals.val.i16, true);
   case I32:
     return ConstantInt::get(Type::getInt32Ty(ctx),
-                            strtoll(n->literal.raw, NULL, 0), true);
+                            n->literals.val.i32, true);
   case I64:
     return ConstantInt::get(Type::getInt64Ty(ctx),
-                            strtoll(n->literal.raw, NULL, 0), true);
+                            n->literals.val.i64, true);
   case I128: {
-    int ok = 0;
-    __int128 v = parse_i128(n->literal.raw, &ok);
-    if (!ok) {
-      panic(n->loc, RT_NUM_LITERAL_UNSUPPORTED, NULL);
-      return nullptr;
-    }
-    uint64_t words[2];
-    unsigned __int128 uv =
-        (v < 0) ? (unsigned __int128)(-v) : (unsigned __int128)v;
-    words[0] = (uint64_t)uv;
-    words[1] = (uint64_t)(uv >> 64);
-    APInt api(128, ArrayRef<uint64_t>(words, 2));
-    if (v < 0)
-      api = api.sext(128);
-    return ConstantInt::get(IntegerType::get(ctx, 128), api);
+    return ConstantInt::get(IntegerType::get(ctx, 128), n->literals.val.i128, true);
   }
   case U8:
     return ConstantInt::get(Type::getInt8Ty(ctx),
-                            strtoull(n->literal.raw, NULL, 0), false);
+                            n->literals.val.u8, false);
   case U16:
     return ConstantInt::get(Type::getInt16Ty(ctx),
-                            strtoull(n->literal.raw, NULL, 0), false);
+                            n->literals.val.u16, false);
   case U32:
     return ConstantInt::get(Type::getInt32Ty(ctx),
-                            strtoull(n->literal.raw, NULL, 0), false);
+                            n->literals.val.u32, false);
   case U64:
     return ConstantInt::get(Type::getInt64Ty(ctx),
-                            strtoull(n->literal.raw, NULL, 0), false);
-  case U128: {
-    int ok = 0;
-    unsigned __int128 v = parse_u128(n->literal.raw, &ok);
-    if (!ok) {
-      panic(n->loc, RT_NUM_LITERAL_UNSUPPORTED, NULL);
-      return nullptr;
-    }
-    uint64_t words[2];
-    words[0] = (uint64_t)v;
-    words[1] = (uint64_t)(v >> 64);
-    APInt api(128, ArrayRef<uint64_t>(words, 2));
-    return ConstantInt::get(IntegerType::get(ctx, 128), api);
-  }
+                            n->literals.val.u64, false);
+  case U128: 
+    return ConstantInt::get(IntegerType::get(ctx, 128), n->literals.val.u128);
+
   case F32:
-    return ConstantFP::get(Type::getFloatTy(ctx), strtof(n->literal.raw, NULL));
+    return ConstantFP::get(Type::getFloatTy(ctx), n->literals.val.f32);
   case F64:
     return ConstantFP::get(Type::getDoubleTy(ctx),
-                           strtod(n->literal.raw, NULL));
+                           n->literals.val.f64);
   case F128:
     return ConstantFP::get(Type::getFP128Ty(ctx),
-                           strtold(n->literal.raw, NULL));
+                           n->literals.val.f128);
   case UF32:
-    return ConstantFP::get(Type::getFloatTy(ctx), strtof(n->literal.raw, NULL));
+    return ConstantFP::get(Type::getFloatTy(ctx), n->literals.val.f32);
   case UF64:
     return ConstantFP::get(Type::getDoubleTy(ctx),
-                           strtod(n->literal.raw, NULL));
+                           n->literals.val.f64);
   case UF128:
     return ConstantFP::get(Type::getFP128Ty(ctx),
-                           strtold(n->literal.raw, NULL));
+                           n->literals.val.f128);
+                           
   default:
     panic(n->loc, RT_NUM_LITERAL_UNSUPPORTED, NULL);
     return nullptr;
   }
-}
-
-AllocaInst *get_or_create_alloca(const std::string &name, DataTypes_t t,
-                                 LLVMContext &ctx, IRBuilder<> &entryBuilder,
-                                 LocalMap &locals) {
-  auto it = locals.find(name);
-  if (it != locals.end())
-    return it->second;
-  Type *ty = ir_type(t, ctx);
-  auto *alloca = entryBuilder.CreateAlloca(ty, nullptr, name);
-  locals[name] = alloca;
-  return alloca;
 }
 
 Function *get_malloc_fn(Module &m, LLVMContext &ctx) {
@@ -223,11 +188,11 @@ bool blockTerminated(IRBuilder<> &b) {
   return b.GetInsertBlock()->getTerminator() != nullptr;
 }
 
-llvm::Value *emit_if(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
-                     IRBuilder<> &entryBuilder, LocalMap &locals) {
+llvm::Value *emit_if(MASTNode *n, LLVMContext &ctx, IRBuilder<> &b,
+                     IRBuilder<> &entryBuilder, Codegen::Scope &locals) {
 
   // 1. Emit condition
-  llvm::Value *condV = emit_expr(n->ifnode.cond, ctx, b, entryBuilder, locals);
+  llvm::Value *condV = emit_expr(n->if_stmt.condition, ctx, b, entryBuilder, locals);
   if (!condV)
     return nullptr;
 
@@ -246,14 +211,14 @@ llvm::Value *emit_if(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
   BasicBlock *mergeBB = BasicBlock::Create(ctx, "ifcont");
 
   // 3. Branch
-  if (n->ifnode.else_branch)
+  if (n->if_stmt.else_branch)
     b.CreateCondBr(condV, thenBB, elseBB);
   else
     b.CreateCondBr(condV, thenBB, mergeBB);
 
   // ---- THEN BLOCK ----
   b.SetInsertPoint(thenBB);
-  emit_expr(n->ifnode.then_branch, ctx, b, entryBuilder, locals);
+  emit_expr(n->if_stmt.then_branch, ctx, b, entryBuilder, locals);
 
   if (!blockTerminated(b))
     b.CreateBr(mergeBB);
@@ -261,11 +226,11 @@ llvm::Value *emit_if(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
   thenBB = b.GetInsertBlock(); // update
 
   // ---- ELSE BLOCK ----
-  if (n->ifnode.else_branch) {
+  if (n->if_stmt.else_branch) {
     fn->insert(fn->end(), elseBB);
     b.SetInsertPoint(elseBB);
 
-    emit_expr(n->ifnode.else_branch, ctx, b, entryBuilder, locals);
+    emit_expr(n->if_stmt.else_branch, ctx, b, entryBuilder, locals);
 
     if (!blockTerminated(b))
       b.CreateBr(mergeBB);

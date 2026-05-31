@@ -1,84 +1,59 @@
 #include "codegen/codegen.hpp"
 
-llvm::Value *emit_assing(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
-                         IRBuilder<> &entryBuilder, LocalMap &locals) {
+llvm::Value *emit_assing(MASTNode *n, LLVMContext &ctx, IRBuilder<> &b,
+                         IRBuilder<> &entryBuilder, Codegen::Scope &locals) {
 
-  ASTNode_t *lhs = n->assign.lhs;
+  MASTNode *lhs = n->assign.target;
   if (!lhs) return nullptr;
 
-  const char* name = lhs->var;
+  const char* name = (lhs->kind == AST_VAR && lhs->name) ? lhs->name : "tmp_assign";
   
   DataTypes_t t = n->type->base != UNKNOWN
                       ? n->type->base
                       : (lhs->type ? lhs->type->base : UNKNOWN);
 
   Value *targetPtr = nullptr;
+  Module *m = b.GetInsertBlock()->getModule();
 
   if (lhs->kind == AST_VAR) {
-    auto it = locals.find(name);
-    if (it != locals.end()) {
-      targetPtr = it->second;
-    } else {
-      Module *m = b.GetInsertBlock()->getModule();
-      targetPtr = m->getGlobalVariable(name, true);
-      if (targetPtr == nullptr) {
-        targetPtr = new GlobalVariable(*m, ir_type(t, ctx), false,
-                                       GlobalValue::ExternalLinkage,
-                                       Constant::getNullValue(ir_type(t, ctx)), name);
+    if (n->assign.is_declaration) {
+
+      if(n->isglobal) {
+        // 🌍 GLOBAL SCOPE: Create a genuine Module Global Variable
+        targetPtr = m->getGlobalVariable(name, true);
+        if (!targetPtr) {
+          GlobalValue::LinkageTypes linkage = (strcmp(name, "main") == 0) 
+                                              ? GlobalValue::ExternalLinkage 
+                                              : GlobalValue::InternalLinkage;
+
+          targetPtr = new GlobalVariable(*m, ir_type(t, ctx), false,
+                                         linkage,
+                                         Constant::getNullValue(ir_type(t, ctx)), name);
+        }
+        // 🎯 THE CRITICAL FIX: Remember to cache the global pointer in your table!
+        locals.symbols[name] = targetPtr;
+      } else if (b.GetInsertBlock() != nullptr) {
+        // 🏠 LOCAL SCOPE: Stored safely as an AllocaInst
+        targetPtr = get_or_create_alloca(name, t, ctx, entryBuilder, locals);
+        locals.symbols[name] = targetPtr;
       }
+
+    } else {
+      // Normal modification path
+      auto it = locals.lookup(name);
+      targetPtr = it ? it : m->getGlobalVariable(name, true);
     }
-  } else if (lhs->kind == AST_INDEX) {
+  } else if (lhs->kind == AST_INDEX)
     targetPtr = generateListElementPtr(lhs, ctx, b, entryBuilder, locals);
-  } else if (lhs->kind == AST_CALL) {
-    targetPtr = emit_call(lhs, ctx, b, entryBuilder, locals); // Assuming emit_call returns a pointer if it's an lvalue
-  }
 
   if (!targetPtr) return nullptr;
 
-  Value *lhsVal = nullptr;
-  if (n->assign.op != OP_ASSIGN) {
-    lhsVal = b.CreateLoad(ir_type(t, ctx), targetPtr, name);
-  }
-
-  Value *rhs = emit_expr(n->assign.rhs, ctx, b, entryBuilder, locals);
+  Value *rhs = emit_expr(n->assign.value, ctx, b, entryBuilder, locals);
   if (!rhs) return nullptr;
 
   Value *result = nullptr;
-
-  switch (n->assign.op) {
-
-    case OP_ASSIGN:
-      result = rhs;
-      break;
-
-    case OP_PLUS_ASSIGN:
-      result = is_float_dtype(t)
-        ? b.CreateFAdd(lhsVal, rhs)
-        : b.CreateAdd(lhsVal, rhs);
-      break;
-
-    case OP_MINUS_ASSIGN:
-      result = is_float_dtype(t)
-        ? b.CreateFSub(lhsVal, rhs)
-        : b.CreateSub(lhsVal, rhs);
-      break;
-
-    case OP_MUL_ASSIGN:
-      result = is_float_dtype(t)
-        ? b.CreateFMul(lhsVal, rhs)
-        : b.CreateMul(lhsVal, rhs);
-      break;
-
-    case OP_DIV_ASSIGN:
-      result = is_float_dtype(t)
-        ? b.CreateFDiv(lhsVal, rhs)
-        : b.CreateSDiv(lhsVal, rhs);
-      break;
-
-    default:
-      result = rhs;
-      break;
-  }
+  
+  result = rhs;
 
   if (t == STRINGS) {
     result = to_i8_ptr(result, b);
@@ -91,22 +66,66 @@ llvm::Value *emit_assing(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
   return result;
 }
 
-void emit_global(ASTNode_t *n, Module &mod, LLVMContext &ctx) {
+void emit_global(MASTNode *n, Module &mod, LLVMContext &ctx) {
   if (!n)
     return;
-  if (n->kind == AST_SEQ) {
-    emit_global(n->seq.a, mod, ctx);
-    emit_global(n->seq.b, mod, ctx);
+
+  // Recursive global emission must only stay in the top-level block.
+  // We do not traverse into AST_FN nodes here.
+  if (n->kind != AST_BLOCK || !n->block_stmts)
     return;
-  }
-  if (n->kind == AST_ASSIGN && n->assign.is_declaration) {
-    std::string name = n->assign.lhs->var;
+
+  for (auto* stmt : *n->block_stmts) {
+    if (stmt->kind == AST_ASSIGN && stmt->assign.is_declaration) {
+      MASTNode* target = stmt->assign.target;
+      if (!target || !target->name || target->name[0] == '\0') {
+          continue; // Guard against "no symbol" linker errors
+      }
+      std::string name = target->name;
     DataTypes_t t =
-        n->type->base != UNKNOWN ? n->type->base : n->assign.lhs->type->base;
+        stmt->type->base != UNKNOWN ? stmt->type->base : stmt->assign.target->type->base;
     if (mod.getGlobalVariable(name))
-      return;
+      continue;
+
+    // Internal compiler variables (like loop counters) should use InternalLinkage
+    auto linkage = (name.find("__") == 0) ? GlobalValue::InternalLinkage : GlobalValue::ExternalLinkage;
+
     new GlobalVariable(mod, ir_type(t, ctx), false,
-                       GlobalValue::ExternalLinkage,
+                       linkage,
                        Constant::getNullValue(ir_type(t, ctx)), name);
+    }
   }
+}
+
+
+llvm::AllocaInst* get_or_create_alloca(const std::string &name, DataTypes_t t, 
+                                       llvm::LLVMContext &ctx, llvm::IRBuilder<> &entryBuilder, 
+                                       Codegen::Scope &locals) {
+    // If it already exists on the stack, return it right away
+    if (locals.lookup(name)) {
+        return llvm::cast<llvm::AllocaInst>(locals[name]);
+    }
+
+    // 1. Get the parent function and entry block
+    llvm::BasicBlock *entryBB = entryBuilder.GetInsertBlock();
+    
+    // 2. 🎯 THE PERMANENT FIX: Save the current insert point, then force 
+    // the builder to move to the absolute top of the entry block (before any branches)
+    auto savedIP = entryBuilder.saveIP();
+    if (!entryBB->empty()) {
+        entryBuilder.SetInsertPoint(&entryBB->front());
+    } else {
+        entryBuilder.SetInsertPoint(entryBB);
+    }
+
+    // 3. Create the type and stack allocation safely at the top
+    llvm::Type *llvmTy = ir_type(t, ctx);
+    llvm::AllocaInst *allocaInst = entryBuilder.CreateAlloca(llvmTy, nullptr, name);
+
+    // 4. Restore the entryBuilder back to where it was so it doesn't disturb anything else
+    entryBuilder.restoreIP(savedIP);
+
+    // 5. Register in local symbols map
+    locals[name] = allocaInst;
+    return allocaInst;
 }

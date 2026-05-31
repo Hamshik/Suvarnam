@@ -1,5 +1,4 @@
 #include "SymbolTable/SymbolTableInternal.hpp"
-#include "import/import.h"
 #include "semantic/semantic.hpp"
 #include "shared/structs.h"
 #include "utils/error_handler/error.h"
@@ -27,6 +26,25 @@ SemanticScopeRecord *semantic_scope_top() {
   return g_semantic_scope;
 }
 
+extern "C" SemanticSymbolRecord *semantic_find_global_symbol(const char *name) {
+    SemanticScopeRecord *global_scope = semantic_scope_top();
+    
+    // 1. Follow the parent links down to the absolute root frame
+    while (global_scope && global_scope->parent != nullptr) {
+        global_scope = global_scope->parent;
+    }
+    
+    // 2. Search exclusively inside this global scope map
+    if (global_scope) {
+        auto found = global_scope->symbols.find(name);
+        if (found != global_scope->symbols.end()) {
+            return &found->second;
+        }
+    }
+    
+    return nullptr; // Symbol not declared in global scope
+}
+
 extern "C" SemanticSymbolRecord *semantic_find_symbol(const char *name) {
   for (SemanticScopeRecord *it = semantic_scope_top(); it; it = it->parent) {
     auto found = it->symbols.find(name);
@@ -46,7 +64,7 @@ Type_t* lookup(const char *name) {
   return symbol ? symbol->type : nullptr;
 }
 
-bool declare(const char *name, Type_t* type,bool is_mutable) {
+bool declare(const char *name, Type_t* type, ASTNode_t* node,bool is_mutable) {
   SemanticScopeRecord *scope = semantic_scope_top();
   auto [it, inserted] = scope->symbols.try_emplace(name);
   if (!inserted) {
@@ -58,6 +76,7 @@ bool declare(const char *name, Type_t* type,bool is_mutable) {
   it->second.last_maxed_type = UNKNOWN;
   it->second.is_mutable = is_mutable;
   it->second.is_used = false;
+  it->second.node_ptr = node;
   return true;
 }
 

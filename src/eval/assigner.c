@@ -66,9 +66,9 @@ void assign_value(DataTypes_t dt, SV_Value *dst, SV_Value src) {
     dst->bval = src.bval;
     break;
   case STRINGS:
-    if (dst != NULL && dst->str)
-      free(dst->str);
-    dst->str = strdup(src.str);
+    if (dst != NULL && dst->chars)
+      free(dst->chars);
+    dst->chars = strdup(src.chars);
     break;
   case CHARACTER:
     dst->chars = src.chars;
@@ -137,7 +137,7 @@ static void update_val(SV_Value r, ASTNode_t *dst) {
     sprintf(buf, "%g", r.f64);
     break;
   case STRINGS:
-    new_raw = strdup(r.str);
+    new_raw = strdup(r.chars);
     break;
   case CHARACTER:
     buf[0] = (char)(*r.chars);
@@ -215,7 +215,7 @@ SV_Value eval_assign(ASTNode_t *lhs, ASTNode_t *rhs, OP_kind_t op, Type_t *type,
       v = eval_bool(operation, BOOL, cur, r);
       break;
     case STRINGS:
-      v = (SV_Value){.str = do_operation_str(cur.str, r.str, operation)};
+      v = (SV_Value){.chars = do_operation_str(cur.chars, r.chars, operation)};
       break;
     case CHARACTER:
       v.chars = r.chars;

@@ -11,7 +11,7 @@ TypedValue eval_binop(ASTNode_t *node, TypedValue v) {
     if (node->bin.op == OP_ADD) {
       v = (TypedValue) {
         make_type(STRINGS, NULL),
-        { .str = do_operation_str(l.val.str, r.val.str, node->bin.op) }
+        { .chars = do_operation_str(l.val.chars, r.val.chars, node->bin.op) }
       };
     } else if (node->bin.op == OP_MUL) {
       TypedValue str_v = (l.type->base == STRINGS) ? l : r;
@@ -19,14 +19,14 @@ TypedValue eval_binop(ASTNode_t *node, TypedValue v) {
       
       int count = (int)SV_as_i128(num_v.val, num_v.type->base);
       
-      size_t len = strlen(str_v.val.str);
+      size_t len = strlen(str_v.val.chars);
       char *res = calloc(1, len * count + 1);
       for (int i = 0; i < count; i++) {
-        memcpy(res + i * len, str_v.val.str, len);
+        memcpy(res + i * len, str_v.val.chars, len);
       }
       v = (TypedValue) {
         make_type(STRINGS, NULL),
-        { .str = res }
+        { .chars = res }
       };
     }
     return v;

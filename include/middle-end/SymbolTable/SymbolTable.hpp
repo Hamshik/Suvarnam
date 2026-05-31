@@ -40,9 +40,9 @@ typedef enum exitcode{
     IMMUTABLE_TYPING
 }exitcode_t;
 
-typedef struct Scope {
+typedef struct fn_Scope {
     Symboltable_t *symbols; // uthash table
-    struct Scope *parent;
+    struct fn_Scope *parent;
 } Scope_t;
 
 
@@ -82,7 +82,7 @@ void SV_runtime_fn_clear(void);
 Type_t* SV_semantic_lookup(const char *name);
 
 #ifdef __cplusplus
-bool SV_semantic_declare(const char *name, Type_t* type, bool is_mutable);
+bool SV_semantic_declare(const char *name, Type_t* type, ASTNode_t* node, bool is_mutable);
 #endif
 
 exitcode_t SV_semantic_exists(const char *name, Type_t* type);

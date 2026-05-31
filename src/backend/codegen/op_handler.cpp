@@ -1,15 +1,15 @@
 #include "codegen/codegen.hpp"
 
-llvm::Value *emit_mul_strs(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
-                        IRBuilder<> &entryBuilder, LocalMap &locals, llvm::Value *L, llvm::Value *R);
+llvm::Value *emit_mul_strs(MASTNode *n, LLVMContext &ctx, IRBuilder<> &b,
+                        IRBuilder<> &entryBuilder, Codegen::Scope &locals, llvm::Value *L, llvm::Value *R);
 
-llvm::Value *emit_add_strs(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
-                        IRBuilder<> &entryBuilder, LocalMap &locals, llvm::Value *L, llvm::Value *R);
+llvm::Value *emit_add_strs(MASTNode *n, LLVMContext &ctx, IRBuilder<> &b,
+                        IRBuilder<> &entryBuilder, Codegen::Scope &locals, llvm::Value *L, llvm::Value *R);
 
-llvm::Value *emit_binop(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
-                        IRBuilder<> &entryBuilder, LocalMap &locals) {
-  llvm::Value *L = emit_expr(n->bin.left, ctx, b, entryBuilder, locals);
-  llvm::Value *R = emit_expr(n->bin.right, ctx, b, entryBuilder, locals);
+llvm::Value *emit_binop(MASTNode *n, LLVMContext &ctx, IRBuilder<> &b,
+                        IRBuilder<> &entryBuilder, Codegen::Scope &locals) {
+  llvm::Value *L = emit_expr(n->binary.left, ctx, b, entryBuilder, locals);
+  llvm::Value *R = emit_expr(n->binary.right, ctx, b, entryBuilder, locals);
   if (!L || !R)
     return nullptr;
 
@@ -18,7 +18,7 @@ llvm::Value *emit_binop(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
 
   llvm::Module *module = b.GetInsertBlock()->getModule();
 
-  switch (n->bin.op) {
+  switch (n->binary.op) {
 
   case OP_ADD: {
     if (n->type->base == STRINGS) return emit_add_strs(n, ctx, b, entryBuilder, locals, L, R);
@@ -98,13 +98,13 @@ llvm::Value *emit_binop(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
   }
 }
 
-llvm::Value *emit_unop(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
-                       IRBuilder<> &entryBuilder, LocalMap &locals) {
-  llvm::Value *opnd = emit_expr(n->unop.operand, ctx, b, entryBuilder, locals);
+llvm::Value *emit_unop(MASTNode *n, LLVMContext &ctx, IRBuilder<> &b,
+                       IRBuilder<> &entryBuilder, Codegen::Scope &locals) {
+  llvm::Value *opnd = emit_expr(n->binary.left, ctx, b, entryBuilder, locals);
   if (!opnd)
     return nullptr;
 
-  switch (n->unop.op) {
+  switch (n->binary.op) {
   case OP_NEG:
     return is_float_dtype(n->type->base) ? b.CreateFNeg(opnd)
                                          : b.CreateNeg(opnd);

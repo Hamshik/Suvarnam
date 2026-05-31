@@ -14,7 +14,7 @@ namespace {
 
 void reset_runtime_value(TypedValue &value) {
   if (value.type && value.type->base == STRINGS) {
-    free(value.val.str);
+    free(value.val.chars);
   } else if (value.type && value.type->base == PTR) {
     free(value.val.ptr.name);
   }

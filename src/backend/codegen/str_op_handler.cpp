@@ -1,7 +1,7 @@
 #include "codegen/codegen.hpp"
 
-llvm::Value *emit_mul_strs(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
-                        IRBuilder<> &entryBuilder, LocalMap &locals, llvm::Value *L, llvm::Value *R)
+llvm::Value *emit_mul_strs(MASTNode *n, LLVMContext &ctx, IRBuilder<> &b,
+                        IRBuilder<> &entryBuilder, Codegen::Scope &locals, llvm::Value *L, llvm::Value *R)
 {
   llvm::Type *i8Ptr = llvm::PointerType::getUnqual(ctx);
   llvm::Type *i64Ty = llvm::Type::getInt64Ty(ctx);
@@ -38,8 +38,8 @@ llvm::Value *emit_mul_strs(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
   return b.CreateCall(mulFn, {strVal, countVal});
 }
 
-llvm::Value *emit_add_strs(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
-    IRBuilder<> &entryBuilder, LocalMap &locals, llvm::Value *L, llvm::Value *R)
+llvm::Value *emit_add_strs(MASTNode *n, LLVMContext &ctx, IRBuilder<> &b,
+    IRBuilder<> &entryBuilder, Codegen::Scope &locals, llvm::Value *L, llvm::Value *R)
 {
     llvm::Module *module = b.GetInsertBlock()->getModule();
     llvm::Type *i8Ty = llvm::Type::getInt8Ty(ctx);

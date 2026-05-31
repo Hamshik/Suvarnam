@@ -1,4 +1,4 @@
-#include "typechecker/typecheck.h"
+#include "semantic/typecheck.h"
 
 #include <stdlib.h>
 #include <string.h>

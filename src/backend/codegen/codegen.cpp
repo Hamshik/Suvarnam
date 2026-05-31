@@ -1,11 +1,11 @@
 #include "codegen/codegen.hpp"
-#include "SymbolTable/SymbolTable.hpp"
 #include "utils/colors.h"
+#include "SymbolTable/SymbolTableInternal.hpp"
 #include <iostream>
 #include <unordered_set>
 
 using namespace llvm;
-
+using namespace SV;
 /* ===================== TARGET SETUP ===================== */
 
 static TargetMachine* setup_target(Module &mod) {
@@ -36,41 +36,24 @@ static TargetMachine* setup_target(Module &mod) {
 
 /* ===================== AST EMISSION ===================== */
 
-static void emit_functions(ASTNode_t *root, Module &mod, LLVMContext &ctx) {
+static void emit_functions(MASTNode *root, Module &mod, LLVMContext &ctx) {
     std::unordered_set<std::string> visited_modules;
 
-    std::function<void(ASTNode_t*)> walk = [&](ASTNode_t *n) {
+    std::function<void(MASTNode*)> walk = [&](MASTNode *n) {
         if (!n) return;
-
-        if (n->kind == AST_FN) {
-            emit_function(n, mod, ctx);
-            return;
-        }
-
-        if (n->kind == AST_IMPORT) {
-            const char *path = n->importNode.path;
-            if (!path) return;
-
-            auto [_, inserted] = visited_modules.emplace(path);
-            if (!inserted) return;
-
-            Module_t *imported = SV_semantic_load_module(path, nullptr);
-            if (imported && imported->ast) {
-                walk(imported->ast);
+        if (n->kind == AST_BLOCK) {
+            if (n->block_stmts) {
+                for(auto stmt : *n->block_stmts) walk(stmt);
             }
-            return;
-        }
-
-        if (n->kind == AST_SEQ) {
-            walk(n->seq.a);
-            walk(n->seq.b);
+        } else if (n->kind == AST_FN) {
+            emit_function(n, mod, ctx);
         }
     };
 
     walk(root);
 }
 
-static Function* emit_init(ASTNode_t *root, Module &mod, LLVMContext &ctx) {
+static Function* emit_init(MASTNode *root, Module &mod, LLVMContext &ctx) {
     FunctionType *ft = FunctionType::get(Type::getVoidTy(ctx), false);
     Function *initFn =
         Function::Create(ft, Function::InternalLinkage, "init", mod);
@@ -79,33 +62,17 @@ static Function* emit_init(ASTNode_t *root, Module &mod, LLVMContext &ctx) {
     IRBuilder<> b(bb);
     IRBuilder<> entryB(bb, bb->begin());
 
-    LocalMap locals;
+    Codegen::Scope locals;
     std::unordered_set<std::string> visited_modules;
 
-    std::function<void(ASTNode_t*)> emit_nonfn = [&](ASTNode_t *n) {
-        if (!n || n->kind == AST_FN) return;
-
-        if (n->kind == AST_IMPORT) {
-            const char *path = n->importNode.path;
-            if (!path) return;
-
-            auto [_, inserted] = visited_modules.emplace(path);
-            if (!inserted) return;
-
-            Module_t *imported = SV_semantic_load_module(path, nullptr);
-            if (imported && imported->ast) {
-                emit_nonfn(imported->ast);
+    std::function<void(MASTNode*)> emit_nonfn = [&](MASTNode *n) {
+        if (!n || n->kind != AST_BLOCK) return;
+        if (n->block_stmts) {
+            for(auto stmt : *n->block_stmts) {
+                if (stmt->kind == AST_FN) continue;
+                emit_expr(stmt, ctx, b, entryB, locals);
             }
-            return;
         }
-
-        if (n->kind == AST_SEQ) {
-            emit_nonfn(n->seq.a);
-            emit_nonfn(n->seq.b);
-            return;
-        }
-
-        emit_expr(n, ctx, b, entryB, locals);
     };
 
     emit_nonfn(root);
@@ -183,7 +150,7 @@ static bool emit_ir(Module &mod, const char *path, char **out) {
 
 /* ===================== MAIN CODEGEN ===================== */
 
-extern "C" int codegen(ASTNode_t *root, const char *ll_path, char **ir_out) {
+int codegen(MASTNode *root, const char *ll_path, char **ir_out) {
     LLVMContext ctx;
     Module mod(" SV_Module", ctx);
 

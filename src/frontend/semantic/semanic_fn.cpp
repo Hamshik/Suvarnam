@@ -61,7 +61,7 @@ Type_t* handle_fn(ASTNode_t *n) {
   for (int i = 0; i < n->fn_def.param_count; i++) {
     if (!n->fn_def.params[i].type) n->fn_def.params[i].type = make_type(UNKNOWN, nullptr);
     
-    if (!SV_semantic_declare(n->fn_def.params[i].name, n->fn_def.params[i].type, true))
+    if (!SV_semantic_declare(n->fn_def.params[i].name, n->fn_def.params[i].type, nullptr, true))
       panic( n->loc, SEM_DUP_PARAM,
             n->fn_def.params[i].name);
   }

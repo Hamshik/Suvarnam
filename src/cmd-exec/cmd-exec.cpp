@@ -1,5 +1,7 @@
-#include "cmd-exec/cmd-exec.h"
+#include "cmd-exec/cmd-exec.hpp"
+#include "MAST-Gen/Mast_gen.hpp"
 #include "shared/structs.h"
+#include <cstdlib>
 #include <stdlib.h>
 #include <string.h>
 
@@ -45,12 +47,12 @@ FILE *open_file(const char *filename, char **resolved_path_out) {
 }
 
 /* Parse command-line arguments */
-bool parse_arguments(int argc, char **argv, Options *opts) {
+extern "C" bool parse_arguments(int argc, char **argv, Options *opts) {
     // Set defaults
     opts->input_filename = NULL;
-    opts->bin_output_path = "SV.bin";
+    opts->bin_output_path =(char*)"SV.bin";
     opts->emit_ir = false;
-    opts->ir_output_path = "out.ll";
+    opts->ir_output_path =(char*)"out.ll";
 
     int i = 1;
     // Parse optional source file
@@ -94,9 +96,9 @@ bool parse_arguments(int argc, char **argv, Options *opts) {
 }
 
 /* Set up input file and file_t structure */
-bool setup_input_file(const Options *opts, file_t *file) {
+extern "C" bool setup_input_file(const Options *opts, file_t *file) {
     if (!opts->input_filename) {
-        file->filename = "<stdin>";
+        file->filename = (char*)"<stdin>";
         file->source = stdin;
         return true;
     }
@@ -112,14 +114,18 @@ bool setup_input_file(const Options *opts, file_t *file) {
 }
 
 /* Compile and execute the AST */
-int compile_and_execute(ASTNode_t *root, const Options *opts) {
+extern "C" int compile_and_execute(ASTNode_t *root, const Options *opts) {
     error_fatal = false; /* collect semantic errors like Rust */
     semantic_check(root);
     error_fatal = true; /* runtime errors should still stop */
     char *ir_text = NULL;
+
+    MASTGenerator *mgen = new MASTGenerator();
+    MASTNode *mast_root =  mgen->generate(root);
+    delete mgen;
     
     // ast_eval_main(root);
-    if (codegen(root, opts->emit_ir ? opts->ir_output_path : NULL, &ir_text))
+    if (codegen(mast_root, opts->emit_ir ? opts->ir_output_path : NULL, &ir_text) == EXIT_FAILURE)
         return 1;
 
     ast_free(root);
@@ -140,15 +146,15 @@ int compile_and_execute(ASTNode_t *root, const Options *opts) {
     }
 
     char *clang_argv[] = {
-        "clang",
-        "SV_lib/helper/printer.c",
-        "SV_lib/helper/SV_strcmp.c",
+       (char*)"clang",
+       (char*)"SV_lib/helper/printer.c",
+       (char*)"SV_lib/helper/SV_strcmp.c",
         opts->ir_output_path,   // your .ll file
-        "-Wl,-e,entrypoint",
-        "-no-pie",
-        "-g",
-        "-O0",
-        "-o",
+       (char*)"-Wl,-e,entrypoint",
+       (char*)"-no-pie",
+       (char*)"-g",
+       (char*)"-O0",
+       (char*)"-o",
         (char *)opts->bin_output_path,
         NULL
     };

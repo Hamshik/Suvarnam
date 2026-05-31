@@ -1,20 +1,27 @@
 #pragma once
-#include "shared/enums.h"
+#include "enums.h"
 #include "structs.h"
 #include <vector>
+#include <cstring>
 
 class MASTNode {
     public:
     ASTKind kind;
     Type_t *type;      // Every mid-end node is strictly typed
+    SV_Location loc;
+    bool isglobal;
 
-    union {
+    // Tracks sequential statements inside a MASTKind::BLOCK node.
+    // This must stay OUTSIDE the union to prevent memory corruption.
+    
+    union{
+        std::vector<MASTNode*> *block_stmts;
         // Primitive Literals & Identifiers
-        const char *name; // Reused for variable names and function targets
+        const char *name; // Reused for variable names and function targets & import paths
 
         // Variable Declaration (e.g., let __end: i64 = 10)
         struct {
-            const char *name;
+            const char *decl_name;
             MASTNode *init_value; // Can be nullptr
         } decl;
 
@@ -24,16 +31,18 @@ class MASTNode {
 
         // Assignment (e.g., i = i + 1)
         struct {
-            const char *target;
-            MASTNode *value;
+            MASTNode *target, *value;
+            bool is_declaration;
         } assign;
 
         // Math & Logic Ops (e.g., i < __end)
         struct {
             OP_kind_t op; // "+", "-", "<", ">=", "=="
-            MASTNode *left;
-            MASTNode *right;
+            MASTNode *left, *right;
         } binary;
+
+        // RANGE
+        struct { MASTNode *start, *end, *step;} range;
 
         // Structured If/Else Engine
         struct {
@@ -47,6 +56,7 @@ class MASTNode {
         struct {
             MASTNode *condition;   // Simple binary check (e.g., i < __end)
             MASTNode *body;        // Sequential block containing loop instructions
+            MASTNode *expr;
         } while_loop;
 
         // Function Calls (e.g., printlni(i))
@@ -56,26 +66,26 @@ class MASTNode {
         } call;
 
         struct {
-            std::vector<MASTNode*> elements;
+            std::vector<MASTNode*> *elements;
         } element;
 
         struct {
             struct MASTNode* target; // The thing being indexed (e.g., the variable 'list')
-            std::vector<MASTNode*> *idx;      // The position (e.g., the number '0' or expr 'i+1')
+            std::vector<MASTNode*>* idx;      // The position (e.g., the number '0' or expr 'i+1')
             bool islhs;
         } index;
 
-        std::vector<MASTNode*> block_stmts;
-    };
+        struct {
+            std::vector<MASTNode*>* body;
+            std::vector<Param_t*>* params;
+            size_t param_count;
+            const char* name;
+        } fn;
 
-    // Tracks sequential statements inside a MASTKind::BLOCK node
+        struct { struct MASTNode *value; } ret_stmt;
+    }; 
 
     // Clean Constructor Initialization Tracker
-    MASTNode(ASTKind k) : kind(k) {
-        // Initialize union pointers to prevent UB
-        if (k == ASTKind::AST_CALL) {
-            call.args = nullptr;
-        }
-        kind = k;
+    MASTNode(ASTKind k) : kind(k), type(nullptr), isglobal(false) {
     }
 };

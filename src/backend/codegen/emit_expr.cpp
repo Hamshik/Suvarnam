@@ -8,8 +8,8 @@ struct LoopContext {
 };
 extern std::vector<LoopContext> loopStack;
 
-Value *emit_expr(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
-                       IRBuilder<> &entryBuilder, LocalMap &locals) {
+Value *emit_expr(MASTNode *n, LLVMContext &ctx, IRBuilder<> &b,
+                       IRBuilder<> &entryBuilder, Codegen::Scope &locals) {
   if (!n)
     return nullptr;
   if (blockTerminated(b))
@@ -23,7 +23,7 @@ Value *emit_expr(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
   case AST_NUM:
     return emit_number(n, ctx);
   case AST_BOOL:
-    return ConstantInt::get(Type::getInt1Ty(ctx), n->type->base == BOOL ? 1 : 0);
+    return ConstantInt::get(Type::getInt1Ty(ctx), n->literals.val.bval ? 1 : 0);
 
   case AST_STR:
     return emit_strs(n, ctx, b);
@@ -32,34 +32,43 @@ Value *emit_expr(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
     return emit_char(n, ctx, b);
 
   case AST_VAR: {
-    auto it = locals.find(n->var ? n->var : "");
-	
-    if (it != locals.end()) {
-      llvm::AllocaInst *alloca_inst =
-          llvm::dyn_cast<llvm::AllocaInst>(it->second);
+    const char* varName = n->name ? n->name : "unnamed_tmp";
 
-      if (alloca_inst) {
-        return b.CreateLoad(alloca_inst->getAllocatedType(), alloca_inst, n->var);
+    llvm::Module *m = b.GetInsertBlock()->getModule();
+    llvm::Value* foundVal = nullptr;
+
+    if (n->isglobal) {
+      foundVal = m->getGlobalVariable(varName, true);
+    } else {
+      foundVal = locals.lookup(varName);
+      if (!foundVal)
+        foundVal = m->getGlobalVariable(varName, true);
+    }
+
+    if (foundVal) {
+      // 🏠 Check if it is a local Stack variable allocation
+      // 🌍 Check if it is a module Global Variable allocation (This will now succeed!)
+      if (llvm::GlobalVariable *global_var = llvm::dyn_cast<llvm::GlobalVariable>(foundVal)) {
+        return b.CreateLoad(global_var->getValueType(), global_var, varName);
       }
 
-      return b.CreateLoad(ir_type(n->type->base, ctx), it->second, n->var);
+      if (llvm::AllocaInst *alloca_inst = llvm::dyn_cast<llvm::AllocaInst>(foundVal)) {
+        return b.CreateLoad(alloca_inst->getAllocatedType(), alloca_inst, varName);
+      }
+
+      // Fallback if it is a direct loaded register or standard parameter pointer
+      return foundVal;
     }
 
-    Module *m = b.GetInsertBlock()->getModule();
-    auto g = m->getGlobalVariable(n->var ? n->var : "", true);
-
-    if (g) {
-      return b.CreateLoad(ir_type(n->type->base, ctx), g, n->var);
-    }
-
+    fprintf(stderr, "Codegen Error: Undefined variable '%s' evaluated at runtime.\n", varName);
     return nullptr;
   }
 
   case AST_UNOP:
-    return emit_unop(n, ctx, b, entryBuilder, locals);
+    return emit_unop(n, ctx, b, entryBuilder, locals); // Still recursive for operands
 
   case AST_BINOP:
-    return emit_binop(n, ctx, b, entryBuilder, locals);
+    return emit_binop(n, ctx, b, entryBuilder, locals); // Still recursive for operands
 
   case AST_ASSIGN:
     return emit_assing(n, ctx, b, entryBuilder, locals);
@@ -69,23 +78,22 @@ Value *emit_expr(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
 
   case AST_WHILE:
     return emit_whileloop(n, ctx, b, entryBuilder, locals);
-  case AST_FOR:
-    return emit_forloops(n, ctx, b, entryBuilder, locals);
-
-  case AST_RANGE: 
-    return emit_range(n, ctx, b, entryBuilder, locals);
 
   case AST_IF:
     return emit_if(n, ctx, b, entryBuilder, locals);
 
-  case AST_SEQ: {
-    emit_expr(n->seq.a, ctx, b, entryBuilder, locals);
-
-    // 🔥 STOP if block already terminated
-    if (blockTerminated(b))
-      return nullptr;
-
-    return emit_expr(n->seq.b, ctx, b, entryBuilder, locals);
+  case AST_BLOCK: {
+    // ITERATIVE processing of block statements
+    Codegen::Scope blockScope(&locals);
+    Value* lastVal = nullptr;
+    for (auto stmt : *n->block_stmts) {
+        // If the current instruction stream is truly terminated (e.g., a return),
+        // we skip the rest of this specific block.
+        if (blockTerminated(b)) break;
+        
+        lastVal = emit_expr(stmt, ctx, b, entryBuilder, blockScope);
+    }
+    return lastVal;
   }
 
   case AST_RETURN: {
@@ -126,11 +134,8 @@ Value *emit_expr(ASTNode_t *n, LLVMContext &ctx, IRBuilder<> &b,
   case AST_INDEX:
     return generateListAccess(n, ctx, b, entryBuilder, locals);
 
-  case AST_BLOCK:
-    return emit_expr(n->block.block, ctx, b, entryBuilder, locals);
-
   default:
-    printf("Warning: Unhandled AST node kind in codegen\n");
+    printf("Warning: Unhandled MAST node kind %d in codegen\n", n->kind);
     return nullptr;
   }
 }

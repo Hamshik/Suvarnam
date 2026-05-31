@@ -2,7 +2,7 @@
 #include "semantic/semantic.hpp"
 #include "shared/enums.h"
 #include "shared/structs.h"
-#include "typechecker/typecheck.h"
+#include "semantic/typecheck.h"
 #include "utils/colors.h"
 #include "utils/error_handler/error.h"
 

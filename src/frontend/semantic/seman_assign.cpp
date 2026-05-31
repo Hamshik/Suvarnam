@@ -1,4 +1,5 @@
 #include "SymbolTable/SymbolTable.hpp"
+#include "SymbolTable/SymbolTableInternal.hpp"
 #include "semantic/semantic.hpp"
 #include "shared/enums.h"
 #include "shared/structs.h"
@@ -9,6 +10,7 @@
 #include <string.h>
 
 static bool is_f32(const char *s) { return s && strchr(s, '.') != NULL; }
+extern "C" SemanticSymbolRecord *semantic_find_global_symbol(const char *name);
 
 static void resolve_nested_numerics(ASTNode_t *n, Type_t *t) {
   if (!n || !t) return;
@@ -82,8 +84,11 @@ static void process_declaration(ASTNode_t *n, Type_t *&lhs_t, Type_t *rhs_t) {
   
   resolve_nested_numerics(rhs, lhs_t);
 
-  if (!SV_semantic_declare(n->assign.lhs->var, lhs_t, n->assign.is_mutable))
+  if (!SV_semantic_declare(n->assign.lhs->var, lhs_t, n, n->assign.is_mutable) && !n->isglobal)
     panic(n->loc, SEM_VAR_REDECL, n->assign.lhs->var);
+  else if(semantic_find_global_symbol(n->assign.lhs->var) && n->isglobal)
+    panic(n->loc, SEM_VAR_UNDECL, n->assign.lhs->var);
+
 }
 
 // 3. RESPONSIBILITY: Final Type & Pointer Consistency

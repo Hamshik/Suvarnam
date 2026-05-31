@@ -3,14 +3,9 @@ bin
 out*
 *.out
 .cache
-src/lexer/lexer.c
-src/parser/parser.gv
 .reflex
-src/parser/parser.c
-src/parser/parser.h
 TODO.md
 .agents
 .codex
 build/
 compile_commands.json
-parser*

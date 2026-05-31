@@ -1,5 +1,7 @@
-fn main(){
-    var i = [[10,10], [10,10]];
-    printlni(i[0][0]);
-    printlni(i[0][1]);
+var @i = 100; 
+fn main() {
+    var i = 1000;
+    printlni(i);
+    printlni(@i);
+    return 0;
 }

@@ -24,6 +24,7 @@ extern "C" {
     Type_t* list_handle(ASTNode_t *n, Type_t* type = nullptr);
     bool islist(ASTNode_t *target);
 }
+ASTNode_t* parse_file(FILE *f);
 Type_t* check_expr(ASTNode_t *n);
 
 extern bool isError;

@@ -45,7 +45,7 @@ TypedValue ast_eval(ASTNode_t *node) {
 
   case AST_STR:
     v.type = node->type;
-    v.val.str = node->literal.raw;
+    v.val.chars = node->literal.raw;
     return v;
 
   case AST_CHAR:
