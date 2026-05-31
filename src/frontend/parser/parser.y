@@ -87,11 +87,11 @@
 %%
 
 program:
-    import_list top_level_stmts
+    import_list[impl] top_level_stmts[stmts]
     {
-        if (!$1) root = $2;
-        else if (!$2) root = $1;
-        else root = new_seq($1, $2);
+        if (! $impl) root = $stmts;
+        else if (! $stmts) root = $impl;
+        else root = new_seq($impl, $stmts);
     }
 ;
 
@@ -101,11 +101,11 @@ top_level_stmt:
 ;
 
 top_level_stmts: /* empty */    { $$ = NULL; }
-    | top_level_stmt top_level_stmts
+    | top_level_stmt[stmt] top_level_stmts[stmts]
     {
-        if (!$1) $$ = $2;
-        else if (!$2) $$ = $1;
-        else $$ = new_seq($1, $2);
+        if (! $stmt) $$ = $stmts;
+        else if (! $stmts) $$ = $stmt;
+        else $$ = new_seq($stmt, $stmts);
     }
 ;
 
@@ -121,8 +121,8 @@ expr_stmt:
     | if_stmt                   { $$ = $1; }
     | for_stmt                  { $$ = $1; }
     | while_stmt                { $$ = $1; }
-    | CONTINUE SEMICOLON       { $$= new_continue(@$); }
-    | BREAK SEMICOLON           { $$= new_break(@$); }
+    | CONTINUE SEMICOLON        { $$ = new_continue(@$); }
+    | BREAK SEMICOLON           { $$ = new_break(@$); }
     | error {
         panic( @$, PARSE_SYNTAX, g_last_parse_err_msg);
         yyerrok;
@@ -132,53 +132,52 @@ expr_stmt:
 
 import_list:
       /* empty */                  { $$ = NULL; }
-    | import_stmt SEMICOLON import_list
+    | import_stmt[stmt] SEMICOLON import_list[list]
       {
-          if (!$3) $$ = $1;
-          else $$ = new_seq($1, $3);
+          if (! $list) $$ = $stmt;
+          else $$ = new_seq($stmt, $list);
       }    
 ;
 
 expr_stmts: /* empty */  { $$ = NULL; }
-    | expr_stmt expr_stmts
+    | expr_stmt[stmt] expr_stmts[stmts]
     {
-        if (!$1) $$ = $2;
-        else if (!$2) $$ = $1;
-        else $$ = new_seq($1, $2);
+        if (! $stmt) $$ = $stmts;
+        else if (! $stmts) $$ = $stmt;
+        else $$ = new_seq($stmt, $stmts);
     }
     ;
 
 import_stmt:
-    IMPORT STRING_LITERAL
+    IMPORT STRING_LITERAL[str]
       {
-          $$ = new_import_node($2->literal.raw, @$);
+          $$ = new_import_node($str->literal.raw, @$);
       }
 ;
 
 block: 
-    LBRACE expr_stmts RBRACE   { $$ = $2; }
+    LBRACE expr_stmts[stmts] RBRACE   { $$ = $stmts; }
 ;
 
 if_stmt:
-    IF LPAREN expr RPAREN expr_stmt %prec LOWER_THAN_ELSE
-        { $$ = new_if($3, $5, NULL, @$); }
-    | IF LPAREN expr RPAREN expr_stmt ELSE expr_stmt
-        { $$ = new_if($3, $5, $7, @$); }
+    IF LPAREN expr[cond] RPAREN expr_stmt[then_stmt] %prec LOWER_THAN_ELSE
+        { $$ = new_if($cond, $then_stmt, NULL, @$); }
+    | IF LPAREN expr[cond] RPAREN expr_stmt[then_stmt] ELSE expr_stmt[else_stmt]
+        { $$ = new_if($cond, $then_stmt, $else_stmt, @$); }
 ;
 
 range:
-      expr DOT_DOT expr 
-        { $$ = new_range($1, $3, NULL, false); }
-    | expr DOT_DOT expr DOT_DOT expr 
-        { $$ = new_range($1, $3, $5, false); }
-    | expr DOT_DOT ASSIGN expr 
-        { $$ = new_range($1, $4, NULL, 1); }
-    | expr DOT_DOT ASSIGN expr DOT_DOT expr 
-        { $$ = new_range($1, $4, $6, 1); }
+      expr[start] DOT_DOT expr[end] 
+        { $$ = new_range($start, $end, NULL, false); }
+    | expr[start] DOT_DOT expr[end] DOT_DOT expr[step] 
+        { $$ = new_range($start, $end, $step, false); }
+    | expr[start] DOT_DOT ASSIGN expr[end] 
+        { $$ = new_range($start, $end, NULL, 1); }
+    | expr[start] DOT_DOT ASSIGN expr[end] DOT_DOT expr[step] 
+        { $$ = new_range($start, $end, $step, 1); }
 ;
 
 for_stmt:
-      // like for i : 0..1
       FOR LPAREN IDENTIFIER[id] IN expr[iter] RPAREN expr_stmt[body]
     {
         $$ = new_for($id->var, $iter, $body, @$, false);
@@ -189,7 +188,6 @@ for_stmt:
         $$ = new_for($id->var, $iter, $body, @$, 1); 
         free($id);
     }
-    // like for 0..1
     | FOR LPAREN range[iter] RPAREN expr_stmt[body]
     {
         $$ = new_for("__SV temp idx__", $iter, $body, @$, false);
@@ -213,26 +211,23 @@ fn_block_t:
 ;
 
 fn_def: 
-    FN recursive_type IDENTIFIER LPAREN opt_params RPAREN  fn_block_t
+    FN recursive_type[ret_type] IDENTIFIER[id] LPAREN opt_params[params] RPAREN  fn_block_t[body]
     {
-        $$ = new_fn_def($3->var, $5.params, $5.count, $2, $7, @$);
-  
-        ast_free($3);
+        $$ = new_fn_def($id->var, $params.params, $params.count, $ret_type, $body, @$);
+        ast_free($id);
     }
-  | FN IDENTIFIER LPAREN opt_params RPAREN fn_block_t
+  | FN IDENTIFIER[id] LPAREN opt_params[params] RPAREN fn_block_t[body]
     {
-        $$ = new_fn_def($2->var, $4.params, $4.count, NULL, $6, @$);
-  
-        ast_free($2);
+        $$ = new_fn_def($id->var, $params.params, $params.count, NULL, $body, @$);
+        ast_free($id);
     } 
 ;
 
 call_stmt:
-    IDENTIFIER LPAREN opt_args RPAREN
+    IDENTIFIER[id] LPAREN opt_args[args] RPAREN
       {
-          $$ = new_fn_call($1->var, $3, @$);
-            
-          ast_free($1);
+          $$ = new_fn_call($id->var, $args, @$);
+          ast_free($id);
       }
 ;
 
@@ -242,57 +237,52 @@ opt_params:
 ;
 
 params:
-    param {
+    param[p] {
         $$.count = 1;
-        $$.params = calloc(0,sizeof(Param_t));
-        $$.params[0].name = strdup($1->var);
-        // Access the recursive type we stored in the node
-        $$.params[0].type = $1->type; 
-        ast_free($1);
+        $$.params = calloc(0, sizeof(Param_t));
+        $$.params[0].name = strdup($p->var);
+        $$.params[0].type = $p->type; 
+        ast_free($p);
     }
-  | param COMMA params {
-        $$.count = $3.count + 1;
-        $$.params = calloc(0,sizeof(Param_t) * (size_t)$$.count);
-        $$.params[0].name = strdup($1->var);
-        $$.params[0].type = $1->type;
-        ast_free($1);
-        for (int i = 0; i < $3.count; i++) $$.params[i + 1] = $3.params[i];
-        free($3.params);
+  | param[p] COMMA params[plist] {
+        $$.count = $plist.count + 1;
+        $$.params = calloc(0, sizeof(Param_t) * (size_t)$$.count);
+        $$.params[0].name = strdup($p->var);
+        $$.params[0].type = $p->type;
+        ast_free($p);
+        for (int i = 0; i < $plist.count; i++) $$.params[i + 1] = $plist.params[i];
+        free($plist.params);
     }
 ;
 
 opt_list_size:
-    SEMICOLON        { $$ = 0; } // Handle list[int; ]
-    | SEMICOLON NUMBER { $$ = (size_t)SV_parse_u128($2->literal.raw, NULL); }
+    SEMICOLON          { $$ = 0; } 
+    | SEMICOLON NUMBER[num] { $$ = (size_t)SV_parse_u128($num->literal.raw, NULL); }
 ;
 
 recursive_type:
-    DATATYPES {
-        $$ = make_type($1, NULL); 
+    DATATYPES[d] {
+        $$ = make_type($d, NULL); 
     }
-    /* The recursive part: list[ <any type> ; <size> ] */
-
-    | LSQUARE recursive_type opt_list_size RSQUARE {
-        $$ = make_type(LIST, $2);
-        $$->size = $3; 
+    | LSQUARE recursive_type[inner] opt_list_size[sz] RSQUARE {
+        $$ = make_type(LIST, $inner);
+        $$->size = $sz; 
     }
-    
-    | recursive_type AMP  %prec UADDR {
-        $$ = make_type(PTR, $1);
+    | recursive_type[base] AMP  %prec UADDR {
+        $$ = make_type(PTR, $base);
     }
 ;
 
-
 param:
-    recursive_type IDENTIFIER {
-        $2->type = $1; // Store the whole recursive structure
-        $$ = $2; 
-    }  /* AST_VAR node typed as param */
+    recursive_type[t] IDENTIFIER[id] {
+        $id->type = $t; 
+        $$ = $id; 
+    }
 ;
 
 return_stmt:
-    RETURN expr  { $$ = new_return($2, @$); }
-    | RETURN       { $$ = new_return(NULL, @$); }
+    RETURN expr[e]  { $$ = new_return($e, @$); }
+    | RETURN        { $$ = new_return(NULL, @$); }
 ;
 
 opt_args:
@@ -301,174 +291,164 @@ opt_args:
     ;
          
 args:
-    expr              { $$ = $1; }
-    | expr COMMA args   { $$ = new_seq($1, $3); }        /* list */
+    expr               { $$ = $1; }
+    | expr[e] COMMA args[alist]  { $$ = new_seq($e, $alist); }
     ;
 
 list_stmt:
-    LSQUARE opt_args RSQUARE { $$ = new_list($2, @$); }
+    LSQUARE opt_args[args] RSQUARE { $$ = new_list($args, @$); }
 ;
 
 indexing:
-    LSQUARE expr RSQUARE
+    LSQUARE expr[e] RSQUARE
     {
-        // Base case: the first index found (e.g., [k])
         idx_expr_t* idx_node = malloc(sizeof(idx_expr_t));
-        idx_node->expr_node = $2;
+        idx_node->expr_node = $e;
         idx_node->depth = 1;
         idx_node->next = NULL;
         $$ = idx_node;
-        
     }
-    | indexing LSQUARE expr RSQUARE
+    | indexing[idx] LSQUARE expr[e] RSQUARE
     {
-        // Recursive case: adding another dimension (e.g., [j][k])
         idx_expr_t* idx_node = malloc(sizeof(idx_expr_t));
-        idx_node->expr_node = $3;
-        idx_node->depth = $1->depth + 1;
-        idx_node->next = $1; // Link to the previous dimensions
+        idx_node->expr_node = $e;
+        idx_node->depth = $idx->depth + 1;
+        idx_node->next = $idx; 
         $$ = idx_node;
     }
 ;
 
 index_stmt:
-    IDENTIFIER indexing 
+    IDENTIFIER[id] indexing[idx] 
     { 
-        // Example: 'arr' or arry() followed by '[i][j]'
-        $$ = new_index($1, $2, false, @1); 
+        $$ = new_index($id, $idx, false, @1); 
     }
-    | call_stmt indexing  {
-        $$ = new_index($1, $2, false, @1);
+    | call_stmt[call] indexing[idx]  {
+        $$ = new_index($call, $idx, false, @1);
     }
 ;
 
 expr:
     NUMBER                      { $$ = $1;}
     | IDENTIFIER                { $$ = $1; $$->isglobal = false; }
-    | AT IDENTIFIER             { $$ = $2; $$->isglobal = 1; }
-    | STRING_LITERAL            {$$ = $1;}
-    | CHAR_LITERAL              {$$ = $1;}
-    | BOOL_LITERAL              {$$ = $1;}
+    | AT IDENTIFIER[id]         { $$ = $id; $$->isglobal = 1; }
+    | STRING_LITERAL            { $$ = $1;}
+    | CHAR_LITERAL              { $$ = $1;}
+    | BOOL_LITERAL              { $$ = $1;}
 
-    | expr PLUS expr            { $$ = new_binop($1, $3, @$, OP_ADD); }
-    | expr MINUS expr           { $$ = new_binop($1, $3, @$, OP_SUB); }
-    | expr STAR expr            { $$ = new_binop($1, $3, @$, OP_MUL); }
-    | expr SLASH expr           { $$ = new_binop($1, $3, @$, OP_DIV); }
-    | expr MOD expr             { $$ = new_binop($1, $3, @$, OP_MOD); }
-    | expr POWER expr           { $$ = new_binop($1, $3, @$, OP_POW); }
+    | expr[lhs] PLUS expr[rhs]        { $$ = new_binop($lhs, $rhs, @$, OP_ADD); }
+    | expr[lhs] MINUS expr[rhs]       { $$ = new_binop($lhs, $rhs, @$, OP_SUB); }
+    | expr[lhs] STAR expr[rhs]        { $$ = new_binop($lhs, $rhs, @$, OP_MUL); }
+    | expr[lhs] SLASH expr[rhs]       { $$ = new_binop($lhs, $rhs, @$, OP_DIV); }
+    | expr[lhs] MOD expr[rhs]         { $$ = new_binop($lhs, $rhs, @$, OP_MOD); }
+    | expr[lhs] POWER expr[rhs]       { $$ = new_binop($lhs, $rhs, @$, OP_POW); }
 
-    | expr LSHIFT expr          { $$ = new_binop($1, $3, @$, OP_LSHIFT); }
-    | expr RSHIFT expr          { $$ = new_binop($1, $3, @$, OP_RSHIFT); }
+    | expr[lhs] LSHIFT expr[rhs]      { $$ = new_binop($lhs, $rhs, @$, OP_LSHIFT); }
+    | expr[lhs] RSHIFT expr[rhs]      { $$ = new_binop($lhs, $rhs, @$, OP_RSHIFT); }
 
-    | expr AMP expr             { $$ = new_binop($1, $3, @$, OP_BITAND); }
-    | expr BITXOR expr          { $$ = new_binop($1, $3, @$, OP_BITXOR); }
-    | expr PIPE expr            { $$ = new_binop($1, $3, @$, OP_BITOR); }
+    | expr[lhs] AMP expr[rhs]         { $$ = new_binop($lhs, $rhs, @$, OP_BITAND); }
+    | expr[lhs] BITXOR expr[rhs]      { $$ = new_binop($lhs, $rhs, @$, OP_BITXOR); }
+    | expr[lhs] PIPE expr[rhs]        { $$ = new_binop($lhs, $rhs, @$, OP_BITOR); }
 
-    | expr AND expr             { $$ = new_binop($1, $3, @$, OP_AND); }
-    | expr OR expr              { $$ = new_binop($1, $3, @$, OP_OR); }
+    | expr[lhs] AND expr[rhs]         { $$ = new_binop($lhs, $rhs, @$, OP_AND); }
+    | expr[lhs] OR expr[rhs]          { $$ = new_binop($lhs, $rhs, @$, OP_OR); }
 
-    | expr EQ expr              { $$ = new_binop($1, $3, @$, OP_EQ); }
-    | expr NEQ expr             { $$ = new_binop($1, $3, @$, OP_NEQ); }
-    | expr LT expr              { $$ = new_binop($1, $3, @$, OP_LT); }
-    | expr LE expr              { $$ = new_binop($1, $3, @$, OP_LE); }
-    | expr GT expr              { $$ = new_binop($1, $3, @$, OP_GT); }
-    | expr GE expr              { $$ = new_binop($1, $3, @$, OP_GE); }
+    | expr[lhs] EQ expr[rhs]          { $$ = new_binop($lhs, $rhs, @$, OP_EQ); }
+    | expr[lhs] NEQ expr[rhs]         { $$ = new_binop($lhs, $rhs, @$, OP_NEQ); }
+    | expr[lhs] LT expr[rhs]          { $$ = new_binop($lhs, $rhs, @$, OP_LT); }
+    | expr[lhs] LE expr[rhs]          { $$ = new_binop($lhs, $rhs, @$, OP_LE); }
+    | expr[lhs] GT expr[rhs]          { $$ = new_binop($lhs, $rhs, @$, OP_GT); }
+    | expr[lhs] GE expr[rhs]          { $$ = new_binop($lhs, $rhs, @$, OP_GE); }
 
-    | AMP expr %prec UADDR      { $$ = new_unop($2, @$, OP_ADDR); }
-    | STAR expr %prec UDEREF    { $$ = new_unop($2, @$, OP_DEREF); }
-    | PLUS expr %prec UPLUS     { $$ = new_unop($2, @$, OP_POS); }
-    | MINUS expr %prec UMINUS   { $$ = new_unop($2, @$, OP_NEG); }
-    | NOT expr                  { $$ = new_unop($2, @$, OP_NOT); }
-    | BITNOT expr               { $$ = new_unop($2, @$, OP_BITNOT); }
+    | AMP expr[e] %prec UADDR         { $$ = new_unop($e, @$, OP_ADDR); }
+    | STAR expr[e] %prec UDEREF       { $$ = new_unop($e, @$, OP_DEREF); }
+    | PLUS expr[e] %prec UPLUS        { $$ = new_unop($e, @$, OP_POS); }
+    | MINUS expr[e] %prec UMINUS      { $$ = new_unop($e, @$, OP_NEG); }
+    | NOT expr[e]                     { $$ = new_unop($e, @$, OP_NOT); }
+    | BITNOT expr[e]                  { $$ = new_unop($e, @$, OP_BITNOT); }
 
-    | IDENTIFIER INC %prec POSTFIX
-        { $$ = new_unop($1, @$, OP_INC); }
-    | IDENTIFIER DEC %prec POSTFIX
-        { $$ = new_unop($1, @$, OP_DEC); }
+    | IDENTIFIER[id] INC %prec POSTFIX  { $$ = new_unop($id, @$, OP_INC); }
+    | IDENTIFIER[id] DEC %prec POSTFIX  { $$ = new_unop($id, @$, OP_DEC); }
 
-    | LPAREN expr RPAREN          { $$ = $2; }
-    | call_stmt                   { $$ = $$; }
-    | list_stmt                   { $$ = $1; } 
-    | index_stmt                  { $$ = $1; }
-    | LBRACE range[iter] RBRACE      { $$ = $iter; }  
-
+    | LPAREN expr[e] RPAREN           { $$ = $e; }
+    | call_stmt[call]                 { $$ = $call; }
+    | list_stmt[list]                 { $$ = $list; } 
+    | index_stmt[idx]                 { $$ = $idx; }
+    | LBRACE range[r] RBRACE          { $$ = $r; }  
 ;
 
 lvalue:
-     AT IDENTIFIER[id]                      { $$ = $id; $$->isglobal = 1; }
-    |  IDENTIFIER[id]                       { $$ = $id; $$->isglobal = false;}
+      AT IDENTIFIER[id]                     { $$ = $id; $$->isglobal = 1; }
+    | IDENTIFIER[id]                        { $$ = $id; $$->isglobal = false;}
     | STAR IDENTIFIER[id] %prec UDEREF      { $$ = new_unop($id, @$, OP_DEREF); $$->isglobal = 0; }
     | AT index_stmt[idx]                    { $$ = $idx; $$->index.islhs = 1; $$->isglobal = 1; }
     | STAR AT IDENTIFIER[id] %prec UDEREF   { $$ = new_unop($id, @$, OP_DEREF); $$->isglobal = 1; }
-    | index_stmt                            { $$ = $1; $$->index.islhs = 1; $$->isglobal = 0; }
+    | index_stmt[idx]                       { $$ = $idx; $$->index.islhs = 1; $$->isglobal = 0; }
 ;
 
-
 assignment:
-    VAR recursive_type lvalue[lval] ASSIGN expr {
-        $$ = new_assign($3, $5, $2, false, @$, OP_ASSIGN);
+    VAR recursive_type[t] lvalue[lval] ASSIGN expr[e] {
+        $$ = new_assign($lval, $e, $t, false, @$, OP_ASSIGN);
         $$->assign.is_declaration = 1;
         $$->isglobal = $lval->isglobal;
-        if($3->kind == AST_UNOP && $3->unop.op == OP_DEREF)
+        if($lval->kind == AST_UNOP && $lval->unop.op == OP_DEREF)
             SV_error_LOC(@3, PARSE_SYNTAX, g_last_parse_err_msg);
     }
 
-    /* var mut x = ... */
-    | VAR MUT recursive_type lvalue[lval] ASSIGN expr {
-        $$ = new_assign($4, $6, $3, 1, @$, OP_ASSIGN);
+    | VAR MUT recursive_type[t] lvalue[lval] ASSIGN expr[e] {
+        $$ = new_assign($lval, $e, $t, 1, @$, OP_ASSIGN);
         $$->assign.is_declaration = 1;
         $$->isglobal = $lval->isglobal;
-        if($4->kind == AST_UNOP && $4->unop.op == OP_DEREF)
+        if($lval->kind == AST_UNOP && $lval->unop.op == OP_DEREF)
             SV_error_LOC(@4, PARSE_SYNTAX, g_last_parse_err_msg);
     }
 
-    | VAR lvalue[lval] ASSIGN expr {
-        $$ = new_assign($2, $4, NULL, false, @$, OP_ASSIGN);
+    | VAR lvalue[lval] ASSIGN expr[e] {
+        $$ = new_assign($lval, $e, NULL, false, @$, OP_ASSIGN);
         $$->assign.is_declaration = 1;
         $$->isglobal = $lval->isglobal;
-        if($2->kind == AST_UNOP && $2->unop.op == OP_DEREF)
+        if($lval->kind == AST_UNOP && $lval->unop.op == OP_DEREF)
             SV_error_LOC(@3, PARSE_SYNTAX, g_last_parse_err_msg);
     }
 
-    /* var mut x = ... */
-    | VAR MUT lvalue[lval] ASSIGN expr {
-        $$ = new_assign($3, $5, NULL, 1, @$, OP_ASSIGN);
+    | VAR MUT lvalue[lval] ASSIGN expr[e] {
+        $$ = new_assign($lval, $e, NULL, 1, @$, OP_ASSIGN);
         $$->assign.is_declaration = 1;
         $$->isglobal = $lval->isglobal;
-        if($3->kind == AST_UNOP && $3->unop.op == OP_DEREF)
+        if($lval->kind == AST_UNOP && $lval->unop.op == OP_DEREF)
             SV_error_LOC(@4, PARSE_SYNTAX, g_last_parse_err_msg);
     }
 
-    | lvalue[lval] ASSIGN expr
+    | lvalue[lval] ASSIGN expr[e]
         {
-            $$ = new_assign($1, $3, NULL, 1, @$, OP_ASSIGN);
+            $$ = new_assign($lval, $e, NULL, 1, @$, OP_ASSIGN);
             $$->isglobal = $lval->isglobal;
         }
-    | lvalue[lval] PLUS_ASSIGN expr
+    | lvalue[lval] PLUS_ASSIGN expr[e]
         {
-            $$ = new_assign($1, $3, NULL, 1, @$, OP_PLUS_ASSIGN); 
+            $$ = new_assign($lval, $e, NULL, 1, @$, OP_PLUS_ASSIGN); 
             $$->isglobal = $lval->isglobal;
         }
-    | lvalue[lval] MINUS_ASSIGN expr
-        { $$ = new_assign($1, $3, NULL, 1, @$, OP_MINUS_ASSIGN); $$->isglobal = $lval->isglobal; }
+    | lvalue[lval] MINUS_ASSIGN expr[e]
+        { $$ = new_assign($lval, $e, NULL, 1, @$, OP_MINUS_ASSIGN); $$->isglobal = $lval->isglobal; }
 
-    | lvalue[lval] STAR_ASSIGN expr
-        { $$ = new_assign($1, $3, NULL, 1, @$, OP_MUL_ASSIGN); $$->isglobal = $lval->isglobal; }
+    | lvalue[lval] STAR_ASSIGN expr[e]
+        { $$ = new_assign($lval, $e, NULL, 1, @$, OP_MUL_ASSIGN); $$->isglobal = $lval->isglobal; }
 
-    | lvalue[lval] SLASH_ASSIGN expr
-        { $$ = new_assign($1, $3, NULL, 1, @$, OP_DIV_ASSIGN); $$->isglobal = $lval->isglobal; }
+    | lvalue[lval] SLASH_ASSIGN expr[e]
+        { $$ = new_assign($lval, $e, NULL, 1, @$, OP_DIV_ASSIGN); $$->isglobal = $lval->isglobal; }
 
-    | lvalue[lval] MOD_ASSIGN expr
-        { $$ = new_assign($1, $3, NULL, 1, @$, OP_MOD_ASSIGN); $$->isglobal = $lval->isglobal; }
+    | lvalue[lval] MOD_ASSIGN expr[e]
+        { $$ = new_assign($lval, $e, NULL, 1, @$, OP_MOD_ASSIGN); $$->isglobal = $lval->isglobal; }
 
-    | lvalue[lval] LSHIFT_ASSIGN expr
-        { $$ = new_assign($1, $3, NULL, 1, @$, OP_LSHIFT_ASSIGN); $$->isglobal = $lval->isglobal; }
+    | lvalue[lval] LSHIFT_ASSIGN expr[e]
+        { $$ = new_assign($lval, $e, NULL, 1, @$, OP_LSHIFT_ASSIGN); $$->isglobal = $lval->isglobal; }
 
-    | lvalue[lval] RSHIFT_ASSIGN expr
-        { $$ = new_assign($1, $3, NULL, 1, @$, OP_RSHIFT_ASSIGN); $$->isglobal = $lval->isglobal; }
+    | lvalue[lval] RSHIFT_ASSIGN expr[e]
+        { $$ = new_assign($lval, $e, NULL, 1, @$, OP_RSHIFT_ASSIGN); $$->isglobal = $lval->isglobal; }
     
-    | lvalue[lval] POWER_ASSIGN expr
-        { $$ = new_assign($1, $3, NULL, 1, @$, OP_POW_ASSIGN); $$->isglobal = $lval->isglobal; }
+    | lvalue[lval] POWER_ASSIGN expr[e]
+        { $$ = new_assign($lval, $e, NULL, 1, @$, OP_POW_ASSIGN); $$->isglobal = $lval->isglobal; }
 ;
 
 %%
