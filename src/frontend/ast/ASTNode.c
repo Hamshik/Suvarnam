@@ -55,6 +55,7 @@ ASTNode_t* new_var(const char *name, DataTypes_t datatype, SV_Location loc) {
     node->type = make_type(datatype, NULL);
     if (node->type) node->type->size = 0;
     node->loc = loc;
+    node->isglobal = name[0] == '@';
     return node;
 }
 

@@ -36,10 +36,10 @@ static TargetMachine* setup_target(Module &mod) {
 
 /* ===================== AST EMISSION ===================== */
 
-static void emit_functions(MASTNode *root, Module &mod, LLVMContext &ctx) {
+static void emit_functions(HIRNode *root, Module &mod, LLVMContext &ctx) {
     std::unordered_set<std::string> visited_modules;
 
-    std::function<void(MASTNode*)> walk = [&](MASTNode *n) {
+    std::function<void(HIRNode*)> walk = [&](HIRNode *n) {
         if (!n) return;
         if (n->kind == AST_BLOCK) {
             if (n->block_stmts) {
@@ -53,7 +53,7 @@ static void emit_functions(MASTNode *root, Module &mod, LLVMContext &ctx) {
     walk(root);
 }
 
-static Function* emit_init(MASTNode *root, Module &mod, LLVMContext &ctx) {
+static Function* emit_init(HIRNode *root, Module &mod, LLVMContext &ctx) {
     FunctionType *ft = FunctionType::get(Type::getVoidTy(ctx), false);
     Function *initFn =
         Function::Create(ft, Function::InternalLinkage, "init", mod);
@@ -65,7 +65,7 @@ static Function* emit_init(MASTNode *root, Module &mod, LLVMContext &ctx) {
     Codegen::Scope locals;
     std::unordered_set<std::string> visited_modules;
 
-    std::function<void(MASTNode*)> emit_nonfn = [&](MASTNode *n) {
+    std::function<void(HIRNode*)> emit_nonfn = [&](HIRNode *n) {
         if (!n || n->kind != AST_BLOCK) return;
         if (n->block_stmts) {
             for(auto stmt : *n->block_stmts) {
@@ -150,7 +150,7 @@ static bool emit_ir(Module &mod, const char *path, char **out) {
 
 /* ===================== MAIN CODEGEN ===================== */
 
-int codegen(MASTNode *root, const char *ll_path, char **ir_out) {
+int codegen(HIRNode *root, const char *ll_path, char **ir_out) {
     LLVMContext ctx;
     Module mod(" SV_Module", ctx);
 

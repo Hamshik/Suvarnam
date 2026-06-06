@@ -82,11 +82,11 @@ void SV_runtime_fn_clear(void);
 Type_t* SV_semantic_lookup(const char *name);
 
 #ifdef __cplusplus
-bool SV_semantic_declare(const char *name, Type_t* type, ASTNode_t* node, bool is_mutable);
+bool SV_semantic_declare(const char *name, bool* isglobal, Type_t* type, ASTNode_t* node, bool is_mutable);
 #endif
 
 exitcode_t SV_semantic_exists(const char *name, Type_t* type);
-exitcode_t SV_semantic_assign_check(const char *name, DataTypes_t rhs_type, DataTypes_t rhs_sub_type);
+exitcode_t SV_semantic_assign_check(const char *name, bool isglobal, DataTypes_t rhs_type, DataTypes_t rhs_sub_type);
 bool SV_semantic_is_mutable(const char *name);
 void SV_semantic_scope_push(void);
 void SV_semantic_scope_pop(void);

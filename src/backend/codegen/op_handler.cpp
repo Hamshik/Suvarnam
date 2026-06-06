@@ -1,12 +1,12 @@
 #include "codegen/codegen.hpp"
 
-llvm::Value *emit_mul_strs(MASTNode *n, LLVMContext &ctx, IRBuilder<> &b,
+llvm::Value *emit_mul_strs(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
                         IRBuilder<> &entryBuilder, Codegen::Scope &locals, llvm::Value *L, llvm::Value *R);
 
-llvm::Value *emit_add_strs(MASTNode *n, LLVMContext &ctx, IRBuilder<> &b,
+llvm::Value *emit_add_strs(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
                         IRBuilder<> &entryBuilder, Codegen::Scope &locals, llvm::Value *L, llvm::Value *R);
 
-llvm::Value *emit_binop(MASTNode *n, LLVMContext &ctx, IRBuilder<> &b,
+llvm::Value *emit_binop(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
                         IRBuilder<> &entryBuilder, Codegen::Scope &locals) {
   llvm::Value *L = emit_expr(n->binary.left, ctx, b, entryBuilder, locals);
   llvm::Value *R = emit_expr(n->binary.right, ctx, b, entryBuilder, locals);
@@ -98,7 +98,47 @@ llvm::Value *emit_binop(MASTNode *n, LLVMContext &ctx, IRBuilder<> &b,
   }
 }
 
-llvm::Value *emit_unop(MASTNode *n, LLVMContext &ctx, IRBuilder<> &b,
+#define num_inc_OR_dec(LLVM_OPCODE, node, builder)                             \
+  do {                                                                         \
+    /* Convert your custom frontend Type_t* to an actual llvm::Type* */        \
+    llvm::Type* llvmTy = ir_type((node)->type->base, ctx);                     \
+                                                                               \
+    /* 1. Extract the name string into a local macro variable for legibility */\
+    const char* var_name = (node)->binary.left->name;                          \
+                                                                               \
+    /* 2. Lookup or create a local stack allocation (Must be a pointer!) */    \
+    llvm::Value *val = get_or_create_alloca(var_name, (node)->type->base, ctx, builder, locals); \
+                                                                               \
+    /* 3. If local lookup fails (null), fall back to looking up the global */  \
+    llvm::Value *varPtr = val ? val : (builder).GetInsertBlock()->getModule()  \
+            ->getGlobalVariable(var_name, true);                               \
+                                                                               \
+    if (!varPtr) {                                                             \
+        fprintf(stderr, "Error: Variable %s not found!\n", var_name);          \
+        return nullptr;                                                        \
+    }                                                                          \
+                                                                               \
+    /* 4. Load the OLD value from memory using the converted LLVM Type */      \
+    llvm::Value *oldVal =                                                      \
+        (builder).CreateLoad(llvmTy, varPtr, "old_val");                       \
+                                                                               \
+    /* 5. Create the constant '1' (Casting llvmTy to IntegerType) */           \
+    llvm::Value *constantOne = llvm::ConstantInt::get(                         \
+        llvm::cast<llvm::IntegerType>(llvmTy), 1);                             \
+                                                                               \
+    /* 6. Perform the operation (Add or Sub depending on macro argument) */    \
+    llvm::Value *newVal =                                                      \
+        (builder).CreateBinOp(LLVM_OPCODE, oldVal, constantOne, "new_val");    \
+                                                                               \
+    /* 7. Store the NEW value back into the variable's memory location */      \
+    (builder).CreateStore(newVal, varPtr);                                     \
+                                                                               \
+    /* 8. Return the OLD value to the caller */                                \
+    return oldVal;                                                             \
+  } while (0)
+
+
+llvm::Value *emit_unop(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
                        IRBuilder<> &entryBuilder, Codegen::Scope &locals) {
   llvm::Value *opnd = emit_expr(n->binary.left, ctx, b, entryBuilder, locals);
   if (!opnd)
@@ -110,6 +150,10 @@ llvm::Value *emit_unop(MASTNode *n, LLVMContext &ctx, IRBuilder<> &b,
                                          : b.CreateNeg(opnd);
   case OP_NOT:
     return b.CreateNot(opnd);
+  case OP_INC:
+    num_inc_OR_dec(llvm::Instruction::Add, n, b);
+  case OP_DEC:
+    num_inc_OR_dec(llvm::Instruction::Sub, n, b);
   default:
     return opnd;
   }

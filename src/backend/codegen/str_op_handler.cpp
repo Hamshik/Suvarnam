@@ -1,6 +1,6 @@
 #include "codegen/codegen.hpp"
 
-llvm::Value *emit_mul_strs(MASTNode *n, LLVMContext &ctx, IRBuilder<> &b,
+llvm::Value *emit_mul_strs(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
                         IRBuilder<> &entryBuilder, Codegen::Scope &locals, llvm::Value *L, llvm::Value *R)
 {
   llvm::Type *i8Ptr = llvm::PointerType::getUnqual(ctx);
@@ -38,7 +38,7 @@ llvm::Value *emit_mul_strs(MASTNode *n, LLVMContext &ctx, IRBuilder<> &b,
   return b.CreateCall(mulFn, {strVal, countVal});
 }
 
-llvm::Value *emit_add_strs(MASTNode *n, LLVMContext &ctx, IRBuilder<> &b,
+llvm::Value *emit_add_strs(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
     IRBuilder<> &entryBuilder, Codegen::Scope &locals, llvm::Value *L, llvm::Value *R)
 {
     llvm::Module *module = b.GetInsertBlock()->getModule();

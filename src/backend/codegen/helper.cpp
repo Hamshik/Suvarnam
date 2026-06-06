@@ -116,7 +116,7 @@ Type *ir_type(DataTypes_t t, LLVMContext &ctx) {
   }
 }
 
-llvm::Value *emit_number(MASTNode *n, LLVMContext &ctx) {
+llvm::Value *emit_number(HIRNode *n, LLVMContext &ctx) {
   switch (n->type->base) {
   case I8:
     return ConstantInt::get(Type::getInt8Ty(ctx),
@@ -188,7 +188,7 @@ bool blockTerminated(IRBuilder<> &b) {
   return b.GetInsertBlock()->getTerminator() != nullptr;
 }
 
-llvm::Value *emit_if(MASTNode *n, LLVMContext &ctx, IRBuilder<> &b,
+llvm::Value *emit_if(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
                      IRBuilder<> &entryBuilder, Codegen::Scope &locals) {
 
   // 1. Emit condition

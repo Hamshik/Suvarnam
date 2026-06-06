@@ -321,17 +321,18 @@ indexing:
 index_stmt:
     IDENTIFIER[id] indexing[idx] 
     { 
-        $$ = new_index($id, $idx, false, @1); 
+        $$ = new_index($id, $idx, false, @1);
+        $$->isglobal =  $id->isglobal;
     }
     | call_stmt[call] indexing[idx]  {
         $$ = new_index($call, $idx, false, @1);
+        $$->isglobal =  $idx->isglobal;
     }
 ;
 
 expr:
     NUMBER                      { $$ = $1;}
-    | IDENTIFIER                { $$ = $1; $$->isglobal = false; }
-    | AT IDENTIFIER[id]         { $$ = $id; $$->isglobal = 1; }
+    | IDENTIFIER                { $$ = $1;}
     | STRING_LITERAL            { $$ = $1;}
     | CHAR_LITERAL              { $$ = $1;}
     | BOOL_LITERAL              { $$ = $1;}
@@ -367,23 +368,20 @@ expr:
     | NOT expr[e]                     { $$ = new_unop($e, @$, OP_NOT); }
     | BITNOT expr[e]                  { $$ = new_unop($e, @$, OP_BITNOT); }
 
-    | IDENTIFIER[id] INC %prec POSTFIX  { $$ = new_unop($id, @$, OP_INC); }
-    | IDENTIFIER[id] DEC %prec POSTFIX  { $$ = new_unop($id, @$, OP_DEC); }
+    | IDENTIFIER[id] INC %prec POSTFIX  { $$ = new_unop($id, @$, OP_INC); $$->isglobal =  $id->isglobal;}
+    | IDENTIFIER[id] DEC %prec POSTFIX  { $$ = new_unop($id, @$, OP_DEC); $$->isglobal =  $id->isglobal; }
 
     | LPAREN expr[e] RPAREN           { $$ = $e; }
     | call_stmt[call]                 { $$ = $call; }
-    | list_stmt[list]                 { $$ = $list; } 
-    | index_stmt[idx]                 { $$ = $idx; }
-    | LBRACE range[r] RBRACE          { $$ = $r; }  
+    | list_stmt[list]                 { $$ = $list;} 
+    | index_stmt[idx]                 { $$ = $idx; $$->isglobal =  $idx->isglobal;}
+    | LBRACE range[r] RBRACE          { $$ = $r; }
 ;
 
 lvalue:
-      AT IDENTIFIER[id]                     { $$ = $id; $$->isglobal = 1; }
-    | IDENTIFIER[id]                        { $$ = $id; $$->isglobal = false;}
-    | STAR IDENTIFIER[id] %prec UDEREF      { $$ = new_unop($id, @$, OP_DEREF); $$->isglobal = 0; }
-    | AT index_stmt[idx]                    { $$ = $idx; $$->index.islhs = 1; $$->isglobal = 1; }
-    | STAR AT IDENTIFIER[id] %prec UDEREF   { $$ = new_unop($id, @$, OP_DEREF); $$->isglobal = 1; }
-    | index_stmt[idx]                       { $$ = $idx; $$->index.islhs = 1; $$->isglobal = 0; }
+      IDENTIFIER[id]                        { $$ = $id;}
+    | STAR IDENTIFIER[id] %prec UDEREF      { $$ = new_unop($id, @$, OP_DEREF); $$->isglobal = $id->isglobal; }
+    | index_stmt[idx]                       { $$ = $idx; $$->index.islhs = 1; $$->isglobal = $idx->isglobal; }
 ;
 
 assignment:

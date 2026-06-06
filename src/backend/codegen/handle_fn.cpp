@@ -9,7 +9,7 @@
 
 FunctionCallee get_builtin_llvm_fn(const char* name, Module &m, LLVMContext &ctx);
 
-Function *get_or_create_prototype(MASTNode *fn_ast, Module &mod,
+Function *get_or_create_prototype(HIRNode *fn_ast, Module &mod,
                                   LLVMContext &ctx) {
   std::vector<Type *> params;
   for (auto* p : *fn_ast->fn.params) {
@@ -27,7 +27,7 @@ Function *get_or_create_prototype(MASTNode *fn_ast, Module &mod,
   return fn;
 }
 
-void emit_function(MASTNode *fn_ast, Module &mod, LLVMContext &ctx) {
+void emit_function(HIRNode *fn_ast, Module &mod, LLVMContext &ctx) {
   Function *fn = get_or_create_prototype(fn_ast, mod, ctx);
   if (!fn)
     return;
@@ -69,14 +69,14 @@ void emit_function(MASTNode *fn_ast, Module &mod, LLVMContext &ctx) {
   }
 }
 
-llvm::Value *emit_call(MASTNode *n, LLVMContext &ctx, IRBuilder<> &b,
+llvm::Value *emit_call(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
                        IRBuilder<> &entryBuilder, Codegen::Scope &locals) {
 
   argvec args;
 
   // 🔹 Evaluate arguments
   if (n->call.args) {
-    for (MASTNode *arg_node : *n->call.args) {
+    for (HIRNode *arg_node : *n->call.args) {
       llvm::Value *v = emit_expr(arg_node, ctx, b, entryBuilder, locals);
       if (!v)
         v = ConstantInt::get(Type::getInt32Ty(ctx), 0);
@@ -94,7 +94,7 @@ llvm::Value *emit_call(MASTNode *n, LLVMContext &ctx, IRBuilder<> &b,
   // 🔹 Directly inject the list size as a constant for the 'len' built-in
   if (fname && strcmp(fname, "len") == 0) {
     if (n->call.args && !n->call.args->empty()) {
-      MASTNode *arg = n->call.args->front();
+      HIRNode *arg = n->call.args->front();
       if (arg && arg->type && arg->type->base == LIST) {
       return ConstantInt::get(Type::getInt32Ty(ctx), arg->type->size);
     }

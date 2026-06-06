@@ -94,7 +94,7 @@ Value *emit_char_to_string(Value *ch, LLVMContext &ctx, IRBuilder<> &b) {
   return mem;
 }
 
-Value *emit_char(MASTNode *n, LLVMContext &ctx, IRBuilder<> &b) {
+Value *emit_char(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b) {
   if (!n->literals.val.chars) {
     panic(n->loc,INVAILD_UTF8_CHAR, nullptr);
     return nullptr;
@@ -125,7 +125,7 @@ Value *emit_char(MASTNode *n, LLVMContext &ctx, IRBuilder<> &b) {
   return ConstantInt::get(ir_type(CHARACTER, ctx), codepoint);
 }
 
-Value *emit_strs(MASTNode *n, LLVMContext &ctx, IRBuilder<> &b) {
+Value *emit_strs(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b) {
   auto module = b.GetInsertBlock()->getModule();
 
   const char *data = n->literals.val.chars ? n->literals.val.chars : "";

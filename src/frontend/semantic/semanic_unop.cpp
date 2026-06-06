@@ -51,7 +51,7 @@ Type_t* unop(ASTNode_t *n, Type_t* type) {
   if (!is_numeric(t->base))
     panic(n->loc, SEM_UNARY_NEEDS_NUM, NULL);
 
-  if ((n->unop.op == OP_INC || n->unop.op == OP_DEC) && !n->unop.operand->ismut) 
+  if ((n->unop.op == OP_INC || n->unop.op == OP_DEC) && !SV_semantic_is_mutable(n->unop.operand->var)) 
     panic(n->loc, SEM_ASSIGN_IMMUTABLE, "cannot increment/decrement immutable variable");
 
   if (n->unop.op == OP_BITNOT && !is_integer(t->base)) {

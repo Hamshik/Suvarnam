@@ -47,9 +47,9 @@ void fn_clear();
 namespace  SV::semantic_symbol_table {
 
 Type_t* lookup(const char *name);
-bool declare(const char *name, Type_t* type, ASTNode_t* node, bool is_mutable);
+bool declare(const char *name, bool *isglobal,Type_t* type, ASTNode_t* node, bool is_mutable);
 exitcode_t exists(const char *name, Type_t* type);
-exitcode_t assign_check(const char *name, DataTypes_t rhs_type, DataTypes_t rhs_sub_type);
+exitcode_t assign_check(const char *name, bool isglobal, DataTypes_t rhs_type, DataTypes_t rhs_sub_type);
 bool is_mutable(const char *name);
 void scope_push();
 void scope_pop();
@@ -61,6 +61,7 @@ DataTypes_t update_datatype(const char *name, DataTypes_t want);
 Module_t *get_module(const char *path);
 Module_t *load_module(const char *path, bool &already_imported);
 extern "C" SemanticSymbolRecord *semantic_find_symbol(const char *name);
+extern "C" SemanticSymbolRecord *semantic_find_global_symbol(const char *name);
 
 } // namespace  SV::semantic_symbol_table
 

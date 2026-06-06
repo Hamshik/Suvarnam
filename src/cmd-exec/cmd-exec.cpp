@@ -1,5 +1,5 @@
 #include "cmd-exec/cmd-exec.hpp"
-#include "MAST-Gen/Mast_gen.hpp"
+#include "HIRGen/HIRGen.hpp"
 #include "shared/structs.h"
 #include <cstdlib>
 #include <stdlib.h>
@@ -120,8 +120,8 @@ extern "C" int compile_and_execute(ASTNode_t *root, const Options *opts) {
     error_fatal = true; /* runtime errors should still stop */
     char *ir_text = NULL;
 
-    MASTGenerator *mgen = new MASTGenerator();
-    MASTNode *mast_root =  mgen->generate(root);
+    HIRGenerator *mgen = new HIRGenerator();
+    HIRNode *mast_root =  mgen->generate(root);
     delete mgen;
     
     // ast_eval_main(root);

@@ -31,7 +31,7 @@ FunctionCallee get_builtin_llvm_fn(const char* name, Module &m, LLVMContext &ctx
     return m.getOrInsertFunction(name, ftype);
 }
 
-void emit_list_print_call(MASTNode *n, LLVMContext &ctx, IRBuilder<> &b, IRBuilder<> &entryBuilder, Codegen::Scope &locals) {
+void emit_list_print_call(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b, IRBuilder<> &entryBuilder, Codegen::Scope &locals) {
     Module *m = b.GetInsertBlock()->getModule();
     
     // 1. Get the function reference from the registry
@@ -51,7 +51,7 @@ void emit_list_print_call(MASTNode *n, LLVMContext &ctx, IRBuilder<> &b, IRBuild
     b.CreateCall(printFn, {listPtr, listSize});
 }
 
-Value *generateList(MASTNode *n, LLVMContext &ctx, IRBuilder<> &b,
+Value *generateList(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
                     IRBuilder<> &entryBuilder, Codegen::Scope &locals) {
   if (!n->type || !n->type->inner) {
     std::cerr
@@ -95,7 +95,7 @@ Value *generateList(MASTNode *n, LLVMContext &ctx, IRBuilder<> &b,
   }
 
   for (uint32_t index = 0; index < n->element.elements->size(); ++index) {
-    MASTNode *exprNode = (*n->element.elements)[index];
+    HIRNode *exprNode = (*n->element.elements)[index];
     Value *elementVal = emit_expr(exprNode, ctx, b, entryBuilder, locals);
 
     // Calculate element address using typedPtr
@@ -108,14 +108,14 @@ Value *generateList(MASTNode *n, LLVMContext &ctx, IRBuilder<> &b,
   return b.CreateBitCast(typedPtr, ir_type(LIST, ctx));
 }
 
-Value *generateListElementPtr(MASTNode *n, LLVMContext &ctx, IRBuilder<> &b,
+Value *generateListElementPtr(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
                               IRBuilder<> &entryBuilder, Codegen::Scope &locals) {
   Value *currentPtr = emit_expr(n->index.target, ctx, b, entryBuilder, locals);
   Type_t *current_type_data = n->index.target->type;
-  std::vector<MASTNode*> &indices = *n->index.idx;
+  std::vector<HIRNode*> &indices = *n->index.idx;
 
   for (size_t i = 0; i < indices.size(); ++i) {
-    MASTNode* idx_expr_node = indices[i];
+    HIRNode* idx_expr_node = indices[i];
     // 1. Peek at the semantic type
     if (!current_type_data || current_type_data->base != LIST) {
       // This should technically be caught by Semantics,
@@ -156,7 +156,7 @@ Value *generateListElementPtr(MASTNode *n, LLVMContext &ctx, IRBuilder<> &b,
   return currentPtr;
 }
 
-Value *generateListAccess(MASTNode *n, LLVMContext &ctx, IRBuilder<> &b,
+Value *generateListAccess(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
                           IRBuilder<> &entryBuilder, Codegen::Scope &locals) {
   Value *elementAddr = generateListElementPtr(n, ctx, b, entryBuilder, locals);
   if (!elementAddr)

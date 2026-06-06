@@ -36,7 +36,8 @@ Type_t *check_for_loop(ASTNode_t *n, Type_t *type) {
 
   // 3. Declare the iterator variable in the new scope
   if (n->fornode.iterator_var_name &&
-      !SV_semantic_declare(n->fornode.iterator_var_name, iterable_type->inner, n->fornode.iterable,
+      !SV_semantic_declare(n->fornode.iterator_var_name, &n->isglobal,
+                          iterable_type->inner, n->fornode.iterable,
                           n->fornode.isVarMut)) {
     panic(n->loc, SEM_VAR_REDECL, n->fornode.iterator_var_name);
   }

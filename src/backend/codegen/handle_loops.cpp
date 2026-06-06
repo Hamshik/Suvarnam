@@ -11,7 +11,7 @@ struct LoopContext {
 std::vector<LoopContext> loopStack;
 
 
-llvm::Value *emit_whileloop(MASTNode *n, LLVMContext &ctx, IRBuilder<> &b,
+llvm::Value *emit_whileloop(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
                             IRBuilder<> &entryBuilder, Codegen::Scope &locals) {
   Function *fn = b.GetInsertBlock()->getParent();
 

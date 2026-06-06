@@ -247,7 +247,9 @@ void force_numeric_type(ASTNode_t *n, DataTypes_t t) {
     break;
 
   case AST_UNOP:
-    force_numeric_type(n->unop.operand, t);
+    if (n->unop.operand) {
+        force_numeric_type(n->unop.operand, t);
+    }
     if (n->type->base == UNKNOWN) {
       n->type->base = (n->unop.operand && n->unop.operand->type->base != UNKNOWN)
                         ? n->unop.operand->type->base

@@ -8,7 +8,7 @@ struct LoopContext {
 };
 extern std::vector<LoopContext> loopStack;
 
-Value *emit_expr(MASTNode *n, LLVMContext &ctx, IRBuilder<> &b,
+Value *emit_expr(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
                        IRBuilder<> &entryBuilder, Codegen::Scope &locals) {
   if (!n)
     return nullptr;

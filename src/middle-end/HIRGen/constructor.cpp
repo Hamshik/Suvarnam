@@ -1,22 +1,22 @@
-#include "MAST-Gen/Mast_gen.hpp"
-#include "shared/M_node.hpp"
+#include "HIRGen/HIRGen.hpp"
+#include "shared/HIRNode.hpp"
 #include "shared/enums.h"
 #include "shared/nodes.h"
 #include "shared/structs.h"
 #include <cstring>
 
 // Helper: Generate an Integer Literal
-MASTNode *MASTGenerator::create_literal(SV_Value value, Type_t *type) {
-  MASTNode *node = new MASTNode(ASTKind::AST_NUM);
+HIRNode *HIRGenerator::create_literal(SV_Value value, Type_t *type) {
+  HIRNode *node = new HIRNode(ASTKind::AST_NUM);
   node->literals.val = value;
   node->type = type;
   return node;
 }
 
 // Helper: Generate a Binary Operation
-MASTNode *MASTGenerator::create_binary_op(OP_kind_t op, MASTNode *left, MASTNode *right,
+HIRNode *HIRGenerator::create_binary_op(OP_kind_t op, HIRNode *left, HIRNode *right,
                            Type_t *result_type) {
-  MASTNode *node = new MASTNode(ASTKind::AST_BINOP);
+  HIRNode *node = new HIRNode(ASTKind::AST_BINOP);
   node->binary.op = op;
   node->binary.left = left;
   node->binary.right = right;
@@ -25,9 +25,9 @@ MASTNode *MASTGenerator::create_binary_op(OP_kind_t op, MASTNode *left, MASTNode
 }
 
 // Helper: Generate an Assignment
-MASTNode *MASTGenerator::create_assignment(const char *name, MASTNode *value, OP_kind_t op, bool is_declaration) {
-  MASTNode *node = new MASTNode(ASTKind::AST_ASSIGN);
-  node->assign.target = new MASTNode(ASTKind::AST_VAR);
+HIRNode *HIRGenerator::create_assignment(const char *name, HIRNode *value, OP_kind_t op, bool is_declaration) {
+  HIRNode *node = new HIRNode(ASTKind::AST_ASSIGN);
+  node->assign.target = new HIRNode(ASTKind::AST_VAR);
   node->assign.target->name = strdup(name); // Ensure name is always set
   node->assign.target->type = value->type;
 
@@ -53,8 +53,8 @@ MASTNode *MASTGenerator::create_assignment(const char *name, MASTNode *value, OP
 }
 
 // Helper: Generate a Universal Loop (While)
-MASTNode *MASTGenerator::create_while_loop(MASTNode *condition, MASTNode *body) {
-  MASTNode *node = new MASTNode(ASTKind::AST_WHILE);
+HIRNode *HIRGenerator::create_while_loop(HIRNode *condition, HIRNode *body) {
+  HIRNode *node = new HIRNode(ASTKind::AST_WHILE);
   node->while_loop.condition = condition;
   node->while_loop.body = body;
   // Loops typically don't have a value type (VOID)
@@ -62,20 +62,20 @@ MASTNode *MASTGenerator::create_while_loop(MASTNode *condition, MASTNode *body) 
 }
 
 // Helper: Generate a Block
-MASTNode *MASTGenerator::create_block(std::vector<MASTNode *> *statements) {
-  MASTNode *node = new MASTNode(ASTKind::AST_BLOCK);
+HIRNode *HIRGenerator::create_block(std::vector<HIRNode *> *statements) {
+  HIRNode *node = new HIRNode(ASTKind::AST_BLOCK);
   if (statements) node->block_stmts = statements;
   return node;
 }
 
 // Helper: Lower a function definition/declaration
-MASTNode *MASTGenerator::create_fn_definition(ASTNode_t *node) {
+HIRNode *HIRGenerator::create_fn_definition(ASTNode_t *node) {
   // Create the specific Function node
-  MASTNode *fn_node = new MASTNode(ASTKind::AST_FN);
+  HIRNode *fn_node = new HIRNode(ASTKind::AST_FN);
 
   // Allocate the vectors now that they are pointers
   fn_node->fn.params = new std::vector<Param_t*>();
-  fn_node->fn.body = new std::vector<MASTNode*>();
+  fn_node->fn.body = new std::vector<HIRNode*>();
 
   fn_node->fn.name = strdup(node->fn_def.name);
   fn_node->type = node->fn_def.ret; // Function return type
@@ -98,8 +98,8 @@ MASTNode *MASTGenerator::create_fn_definition(ASTNode_t *node) {
 }
 
 // Helper: Generate a variable declaration
-MASTNode *MASTGenerator::create_declaration(const char *name, MASTNode *init, Type_t *type) {
-  MASTNode *node = new MASTNode(ASTKind::AST_DECL);
+HIRNode *HIRGenerator::create_declaration(const char *name, HIRNode *init, Type_t *type) {
+  HIRNode *node = new HIRNode(ASTKind::AST_DECL);
   node->decl.decl_name = strdup(name);
   node->decl.init_value = init;
   node->type = type;
@@ -107,9 +107,9 @@ MASTNode *MASTGenerator::create_declaration(const char *name, MASTNode *init, Ty
 }
 
 // Helper: Generate a Function Call
-MASTNode *MASTGenerator::create_call(const char *fn_name, std::vector<MASTNode *> *args,
+HIRNode *HIRGenerator::create_call(const char *fn_name, std::vector<HIRNode *> *args,
                       Type_t *ret_type) {
-  MASTNode *node = new MASTNode(ASTKind::AST_CALL);
+  HIRNode *node = new HIRNode(ASTKind::AST_CALL);
   node->call.target_fn = strdup(fn_name);
   node->call.args = args;
   node->type = ret_type;

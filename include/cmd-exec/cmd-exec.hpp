@@ -1,7 +1,7 @@
 #pragma once
 
 #ifdef __cplusplus
-#include "shared/M_node.hpp"
+#include "shared/HIRNode.hpp"
 extern "C" {
 #endif
 #include "shared/structs.h"
@@ -39,5 +39,5 @@ TypedValue ast_eval_main(ASTNode_t *root);
 int run_exec(const char *prog, char *const argv[]);
 FILE *open_file(const char *filename, char **resolved_path_out);
 
-int codegen(MASTNode *root, const char *ll_path, char **ir_out);
+int codegen(HIRNode *root, const char *ll_path, char **ir_out);
 #endif

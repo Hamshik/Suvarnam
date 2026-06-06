@@ -52,17 +52,17 @@ Type_t* SV_semantic_lookup(const char *name) {
   return  SV::semantic_symbol_table::lookup(name);
 }
 
-bool SV_semantic_declare(const char *name, Type_t* type, ASTNode_t* node,bool is_mutable) {
-  return  SV::semantic_symbol_table::declare(name, type, node, is_mutable);
+bool SV_semantic_declare(const char *name, bool* isglobal, Type_t* type, ASTNode_t* node,bool is_mutable) {
+  return  SV::semantic_symbol_table::declare(name, isglobal, type, node, is_mutable);
 }
 
 exitcode_t SV_semantic_exists(const char *name, Type_t* type) {
   return  SV::semantic_symbol_table::exists(name, type);
 }
 
-exitcode_t SV_semantic_assign_check(const char *name, DataTypes_t rhs_type,
+exitcode_t SV_semantic_assign_check(const char *name, bool isglobal, DataTypes_t rhs_type,
                                     DataTypes_t rhs_sub_type) {
-  return  SV::semantic_symbol_table::assign_check(name, rhs_type, rhs_sub_type);
+  return  SV::semantic_symbol_table::assign_check(name, isglobal, rhs_type, rhs_sub_type);
 }
 
 bool SV_semantic_is_mutable(const char *name) {

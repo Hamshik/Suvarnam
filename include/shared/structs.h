@@ -34,6 +34,7 @@ typedef struct SV_Location {
 typedef struct idx_expr{
     struct ASTNode* expr_node; // for expr like [i[0] + 1] ect
     int depth;  // to know how much use goes like this i[][][]...
+    bool isglobal;
     struct idx_expr* next; // next of i[]of i[][]... <- this one
 } idx_expr_t;
 

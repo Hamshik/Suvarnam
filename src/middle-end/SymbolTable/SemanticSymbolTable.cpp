@@ -64,9 +64,18 @@ Type_t* lookup(const char *name) {
   return symbol ? symbol->type : nullptr;
 }
 
-bool declare(const char *name, Type_t* type, ASTNode_t* node,bool is_mutable) {
+SemanticScopeRecord *get_global_scope() {
   SemanticScopeRecord *scope = semantic_scope_top();
+  while (scope && scope->parent != nullptr) {
+    scope = scope->parent;
+  }
+  return scope;
+}
+
+bool declare(const char *name, bool* isglobal, Type_t* type, ASTNode_t* node,bool is_mutable) {
+  SemanticScopeRecord *scope = *isglobal ? get_global_scope() : semantic_scope_top();
   auto [it, inserted] = scope->symbols.try_emplace(name);
+  
   if (!inserted) {
     return false;
   }
@@ -98,8 +107,8 @@ exitcode_t exists(const char *name, Type_t* type) {
   return SUCCESS;
 }
 
-exitcode_t assign_check(const char *name, DataTypes_t rhs_type, DataTypes_t rhs_sub_type) {
-  SemanticSymbolRecord *symbol = semantic_find_symbol(name);
+exitcode_t assign_check(const char *name, bool isglobal, DataTypes_t rhs_type, DataTypes_t rhs_sub_type) {
+  SemanticSymbolRecord *symbol = isglobal ? semantic_find_global_symbol(name) : semantic_find_symbol(name);
   if (!symbol) {
     return NOT_DECLARED;
   }

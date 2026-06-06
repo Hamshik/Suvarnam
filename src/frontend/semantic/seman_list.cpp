@@ -203,7 +203,10 @@ void handle_idx_assign(ASTNode_t *&n, ASTNode_t *&lhs, Type_t *&final_type) {
   while (base->kind == AST_INDEX) base = base->index.target;
 
   if (base->kind == AST_VAR) {
-    base->ismut = SV_semantic_is_mutable(base->var);
+    // Ensure we check the specific identifier (preserving @ for globals)
+    // to avoid accidental shadowing by immutable locals of the same name.
+    base->ismut = n->isglobal ? SV::semantic_symbol_table::semantic_find_global_symbol(base->var)->is_mutable
+        : SV_semantic_is_mutable(base->var);
     if (!base->ismut) {
       panic(n->loc, SEM_ASSIGN_IMMUTABLE, base->var);
     }

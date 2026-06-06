@@ -4,7 +4,7 @@
 #include <vector>
 #include <cstring>
 
-class MASTNode {
+class HIRNode {
     public:
     ASTKind kind;
     Type_t *type;      // Every mid-end node is strictly typed
@@ -15,14 +15,14 @@ class MASTNode {
     // This must stay OUTSIDE the union to prevent memory corruption.
     
     union{
-        std::vector<MASTNode*> *block_stmts;
+        std::vector<HIRNode*> *block_stmts;
         // Primitive Literals & Identifiers
         const char *name; // Reused for variable names and function targets & import paths
 
         // Variable Declaration (e.g., let __end: i64 = 10)
         struct {
             const char *decl_name;
-            MASTNode *init_value; // Can be nullptr
+            HIRNode *init_value; // Can be nullptr
         } decl;
 
         struct {
@@ -31,61 +31,61 @@ class MASTNode {
 
         // Assignment (e.g., i = i + 1)
         struct {
-            MASTNode *target, *value;
+            HIRNode *target, *value;
             bool is_declaration;
         } assign;
 
         // Math & Logic Ops (e.g., i < __end)
         struct {
             OP_kind_t op; // "+", "-", "<", ">=", "=="
-            MASTNode *left, *right;
+            HIRNode *left, *right;
         } binary;
 
         // RANGE
-        struct { MASTNode *start, *end, *step;} range;
+        struct { HIRNode *start, *end, *step;} range;
 
         // Structured If/Else Engine
         struct {
-            MASTNode *condition;
-            MASTNode *then_branch;
-            MASTNode *else_branch; // Can be nullptr
+            HIRNode *condition;
+            HIRNode *then_branch;
+            HIRNode *else_branch; // Can be nullptr
         } if_stmt;
 
         // THE UNIVERSAL LOOP ENGINE
         // This single structure replaces Range loops, Array loops, and For-loops!
         struct {
-            MASTNode *condition;   // Simple binary check (e.g., i < __end)
-            MASTNode *body;        // Sequential block containing loop instructions
-            MASTNode *expr;
+            HIRNode *condition;   // Simple binary check (e.g., i < __end)
+            HIRNode *body;        // Sequential block containing loop instructions
+            HIRNode *expr;
         } while_loop;
 
         // Function Calls (e.g., printlni(i))
         struct {
             const char *target_fn;
-            std::vector<MASTNode*> *args;
+            std::vector<HIRNode*> *args;
         } call;
 
         struct {
-            std::vector<MASTNode*> *elements;
+            std::vector<HIRNode*> *elements;
         } element;
 
         struct {
-            struct MASTNode* target; // The thing being indexed (e.g., the variable 'list')
-            std::vector<MASTNode*>* idx;      // The position (e.g., the number '0' or expr 'i+1')
+            struct HIRNode* target; // The thing being indexed (e.g., the variable 'list')
+            std::vector<HIRNode*>* idx;      // The position (e.g., the number '0' or expr 'i+1')
             bool islhs;
         } index;
 
         struct {
-            std::vector<MASTNode*>* body;
+            std::vector<HIRNode*>* body;
             std::vector<Param_t*>* params;
             size_t param_count;
             const char* name;
         } fn;
 
-        struct { struct MASTNode *value; } ret_stmt;
+        struct { struct HIRNode *value; } ret_stmt;
     }; 
 
     // Clean Constructor Initialization Tracker
-    MASTNode(ASTKind k) : kind(k), type(nullptr), isglobal(false) {
+    HIRNode(ASTKind k) : kind(k), type(nullptr), isglobal(false) {
     }
 };
