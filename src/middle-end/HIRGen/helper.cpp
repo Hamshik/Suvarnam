@@ -1,6 +1,7 @@
 #include "HIRGen/HIRGen.hpp"
 #include "shared/HIRNode.hpp"
 #include "shared/structs.h"
+#include "semantic/TypeChecker.hpp" // For is_numeric
 #include <algorithm>
 #include <cstring>
 

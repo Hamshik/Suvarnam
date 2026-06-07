@@ -10,7 +10,6 @@
 
 %code requires {
     #include "parser/parser_helpers.h"
-    #include "parser.h"
     #include "shared/structs.h"
     #include "ast/ast.h"
 
@@ -21,6 +20,9 @@
 
     char *logf_msg(const char *fmt, ...);
 }
+%{
+    _Bool isllegal_for_at = 0;
+%}
 
 %union{
     ASTNode_t *node;
@@ -211,14 +213,24 @@ fn_block_t:
 ;
 
 fn_def: 
-    FN recursive_type[ret_type] IDENTIFIER[id] LPAREN opt_params[params] RPAREN  fn_block_t[body]
+    FN recursive_type[ret_type] IDENTIFIER[id] LPAREN opt_params[params] RPAREN 
+    { 
+        isllegal_for_at = 1; // 🎯 Set barrier: Global symbols are now illegal inside this function body
+    } 
+    fn_block_t[body]
     {
         $$ = new_fn_def($id->var, $params.params, $params.count, $ret_type, $body, @$);
+        isllegal_for_at = 0; // 🎯 Reset barrier when function parsing finishes
         ast_free($id);
     }
-  | FN IDENTIFIER[id] LPAREN opt_params[params] RPAREN fn_block_t[body]
+  | FN IDENTIFIER[id] LPAREN opt_params[params] RPAREN 
+    { 
+        isllegal_for_at = 1; // 🎯 Set barrier: Global symbols are now illegal inside this function body
+    } 
+    fn_block_t[body]
     {
         $$ = new_fn_def($id->var, $params.params, $params.count, NULL, $body, @$);
+        isllegal_for_at = 0; // 🎯 Reset barrier when function parsing finishes
         ast_free($id);
     } 
 ;
@@ -239,14 +251,14 @@ opt_params:
 params:
     param[p] {
         $$.count = 1;
-        $$.params = calloc(0, sizeof(Param_t));
+        $$.params = (Param_t *)calloc(1, sizeof(Param_t));
         $$.params[0].name = strdup($p->var);
         $$.params[0].type = $p->type; 
         ast_free($p);
     }
   | param[p] COMMA params[plist] {
         $$.count = $plist.count + 1;
-        $$.params = calloc(0, sizeof(Param_t) * (size_t)$$.count);
+        $$.params = (Param_t *)calloc((size_t)$$.count, sizeof(Param_t));
         $$.params[0].name = strdup($p->var);
         $$.params[0].type = $p->type;
         ast_free($p);
@@ -322,17 +334,28 @@ index_stmt:
     IDENTIFIER[id] indexing[idx] 
     { 
         $$ = new_index($id, $idx, false, @1);
-        $$->isglobal =  $id->isglobal;
+        $$->isglobal =  false;
+    }
+    | AT IDENTIFIER[id] indexing[idx] 
+    { 
+        if(isllegal_for_at) panic(@1, PARSE_SYNTAX, "Cannot put '@' symbol in local scope");
+        $$ = new_index($id, $idx, false, @1);
+        $$->isglobal =  true;
     }
     | call_stmt[call] indexing[idx]  {
         $$ = new_index($call, $idx, false, @1);
-        $$->isglobal =  $idx->isglobal;
+        $$->isglobal =  $call->isglobal;
     }
 ;
 
 expr:
     NUMBER                      { $$ = $1;}
     | IDENTIFIER                { $$ = $1;}
+    | AT IDENTIFIER
+    {
+        $$ = $2;
+        $$->isglobal = 1;
+    }
     | STRING_LITERAL            { $$ = $1;}
     | CHAR_LITERAL              { $$ = $1;}
     | BOOL_LITERAL              { $$ = $1;}
@@ -363,16 +386,20 @@ expr:
 
     // 🎯 1. Immutable reference (Rust: &i)
     | AMP expr[e] %prec UADDR   
-    { 
+    {
+        // if($e->kind != AST_VAR) panic(@2, PARSE_SYNTAX, "Expected Identifier");
         $$ = new_unop($e, @$, OP_ADDR); 
         $$->unop.is_mut_addr = false; // Custom property flag
+        $$->isglobal = $e->isglobal; // Custom property flag
     }
     
     // 🎯 2. Mutable reference (Rust: &mut i)
     | AMP MUT expr[e] %prec UADDR   
-    { 
+    {
+        // if(isllegal_for_at) panic(@3, PARSE_SYNTAX, "Expected Identifier");
         $$ = new_unop($e, @$, OP_ADDR); 
         $$->unop.is_mut_addr = true; // Custom property flag
+        $$->isglobal = $e->isglobal; // Custom property flag
     }
     
     | deref_expression                { $$ = $1;  }
@@ -392,17 +419,29 @@ expr:
 ;
 
 deref_expression:
-      STAR IDENTIFIER %prec UDEREF       { $$ = new_unop($2, @$, OP_DEREF); }
-    | STAR deref_expression %prec UDEREF
+      STAR IDENTIFIER[id] %prec UDEREF       { $$ = new_unop($id, @$, OP_DEREF); }
+    | STAR AT IDENTIFIER[id] %prec UDEREF
+        {
+            if(isllegal_for_at) panic(@2, PARSE_SYNTAX, "Cannot put '@' symbol in local scope");
+            $$ = new_unop($id, @$, OP_DEREF); 
+            $$->isglobal = 1; 
+        }
+    | STAR deref_expression[e] %prec UDEREF
     { 
-        $$ = new_unop($2, @$, OP_DEREF); 
+        $$ = new_unop($e, @$, OP_DEREF); 
         /* Carry over global flags if needed */
-        $$->isglobal = $2->isglobal; 
+        $$->isglobal = $e->isglobal; 
     }
 ;
 
 lvalue:
       IDENTIFIER                            { $$ = $1; }
+    | AT IDENTIFIER
+    {
+        if(isllegal_for_at) panic(@1, PARSE_SYNTAX, "Cannot put '@' symbol in local scope");
+        $$ = $2; // $2 is the IDENTIFIER node
+        $2->isglobal = 1;
+    }
     | index_stmt[idx]                       { $$ = $idx; $$->index.islhs = 1; $$->isglobal = $idx->isglobal; }
     | deref_expression                      { $$ = $1; }
 ;

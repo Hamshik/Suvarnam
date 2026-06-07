@@ -76,7 +76,18 @@
     return STRING_LITERAL;
 }
 
-\'([^\'\\\n]|\\.)+\'            {
+true                         {
+    yylval->node = new_bool(1, *yylloc);
+    return BOOL_LITERAL;
+}
+
+false               {
+    yylval->node = new_bool(0, *yylloc);
+    
+    return BOOL_LITERAL;
+}
+
+'([^\'\\\n]|\\.)+'            {
     const char *inner = yytext + 1;          /* skip leading quote */
     size_t inner_len = (size_t)yyleng - 2;   /* exclude quotes */
     size_t out_len = 0;
@@ -95,20 +106,6 @@
             },
               LEX_INVALID_ESCAPE,
               err_msg ? err_msg : "invalid character literal");
-        free(s);
-        return 0;
-    }
-
-    /* enforce exactly one UTF-8 codepoint */
-    if (!SV_utf8_single(s, out_len)) {
-        panic(
-            (SV_Location){
-              yylloc->first_line,
-              yylloc->first_column + 1,
-              yylloc->first_pos + 1,
-              0,0,0
-            },
-              INVAILD_UTF8_CHAR, "character literal must be exactly one UTF-8 codepoint");
         free(s);
         return 0;
     }
@@ -150,17 +147,6 @@ while                        { return WHILE; }
 in                           { return IN; }
 break                        { return BREAK; }
 continue                     { return CONTINUE; }
-
-true                         {
-    yylval->node = new_bool(1, *yylloc);
-    return BOOL_LITERAL;
-}
-
-false               {
-    yylval->node = new_bool(0, *yylloc);
-    
-    return BOOL_LITERAL;
-}
 
 mut                 { return MUT; }
 fn                  { return FN; }
@@ -222,7 +208,9 @@ fn                  { return FN; }
 "{"                 { SV_brace_depth++; return LBRACE; }
 "}"                 { if (  SV_brace_depth > 0) SV_brace_depth--; return RBRACE; }
 ".."                { return DOT_DOT; }
-[@a-zA-Z_][a-zA-Z0-9_]*|[a-zA-Z_] {
+"@"                 { return AT; }
+
+[a-zA-Z_][a-zA-Z0-9_]*|[a-zA-Z_] {
     yylval->node = new_var(yytext, UNKNOWN, *yylloc);
     return IDENTIFIER;
 }

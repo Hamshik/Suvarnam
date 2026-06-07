@@ -1,8 +1,16 @@
 
 fn main() {
+    var isprinted = false;
+    var mut chars = '🎯';
     var mut i = "hello";
-    var mut i1 = &mut i;
+    var mut i1 = &mut 1+1;
     var mut i2 = &i1;
     var mut i3 = &i2;
     *i1 = **i2;
+    print();
+    if(@isprinted) printlns("true from @isprinted");
+    if(!isprinted) printlns("false from isprinted");
 }
+
+var @isprinted = true;
+fn print() { printlns("hello"); }

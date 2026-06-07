@@ -52,7 +52,7 @@ Type_t* SV_semantic_lookup(const char *name) {
   return  SV::semantic_symbol_table::lookup(name);
 }
 
-bool SV_semantic_declare(const char *name, bool* isglobal, Type_t* type, ASTNode_t* node,bool is_mutable) {
+bool SV_semantic_declare(const char *name, bool isglobal, Type_t* type, ASTNode_t* node,bool is_mutable) {
   return  SV::semantic_symbol_table::declare(name, isglobal, type, node, is_mutable);
 }
 

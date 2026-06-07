@@ -47,7 +47,7 @@ static const char *g_last_parse_err_msg = NULL;
 extern file_t* file;
 
 void SV_annotate_decl_list(ASTNode_t *n, DataTypes_t default_t, DataTypes_t default_sub_type, bool is_mutable);
-
+extern bool isllegal_for_at;
 /* ----------------- external function declaration --------------------------*/
 
 void panic(SV_Location loc, errc_t code, const char *detail);

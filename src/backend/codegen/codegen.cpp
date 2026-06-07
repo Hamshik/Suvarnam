@@ -148,6 +148,19 @@ static bool emit_ir(Module &mod, const char *path, char **out) {
     return true;
 }
 
+void pre_declare_all_user_functions(HIRNode *n, llvm::Module &mod, llvm::LLVMContext &ctx) {
+    if (!n) return;
+
+    for(auto stmt : *n->block_stmts){
+        // Capture user function definitions and build empty declarations
+        if (stmt->kind == AST_FN) {
+            // Your existing function in handle_fn.cpp that checks parameters and builds the type signature:
+            get_or_create_prototype(stmt, mod, ctx); 
+        }
+    }
+
+}
+
 /* ===================== MAIN CODEGEN ===================== */
 
 int codegen(HIRNode *root, const char *ll_path, char **ir_out) {
@@ -157,6 +170,7 @@ int codegen(HIRNode *root, const char *ll_path, char **ir_out) {
     if (!setup_target(mod))
         return 1;
 
+    pre_declare_all_user_functions(root, mod, ctx);
     emit_global(root, mod, ctx);
     emit_functions(root, mod, ctx);
 

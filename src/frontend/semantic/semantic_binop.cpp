@@ -1,10 +1,11 @@
 
-#include "shared/enums.h"
-#include "shared/structs.h"
+#include "semantic/TypeChecker.hpp" // New include
 #include "utils/error_handler/error.h"
 #include "semantic/semantic.hpp"
-#include <cstddef>
+#include "shared/enums.h" // For DataTypes_t, OP_kind_t
+#include "shared/structs.h" // For Type_t
 
+namespace SV::TypeChecker {
 Type_t* binop(ASTNode_t *n, Type_t* type) {
   // Use &type to allow inference to flow into children
   Type_t* lt = check_expr(n->bin.left, type);
@@ -19,12 +20,12 @@ Type_t* binop(ASTNode_t *n, Type_t* type) {
   }
 
   // 2. Disallow Pointer Arithmetic (as per your requirement)
-  if (lt->base == PTR || rt->base == PTR) {
+  if (lt && lt->base == PTR || rt && rt->base == PTR) {
     panic(n->loc, SEM_NUMOP_NEEDS_NUM, "pointer arithmetic not supported");
   }
 
   // 3. String Concatenation & multiplication
-  if (lt->base == STRINGS || rt->base == STRINGS) {
+  if (lt && lt->base == STRINGS || rt && rt->base == STRINGS) {
     
     bool is_valid_mul = (n->bin.op == OP_MUL) && 
                         ((lt->base == STRINGS && is_numeric(rt->base)) || 
@@ -63,7 +64,7 @@ Type_t* binop(ASTNode_t *n, Type_t* type) {
 
     default:
       // 5. Arithmetic & Bitwise
-      if (!is_numeric(lt->base) || !is_numeric(rt->base))
+      if (lt && !is_numeric(lt->base) || rt && !is_numeric(rt->base))
         panic(n->loc, SEM_NUMOP_NEEDS_NUM, NULL);
 
       if (n->bin.op == OP_LSHIFT || n->bin.op == OP_RSHIFT ||
@@ -74,8 +75,9 @@ Type_t* binop(ASTNode_t *n, Type_t* type) {
       }
 
       // Promote returns the dominant base type (e.g., f64 > i32)
-      DataTypes_t promted_t = promote(lt->base, rt->base);
-      n->type = n->type->base == promted_t ? n->type : make_type(promted_t, NULL);
+      DataTypes_t promted_t = rt && lt ? promote(lt->base, rt->base) : UNKNOWN;
+      n->type = n->type->base == promted_t ? n->type : promted_t == UNKNOWN ? NULL : make_type(promted_t, NULL);
       return n->type;
   }
 }
+} // namespace SV::TypeChecker

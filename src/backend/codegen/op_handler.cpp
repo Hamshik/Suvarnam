@@ -1,4 +1,5 @@
 #include "codegen/codegen.hpp"
+#include "semantic/TypeChecker.hpp" // For is_float_dtype, is_unsigned_dtype
 #include "shared/enums.h"
 
 llvm::Value *emit_mul_strs(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,

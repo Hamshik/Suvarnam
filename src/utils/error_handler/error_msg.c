@@ -60,6 +60,8 @@ const char *errc_msg(errc_t code) {
         case SEM_BREAK_OUTSIDE_LOOP: return "break statement outside of loop";
         case SEM_CONTINUE_OUTSIDE_LOOP: return "continue statement outside of loop";
         case SEM_RANGE_STEP_ERROR: return "Loop contradiction";
+        case SEM_GLOBAL_VAR_IS_NOT_ASSINED_WITH_AT:
+            return "global variable is not assigned with '@' symbol at first";
 
         case INVAILD_UTF8_CHAR: return "invalid UTF-8 character literal";
         case RET_NOT_DECLARED: return "return value is not declared in a function";

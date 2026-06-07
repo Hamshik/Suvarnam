@@ -1,6 +1,7 @@
 #include "SymbolTable/SymbolTableInternal.hpp"
 #include "shared/HIRNode.hpp"
 #include "HIRGen/HIRGen.hpp"
+#include "semantic/TypeResolver.hpp" // For SV::semantic_symbol_table::semantic_find_symbol
 #include "shared/enums.h"
 #include "shared/structs.h"
 #include <cstring>

@@ -1,4 +1,5 @@
 #include "codegen/codegen.hpp"
+#include "semantic/TypeChecker.hpp" // For CHARACTER
 #include "utils/utf-8_lib/utf8/unchecked.hpp"
 
 uint32_t decode_utf8(const char *raw, size_t raw_len, size_t *byte_len,
@@ -102,7 +103,11 @@ Value *emit_char(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b) {
 
   size_t len = 0;
   Utf8Error err = Utf8Error::None;
-  uint32_t codepoint = decode_utf8(n->literals.val.chars, n->type->size, &len, &err);
+
+  size_t char_len = n->type->size;
+  if (char_len == 0 && n->literals.val.chars) char_len = strlen(n->literals.val.chars);
+
+  uint32_t codepoint = decode_utf8(n->literals.val.chars, char_len, &len, &err);
 
   // Error Handling
   if (err != Utf8Error::None) {
@@ -110,8 +115,6 @@ Value *emit_char(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b) {
     if (err == Utf8Error::MultiCharacter)
       msg = "Character literal must be a single UTF-8 character (e.g., 'a' "
             "or 'π')";
-    else if (err == Utf8Error::Empty)
-      msg = "Character literal cannot be empty";
 
     else if (err == Utf8Error::InvalidUtf8)
       msg = n->literals.val.chars;

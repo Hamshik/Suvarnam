@@ -30,6 +30,7 @@ typedef struct fnsymbol{
     int param_count;
     bool isReturned;
     Type_t* ret;
+    ASTNode_t* body;
     UT_hash_handle hh;
 }FnSymbol_t;
 
@@ -82,7 +83,7 @@ void SV_runtime_fn_clear(void);
 Type_t* SV_semantic_lookup(const char *name);
 
 #ifdef __cplusplus
-bool SV_semantic_declare(const char *name, bool* isglobal, Type_t* type, ASTNode_t* node, bool is_mutable);
+bool SV_semantic_declare(const char *name, bool isglobal, Type_t* type, ASTNode_t* node, bool is_mutable);
 #endif
 
 exitcode_t SV_semantic_exists(const char *name, Type_t* type);

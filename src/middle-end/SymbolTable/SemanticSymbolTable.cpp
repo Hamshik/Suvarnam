@@ -71,11 +71,11 @@ SemanticScopeRecord *get_global_scope() {
   return scope;
 }
 
-bool declare(const char *name, bool* isglobal, Type_t* type, ASTNode_t* node,bool is_mutable) {
-  SemanticScopeRecord *scope = *isglobal ? get_global_scope() : semantic_scope_top();
+bool declare(const char *name, bool isglobal, Type_t* type, ASTNode_t* node,bool is_mutable) {
+  SemanticScopeRecord *scope = isglobal ? get_global_scope() : semantic_scope_top();
   auto [it, inserted] = scope->symbols.try_emplace(name);
   
-  if (!inserted) {
+  if (!inserted && !isglobal) {
     return false;
   }
 

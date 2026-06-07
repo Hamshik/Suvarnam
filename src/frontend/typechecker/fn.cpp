@@ -1,17 +1,6 @@
-#include "semantic/TypeChecker.hpp" // New include
-#include "SymbolTable/BuiltinRegistry.hpp"
-#include "SymbolTable/SymbolTableInternal.hpp" // For SV_semantic_fn_lookup
-#include "shared/structs.h"
-#include <float.h>
-#include <limits.h>
-#include <stdio.h>
-#include <string.h>
-#include "utils/error_handler/error.h"
+#include "shared/nodes.h"
 
 namespace SV::TypeChecker {
-/**
- * Unified structure to hold function signature information
- */
 struct ResolvedSig {
   Type_t* ret;
   Type_t** params; // Pointer to array of Type_t*
@@ -194,4 +183,5 @@ Type_t* ret(ASTNode_t *n) {
     }
   return rt;
 }
-} // namespace SV::TypeChecker
+
+}

@@ -44,7 +44,7 @@ ASTNode_t* new_bool(bool val, SV_Location loc) {
     node->type = make_type(BOOL, NULL);
     if (node->type) node->type->size = 1;
     node->loc = loc;
-    node->literal.raw = strdup(val ? "true" : "false");
+    node->literal.raw = strdup(val ? "t" : "f");
     return node;
 }
 

@@ -47,7 +47,7 @@ void fn_clear();
 namespace  SV::semantic_symbol_table {
 
 Type_t* lookup(const char *name);
-bool declare(const char *name, bool *isglobal,Type_t* type, ASTNode_t* node, bool is_mutable);
+bool declare(const char *name, bool isglobal,Type_t* type, ASTNode_t* node, bool is_mutable);
 exitcode_t exists(const char *name, Type_t* type);
 exitcode_t assign_check(const char *name, bool isglobal, DataTypes_t rhs_type, DataTypes_t rhs_sub_type);
 bool is_mutable(const char *name);

@@ -117,6 +117,7 @@ llvm::Value *emit_call(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
 
   // 🔹 Match arguments to function signature using explicit casts
   FunctionType *ft = callee.getFunctionType();
+
   for (size_t i = 0; i < args.size() && i < ft->getNumParams(); ++i) {
     Type *expected = ft->getParamType(i);
     if (args[i]->getType() != expected) {

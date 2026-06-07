@@ -1,6 +1,7 @@
 #include "HIRGen/HIRGen.hpp"
 #include "shared/enums.h"
 #include "shared/structs.h"
+#include "semantic/TypeChecker.hpp" // For TypeChecker::assign
 #include <cstdlib>
 #include <cstring>
 #include <cstdio>
