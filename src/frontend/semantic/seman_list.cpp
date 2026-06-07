@@ -181,13 +181,13 @@ bool islist(ASTNode_t *target) {
 Type_t* get_AST_ret(Type_t *t, size_t depth){
   if(!t) return nullptr;
 
-  while(t->inner && (t->base == PTR || t->base == LIST) && depth-- > 0){
-    t = t->inner;
-  }
+  if(depth > 0)
+    while(t->inner && (t->base == PTR || t->base == LIST) && depth-- > 0){
+      t = t->inner;
+    }
 
   return t;
-  
-  return nullptr;
+
 }
 
 void handle_idx_assign(ASTNode_t *&n, ASTNode_t *&lhs, Type_t *&final_type) {

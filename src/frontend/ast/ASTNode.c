@@ -91,6 +91,7 @@ ASTNode_t* new_assign(ASTNode_t *lhs, ASTNode_t *rhs, Type_t* datatype, bool is_
     node->assign.rhs = rhs;
     node->type = datatype; // Already heap-allocated by the parser
     node->assign.is_mutable = is_mutable;
+    node->ismut = is_mutable;
     node->loc = loc;
     return node;
 }

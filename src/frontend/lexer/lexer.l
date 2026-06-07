@@ -189,7 +189,7 @@ fn                  { return FN; }
 "*"                 { return STAR; }
 "/"                 { return SLASH; }
 "%"                 { return MOD; }
-"**"                { return POWER; }
+"^^"                { return POWER; }
 "["                 { return LSQUARE;}
 "]"                 { return RSQUARE;}
 "("                 { return LPAREN; }
@@ -200,7 +200,7 @@ fn                  { return FN; }
 "*="                { return STAR_ASSIGN; }
 "/="                { return SLASH_ASSIGN; }
 "%="                { return MOD_ASSIGN; }
-"**="               { return POWER_ASSIGN; }
+"^^="               { return POWER_ASSIGN; }
 ";"                 { return SEMICOLON; }
 ">>"                { return RSHIFT; }
 "<<"                { return LSHIFT; }

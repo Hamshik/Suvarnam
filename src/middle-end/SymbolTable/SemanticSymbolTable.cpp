@@ -7,7 +7,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <memory>
-
 namespace {
 
 void die_allocation(const char *what) {
@@ -99,8 +98,8 @@ exitcode_t exists(const char *name, Type_t* type) {
     return TYPE_MISMATCH;
   }
 
-  if (type->base == PTR && symbol->type != type->inner &&
-      !is_numeric(symbol->type->base) && !is_numeric(type->base)) {
+  if (type->base == PTR && symbol->type->inner != type->inner && 
+    !is_numeric(symbol->type->base) && !is_numeric(type->base)) {
     return TYPE_MISMATCH;
   }
 
@@ -113,18 +112,16 @@ exitcode_t assign_check(const char *name, bool isglobal, DataTypes_t rhs_type, D
     return NOT_DECLARED;
   }
 
-  if (rhs_type != UNKNOWN && symbol->type->base != rhs_type &&
-      !is_numeric(rhs_type) && !is_numeric(symbol->type->base)) {
+  if (rhs_type != UNKNOWN && 
+      symbol->type->base != rhs_type &&
+      !is_numeric(rhs_type) && !is_numeric(symbol->type->base))
     return TYPE_MISMATCH;
-  }
 
-  if (rhs_type == PTR && symbol->type->base != rhs_sub_type) {
+  if (rhs_type == PTR && (symbol->type->base != rhs_sub_type))
     return TYPE_MISMATCH;
-  }
 
-  if (!symbol->is_mutable) {
+  if (!symbol->is_mutable) 
     return IMMUTABLE_TYPING;
-  }
 
   return SUCCESS;
 }

@@ -1,9 +1,8 @@
-var mut @i = 100;
 
 fn main() {
-    var i = 1000;
-    @i++;
-    printlni(i);
-    printlni(@i);
-    return 0;
+    var mut i = "hello";
+    var mut i1 = &mut i;
+    var mut i2 = &i1;
+    var mut i3 = &i2;
+    *i1 = **i2;
 }

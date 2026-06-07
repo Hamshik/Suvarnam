@@ -166,7 +166,10 @@ llvm::Value *emit_number(HIRNode *n, LLVMContext &ctx) {
                            n->literals.val.f128);
                            
   default:
-    panic(n->loc, RT_NUM_LITERAL_UNSUPPORTED, NULL);
+    char err_msg[128];
+    snprintf(err_msg, sizeof(err_msg), 
+             "Codegen Error: AST_NUM has non-numeric type base %d", n->type->base);
+    panic(n->loc, RT_NUM_LITERAL_UNSUPPORTED, err_msg);
     return nullptr;
   }
 }

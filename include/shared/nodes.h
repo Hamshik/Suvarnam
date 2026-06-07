@@ -27,6 +27,7 @@ typedef struct ASTNode {
         struct {
             OP_kind_t op;
             struct ASTNode *operand;
+            bool is_mut_addr;
         } unop;
         // assignment
         struct {

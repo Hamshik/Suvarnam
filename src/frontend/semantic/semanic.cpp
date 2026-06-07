@@ -77,9 +77,9 @@ extern "C" Type_t *check_expr(ASTNode_t *n, Type_t *&type) {
     if (!n->type || n->type->base == UNKNOWN) {
       if (type && type->base != UNKNOWN) {
         // If the hint is a container, the number needs the inner type
-        if (type->base == LIST || type->base == PTR) {
+        if ((type->base == LIST || type->base == PTR) && type->inner && is_numeric(type->inner->base)) {
           n->type = type->inner;
-        } else {
+        } else if (is_numeric(type->base)) {
           n->type = type;
         }
       }
@@ -90,6 +90,9 @@ extern "C" Type_t *check_expr(ASTNode_t *n, Type_t *&type) {
       bool is_f = n->literal.raw && strchr(n->literal.raw, '.') != NULL;
       n->type = make_type(is_f ? F32 : I32, nullptr);
     }
+    
+    if(!is_numeric(n->type->base)) panic(n->loc, SEM_NUMOP_NEEDS_NUM, nullptr);
+
     return n->type;
 
   case AST_STR:

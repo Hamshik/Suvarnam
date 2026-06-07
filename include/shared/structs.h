@@ -82,6 +82,7 @@ typedef struct Types{
     DataTypes_t base;        // e.g., LIST, PTR, INT
     struct Types* inner;      // Points to the next type (recursive)
     size_t size;
+    bool is_mutable_reference;
 } Type_t;
 
 typedef struct {

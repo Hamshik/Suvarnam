@@ -3,6 +3,7 @@
 #include "shared/HIRNode.hpp"
 #include "shared/enums.h"
 #include "shared/structs.h"
+#include <string>
 #define assign_cases(op, bin_op) \
       case OP_kind::op: { \
       node->assign.target->name = strdup(name);\
@@ -14,8 +15,17 @@
     } break; \
 
 class HIRGenerator {
-public:
-  HIRNode *generate(ASTNode_t *node);
+  private:
+    // Accumulates side-effect statements synthesized during nested expression lowering
+    std::vector<HIRNode*> side_effect_buffer;
+    size_t temporary_variable_counter = 0;
+    bool is_generating_lhs = false;
+
+    // Helper to generate a unique temporary name string
+    std::string generate_unique_temp_name(std::string prefix) {
+      return "__" + prefix + "__deref" + std::to_string(++temporary_variable_counter);
+    }
+  
   HIRNode *create_fn_definition(ASTNode_t *node);
   HIRNode *create_declaration(const char *name, HIRNode *init, Type_t *type);
   HIRNode *create_call(const char *fn_name, std::vector<HIRNode *> *args, Type_t *ret_type);
@@ -32,4 +42,8 @@ public:
   HIRNode *emit_MAST_for_range_loop(ASTNode_t *node);
   HIRNode *emit_MAST_for_iterable_obj_loop(ASTNode_t *node);
   void flatten_sequence(ASTNode_t *node, std::vector<HIRNode *> *stmts);
+
+public:
+  HIRNode *generate(ASTNode_t *node);
+
 };

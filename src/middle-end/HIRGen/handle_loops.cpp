@@ -19,6 +19,7 @@ HIRNode *HIRGenerator::emit_MAST_for_range_loop(ASTNode_t *node) {
     // 1. Create a root block to isolate the loop configuration variables
     HIRNode *root_block = new HIRNode(ASTKind::AST_BLOCK);
     root_block->block_stmts = new std::vector<HIRNode*>();
+    root_block->loc = node->loc;
 
     // 2. Extract range boundary expressions
     HIRNode *start_val = generate(range_node->range.start);
@@ -44,11 +45,13 @@ HIRNode *HIRGenerator::emit_MAST_for_range_loop(ASTNode_t *node) {
 
     // 3. Emit Initializer: i = start_val
     HIRNode *init_assign = create_assignment(iterator_name, start_val, OP_kind::OP_ASSIGN);
+    init_assign->loc = node->loc;
     root_block->block_stmts->push_back(init_assign);
 
     // 4. Instantiate the Universal Primitive While Loop
     HIRNode *while_node = new HIRNode(ASTKind::AST_WHILE);
     while_node->type = node->type;
+    while_node->loc = node->loc;
 
     // 5. Build Condition Expression: i <= end_val
     // Create the variable lookup node for 'i' on the left side of the operation
@@ -65,6 +68,7 @@ HIRNode *HIRGenerator::emit_MAST_for_range_loop(ASTNode_t *node) {
     // 6. Build the Loop Body Block
     HIRNode *body_block = new HIRNode(ASTKind::AST_BLOCK);
     body_block->block_stmts = new std::vector<HIRNode*>();
+    body_block->loc = node->loc;
 
     // If your body is an AST node list, flatten it directly into the body
     // statements vector
@@ -79,6 +83,7 @@ HIRNode *HIRGenerator::emit_MAST_for_range_loop(ASTNode_t *node) {
         OP_kind::OP_ADD, iterator_id_for_step, step_val, iterator_id->type);
 
     HIRNode *step_assign = create_assignment(iterator_name, add_step_expr, OP_kind::OP_ASSIGN);
+    step_assign->loc = node->loc;
     body_block->block_stmts->push_back(step_assign);
 
     // Bind the completed body to the while engine
@@ -101,6 +106,7 @@ HIRNode *HIRGenerator::emit_MAST_for_loop(ASTNode_t *node) {
     // 1. Create a root block to isolate configuration data structures
     HIRNode *root_block = new HIRNode(ASTKind::AST_BLOCK);
     root_block->block_stmts = new std::vector<HIRNode*>();
+    root_block->loc = node->loc;
 
     // Evaluate loop expressions safely
     HIRNode *iterable_expr = generate(iterable);
@@ -128,15 +134,18 @@ HIRNode *HIRGenerator::emit_MAST_for_loop(ASTNode_t *node) {
     iterator_decl->assign.is_declaration = true; // FORCE declaration status!
     iterator_decl->assign.value = create_literal((SV_Value){0}, element_type); // Default zero initialization
     iterator_decl->type = element_type;
+    iterator_decl->loc = node->loc;
     root_block->block_stmts->push_back(iterator_decl);
 
     // Cache the iterable reference: __arr__0 = iterable
     HIRNode *arr_assign = create_assignment(arr_var_name, iterable_expr, OP_kind::OP_ASSIGN, true);
+    arr_assign->loc = node->loc;
     root_block->block_stmts->push_back(arr_assign);
 
     // Setup counter tracking reference variables: __idx__0 = 0
     HIRNode *zero_lit = create_literal((SV_Value){0}, int_type);
     HIRNode *idx_init = create_assignment(idx_var_name, zero_lit, OP_kind::OP_ASSIGN, true);
+    idx_init->loc = node->loc;
     root_block->block_stmts->push_back(idx_init);
 
     // ==========================================
@@ -144,6 +153,7 @@ HIRNode *HIRGenerator::emit_MAST_for_loop(ASTNode_t *node) {
     // ==========================================
     HIRNode *while_node = new HIRNode(ASTKind::AST_WHILE);
     while_node->type = node->type;
+    while_node->loc = node->loc;
 
     // Check expression: __idx__0 < iterable_length
     HIRNode *idx_id_cond = new HIRNode(ASTKind::AST_VAR);
@@ -158,6 +168,7 @@ HIRNode *HIRGenerator::emit_MAST_for_loop(ASTNode_t *node) {
     // ==========================================
     HIRNode *body_block = new HIRNode(ASTKind::AST_BLOCK);
     body_block->block_stmts = new std::vector<HIRNode*>();
+    body_block->loc = node->loc;
 
     // Array read assignments: j = __arr__0[__idx__0]
     HIRNode *arr_id_read = new HIRNode(ASTKind::AST_VAR);
@@ -177,6 +188,7 @@ HIRNode *HIRGenerator::emit_MAST_for_loop(ASTNode_t *node) {
 
     // 🎯 NOTICE: altered to 'is_declaration = false' because j was pre-declared above!
     HIRNode *iterator_update = create_assignment(iterator_name, index_expr, OP_kind::OP_ASSIGN, false);
+    iterator_update->loc = node->loc;
     body_block->block_stmts->push_back(iterator_update);
 
     // Append child expressions inside user loop block safely
@@ -190,6 +202,7 @@ HIRNode *HIRGenerator::emit_MAST_for_loop(ASTNode_t *node) {
     HIRNode *one_lit = create_literal((SV_Value){1}, int_type);
     HIRNode *add_step_expr = create_binary_op(OP_kind::OP_ADD, idx_id_step, one_lit, int_type);
     HIRNode *step_assign = create_assignment(idx_var_name, add_step_expr, OP_kind::OP_ASSIGN, false);
+    step_assign->loc = node->loc;
     body_block->block_stmts->push_back(step_assign);
 
     while_node->while_loop.body = body_block;
@@ -207,6 +220,7 @@ HIRNode *HIRGenerator::emit_MAST_while_loop(ASTNode_t *node) {
     // 2. Instantiate a clean block container for the loop body statements
     HIRNode *body_block = new HIRNode(ASTKind::AST_BLOCK);
     body_block->block_stmts = new std::vector<HIRNode*>();
+    body_block->loc = node->loc;
 
     // 3. Flatten the original frontend sequential statements into the block
     if (node->whilenode.body) {
@@ -215,6 +229,7 @@ HIRNode *HIRGenerator::emit_MAST_while_loop(ASTNode_t *node) {
 
     // 4. Wrap everything cleanly inside a Mid-AST while node
     HIRNode* while_node = create_while_loop(condition, body_block);
+    while_node->loc = node->loc;
     while_node->while_loop.expr = generate(node->whilenode.expr);
 
     return while_node;

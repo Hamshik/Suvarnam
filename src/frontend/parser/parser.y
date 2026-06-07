@@ -57,7 +57,7 @@
 
 %type <node>  top_level_stmts block if_stmt for_stmt while_stmt import_stmt expr_stmts call_stmt
 %type <node> fn_def param return_stmt opt_args args list_stmt expr_stmt top_level_stmt index_stmt fn_block_t
-%type <node> lvalue import_list expr assignment program range 
+%type <node> lvalue import_list expr assignment program range  deref_expression
 %type <paramlist> opt_params params
 %type <type> recursive_type
 %type <size> opt_list_size
@@ -361,8 +361,21 @@ expr:
     | expr[lhs] GT expr[rhs]          { $$ = new_binop($lhs, $rhs, @$, OP_GT); }
     | expr[lhs] GE expr[rhs]          { $$ = new_binop($lhs, $rhs, @$, OP_GE); }
 
-    | AMP expr[e] %prec UADDR         { $$ = new_unop($e, @$, OP_ADDR); }
-    | STAR expr[e] %prec UDEREF       { $$ = new_unop($e, @$, OP_DEREF); }
+    // 🎯 1. Immutable reference (Rust: &i)
+    | AMP expr[e] %prec UADDR   
+    { 
+        $$ = new_unop($e, @$, OP_ADDR); 
+        $$->unop.is_mut_addr = false; // Custom property flag
+    }
+    
+    // 🎯 2. Mutable reference (Rust: &mut i)
+    | AMP MUT expr[e] %prec UADDR   
+    { 
+        $$ = new_unop($e, @$, OP_ADDR); 
+        $$->unop.is_mut_addr = true; // Custom property flag
+    }
+    
+    | deref_expression                { $$ = $1;  }
     | PLUS expr[e] %prec UPLUS        { $$ = new_unop($e, @$, OP_POS); }
     | MINUS expr[e] %prec UMINUS      { $$ = new_unop($e, @$, OP_NEG); }
     | NOT expr[e]                     { $$ = new_unop($e, @$, OP_NOT); }
@@ -378,10 +391,20 @@ expr:
     | LBRACE range[r] RBRACE          { $$ = $r; }
 ;
 
+deref_expression:
+      STAR IDENTIFIER %prec UDEREF       { $$ = new_unop($2, @$, OP_DEREF); }
+    | STAR deref_expression %prec UDEREF
+    { 
+        $$ = new_unop($2, @$, OP_DEREF); 
+        /* Carry over global flags if needed */
+        $$->isglobal = $2->isglobal; 
+    }
+;
+
 lvalue:
-      IDENTIFIER[id]                        { $$ = $id;}
-    | STAR IDENTIFIER[id] %prec UDEREF      { $$ = new_unop($id, @$, OP_DEREF); $$->isglobal = $id->isglobal; }
+      IDENTIFIER                            { $$ = $1; }
     | index_stmt[idx]                       { $$ = $idx; $$->index.islhs = 1; $$->isglobal = $idx->isglobal; }
+    | deref_expression                      { $$ = $1; }
 ;
 
 assignment:
@@ -390,7 +413,7 @@ assignment:
         $$->assign.is_declaration = 1;
         $$->isglobal = $lval->isglobal;
         if($lval->kind == AST_UNOP && $lval->unop.op == OP_DEREF)
-            SV_error_LOC(@3, PARSE_SYNTAX, g_last_parse_err_msg);
+            SV_error_LOC(@3, PARSE_SYNTAX, "unexpected dereferance operator");
     }
 
     | VAR MUT recursive_type[t] lvalue[lval] ASSIGN expr[e] {
@@ -398,7 +421,7 @@ assignment:
         $$->assign.is_declaration = 1;
         $$->isglobal = $lval->isglobal;
         if($lval->kind == AST_UNOP && $lval->unop.op == OP_DEREF)
-            SV_error_LOC(@4, PARSE_SYNTAX, g_last_parse_err_msg);
+            SV_error_LOC(@4, PARSE_SYNTAX, "unexpected dereferance operator");
     }
 
     | VAR lvalue[lval] ASSIGN expr[e] {
@@ -406,7 +429,7 @@ assignment:
         $$->assign.is_declaration = 1;
         $$->isglobal = $lval->isglobal;
         if($lval->kind == AST_UNOP && $lval->unop.op == OP_DEREF)
-            SV_error_LOC(@3, PARSE_SYNTAX, g_last_parse_err_msg);
+            SV_error_LOC(@3, PARSE_SYNTAX, "unexpected dereferance operator");
     }
 
     | VAR MUT lvalue[lval] ASSIGN expr[e] {
@@ -414,7 +437,7 @@ assignment:
         $$->assign.is_declaration = 1;
         $$->isglobal = $lval->isglobal;
         if($lval->kind == AST_UNOP && $lval->unop.op == OP_DEREF)
-            SV_error_LOC(@4, PARSE_SYNTAX, g_last_parse_err_msg);
+            SV_error_LOC(@4, PARSE_SYNTAX, "unexpected dereferance operator");
     }
 
     | lvalue[lval] ASSIGN expr[e]

@@ -85,5 +85,12 @@ void BuiltinRegistry::bootstrap() {
         printlnf
     );
 
+    register_builtin(
+        "malloc", 
+        make_type(PTR, make_type(I32, nullptr)),
+        { make_type(U128, nullptr)}, 
+        printlnf
+    );
+
     // Add more built-ins here (sin, cos, println, etc.)
 }

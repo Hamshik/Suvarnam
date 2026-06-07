@@ -1,10 +1,31 @@
+#include "SymbolTable/SymbolTable.hpp"
+#include "SymbolTable/SymbolTableInternal.hpp"
 #include "shared/enums.h"
 #include "shared/structs.h"
 #include "utils/error_handler/error.h"
 #include "semantic/semantic.hpp" // for check_expr, type_error, is_numeric, is_integer
 #include <cstddef>
+#include <string>
 
 extern file_t* file; // global file
+bool verify_expression_path_is_mutable(ASTNode_t *n);
+
+ASTNode_t* get_base_var(const char* name){
+  if(!name) return nullptr;
+
+  auto symbol = SV::semantic_symbol_table::semantic_find_symbol(name);
+  if(!symbol) return nullptr;
+
+  if(symbol->node_ptr->kind == AST_UNOP && symbol->node_ptr->unop.op == OP_ADDR)
+    return get_base_var(symbol->node_ptr->unop.operand->var);
+
+  if(symbol->node_ptr->kind == AST_ASSIGN &&
+      symbol->node_ptr->assign.rhs->kind == AST_UNOP &&
+      symbol->node_ptr->assign.rhs->unop.op == OP_ADDR)
+    return get_base_var(symbol->node_ptr->assign.rhs->unop.operand->var);
+
+  return symbol->node_ptr;
+}
 
 Type_t* unop(ASTNode_t *n, Type_t* type) {
 
@@ -17,24 +38,43 @@ Type_t* unop(ASTNode_t *n, Type_t* type) {
     n->type = make_type(BOOL, nullptr);
     return n->type;
 
-  case OP_ADDR:
-    if (n->unop.operand->kind != AST_VAR)
-      type_error(n, "address-of requires a variable");
-    if (t->base == UNKNOWN)
-      type_error(n, "cannot take address of unknown type");
+  case OP_ADDR:{
+    Type_t *t = check_expr(n->unop.operand, type);
+
     n->type = make_type(PTR, t);
+    auto node = get_base_var(n->unop.operand->var);
+
+    std::string name = node->kind == AST_ASSIGN ? node->assign.lhs->var : node->var;
+    
+    if(!node) return nullptr;
+    if(!node->ismut && n->unop.is_mut_addr) panic(n->loc, SEM_ASSIGN_IMMUTABLE, name.c_str());
+
+    // 🎯 Save reference capability right inside the pointer type layout layer
+    n->type->is_mutable_reference = n->unop.is_mut_addr;
+
     return n->type;
+  }
 
   case OP_DEREF:
-    if (t->base != PTR)
-        type_error(n, "dereference requires a pointer");
+    // If the operand is a nested deref, check_expr will resolve it first!
+    if (!t) {
+        type_error(n, "Cannot dereference an invalid or unresolvable expression");
+        return make_type(UNKNOWN, nullptr);
+    }
     
-    // Safety check: Ensure the pointer actually has a target type
-    if (!t->inner)
+    if (t->base != PTR) {
+        type_error(n, "dereference requires a pointer type");
+        return make_type(UNKNOWN, nullptr);
+    }
+    
+    if (!t->inner) {
         type_error(n, "pointer target type is missing");
+        return make_type(UNKNOWN, nullptr);
+    }
         
-    n->type = t->inner; // The type of *p is the inner type of p
-  return n->type;
+    // Deeply assign the unwrapped inner type to this node's resolution frame
+    n->type = t->inner; 
+    return n->type;
 
   default:
     break;

@@ -1,4 +1,5 @@
 #include "HIRGen/HIRGen.hpp"
+#include "semantic/semantic.hpp"
 #include "shared/HIRNode.hpp"
 #include "shared/enums.h"
 #include "shared/nodes.h"
@@ -7,7 +8,9 @@
 
 // Helper: Generate an Integer Literal
 HIRNode *HIRGenerator::create_literal(SV_Value value, Type_t *type) {
-  HIRNode *node = new HIRNode(ASTKind::AST_NUM);
+  HIRNode *node = new HIRNode(is_numeric(type->base) ?
+                          ASTKind::AST_NUM : type->base == STRINGS ? ASTKind::AST_STR : ASTKind::AST_CHAR);
+
   node->literals.val = value;
   node->type = type;
   return node;
@@ -80,6 +83,7 @@ HIRNode *HIRGenerator::create_fn_definition(ASTNode_t *node) {
   fn_node->fn.name = strdup(node->fn_def.name);
   fn_node->type = node->fn_def.ret; // Function return type
   fn_node->fn.param_count = node->fn_def.param_count;
+  fn_node->loc = node->loc;
 
   // 1. Flatten Parameters: Convert frontend array to mid-end vector
   for (int i = 0; i < node->fn_def.param_count; i++) {

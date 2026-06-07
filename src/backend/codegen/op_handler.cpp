@@ -1,4 +1,5 @@
 #include "codegen/codegen.hpp"
+#include "shared/enums.h"
 
 llvm::Value *emit_mul_strs(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
                         IRBuilder<> &entryBuilder, Codegen::Scope &locals, llvm::Value *L, llvm::Value *R);
@@ -150,10 +151,42 @@ llvm::Value *emit_unop(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
                                          : b.CreateNeg(opnd);
   case OP_NOT:
     return b.CreateNot(opnd);
+
   case OP_INC:
     num_inc_OR_dec(llvm::Instruction::Add, n, b);
   case OP_DEC:
     num_inc_OR_dec(llvm::Instruction::Sub, n, b);
+  
+  case OP_ADDR: {
+    
+    const char* var_name = n->binary.left->name;
+    
+    // Look up the raw variable pointer (the alloca or global variable address)
+    llvm::Value *varPtr = get_or_create_alloca(var_name, n->type->base, ctx, b, locals);
+    if (!varPtr) {
+        varPtr = b.GetInsertBlock()->getModule()->getGlobalVariable(var_name, true);
+    }
+    
+    // Return the raw pointer itself instead of loading from it!
+    return varPtr; 
+  }
+
+  case OP_DEREF: {
+    // 1. Evaluate the inner expression recursively.
+    llvm::Value *ptr_val = emit_expr(n->binary.left, ctx, b, entryBuilder, locals);
+    if (!ptr_val) return nullptr;
+
+    // 2. 🎯 THE LLVM 22 OPAQUE POINTER FIX: 
+    // If this specific dereference layer results in another pointer type, 
+    // use b.getPtrTy() directly to maintain perfect opaque pointer stability.
+    llvm::Type *targetTy = (n->type && n->type->base == PTR) 
+                           ? b.getPtrTy() 
+                           : ir_type(n->type->base, ctx);
+
+    // 3. Emit the explicit element load instruction
+    return b.CreateLoad(targetTy, ptr_val, "deref_val");
+  }
+
   default:
     return opnd;
   }

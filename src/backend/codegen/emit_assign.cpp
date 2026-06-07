@@ -8,21 +8,42 @@ llvm::Value *emit_assing(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
   if (!lhs)
     return nullptr;
 
-  const char *name =
-      (lhs->kind == AST_VAR && lhs->name) ? lhs->name : "tmp_assign";
+  Value *targetPtr = nullptr;
+  Module *m = b.GetInsertBlock()->getModule();
+  
+  /* -----------------------------------------------------------------
+   * 1. THE ULTIMATE MULTI-DEREFERENCE CATCHER
+   * ----------------------------------------------------------------- */
+  bool is_deref = false;
+  HIRNode *inner_expression = nullptr;
 
-  DataTypes_t t = n->type->base != UNKNOWN
+  // Track if the LHS is an explicit pointer dereference operation
+  if (lhs->kind == AST_UNOP && lhs->binary.op == OP_DEREF) {
+      is_deref = true;
+      inner_expression = lhs->binary.left; // The expression right below the top deref
+  } 
+  else if (lhs->binary.op == OP_DEREF) {
+      is_deref = true;
+      inner_expression = lhs->binary.left;
+  }
+
+  if (is_deref && inner_expression) {      
+      // 🎯 THE FIX: Evaluate the sub-tree expression directly. 
+      // This automatically unwinds any inner deref layers recursively using op_handler.cpp!
+      targetPtr = emit_expr(inner_expression, ctx, b, entryBuilder, locals);
+  }
+  
+  /* -----------------------------------------------------------------
+   * 2. STANDARD VARIABLE STORAGE
+   * ----------------------------------------------------------------- */
+  else if (lhs->kind == AST_VAR) {
+    const char *name = lhs->name ? lhs->name : "tmp_assign";
+    DataTypes_t t = n->type->base != UNKNOWN
                       ? n->type->base
                       : (lhs->type ? lhs->type->base : UNKNOWN);
 
-  Value *targetPtr = nullptr;
-  Module *m = b.GetInsertBlock()->getModule();
-
-  if (lhs->kind == AST_VAR) {
     if (n->assign.is_declaration) {
-
       if (n->isglobal) {
-        // 🌍 GLOBAL SCOPE: Create a genuine Module Global Variable
         targetPtr = m->getGlobalVariable(name, true);
         if (!targetPtr) {
           GlobalValue::LinkageTypes linkage =
@@ -33,33 +54,38 @@ llvm::Value *emit_assing(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
               new GlobalVariable(*m, ir_type(t, ctx), false, linkage,
                                  Constant::getNullValue(ir_type(t, ctx)), name);
         }
-        // 🎯 THE CRITICAL FIX: Remember to cache the global pointer in your
-        // table!
         locals.symbols[name] = targetPtr;
       } else if (b.GetInsertBlock() != nullptr) {
-        // 🏠 LOCAL SCOPE: Stored safely as an AllocaInst
         targetPtr = get_or_create_alloca(name, t, ctx, entryBuilder, locals);
         locals.symbols[name] = targetPtr;
       }
-
     } else {
-      // Normal modification path
       auto it = locals.lookup(name);
       targetPtr = it && !n->isglobal ? it : m->getGlobalVariable(name, true);
     }
-  } else if (lhs->kind == AST_INDEX)
+  } 
+  
+  /* -----------------------------------------------------------------
+   * 3. ARRAY/LIST ELEMENT STORAGE
+   * ----------------------------------------------------------------- */
+  else if (lhs->kind == AST_INDEX) {
     targetPtr = generateListElementPtr(lhs, ctx, b, entryBuilder, locals);
+  }
 
-  if (!targetPtr)
+  if (!targetPtr) {
+    printf("[Debug Assign] Error: Failed to resolve targetPtr!\n");
     return nullptr;
+  }
 
+  /* -----------------------------------------------------------------
+   * 4. EVALUATE VALUE & EMIT STORE (2000)
+   * ----------------------------------------------------------------- */
   Value *rhs = emit_expr(n->assign.value, ctx, b, entryBuilder, locals);
   if (!rhs)
     return nullptr;
 
-  Value *result = nullptr;
-
-  result = rhs;
+  Value *result = rhs;
+  DataTypes_t t = n->type->base != UNKNOWN ? n->type->base : (lhs->type ? lhs->type->base : UNKNOWN);
 
   if (t == STRINGS) {
     result = to_i8_ptr(result, b);
@@ -67,10 +93,12 @@ llvm::Value *emit_assing(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
     result = b.CreateBitCast(result, ir_type(LIST, ctx));
   }
 
+  // This step creates the vital 'store i32 2000, ptr %targetPtr' instruction!
   b.CreateStore(result, targetPtr);
 
   return result;
 }
+
 
 void emit_global(HIRNode *n, Module &mod, LLVMContext &ctx) {
   if (!n)
