@@ -10,7 +10,7 @@ void SV_annotate_decl_list(ASTNode_t *n, DataTypes_t default_t, DataTypes_t defa
     if (n->kind != AST_ASSIGN) return;
 
     n->assign.is_declaration = true;
-    n->assign.is_mutable = is_mutable;
+    n->ismut = is_mutable;
 
     /* Untyped items inherit the "default" type (the one after var/let). */
     if (n->type->base == UNKNOWN) n->type->base = default_t;

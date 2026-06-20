@@ -1,8 +1,9 @@
 
 fn main() {
-    var mut i = "hello";
-    var mut i1 = &mut i;
-    var mut i2 = &i1;
-    var mut i3 = &i2;
-    *i1 = **i2;
+    var mut a = 10;
+    var mut a1 = &mut a;
+    var mut i32&& i = &mut a1;
+    var mut i32&& b = &mut i;
+    var mut c = a *(**b);
+    printlni(c);
 }

@@ -2,6 +2,8 @@
 #include "shared/structs.h"
 #include <stdlib.h>
 
+
+
 Type_t* make_type(DataTypes_t base, Type_t* inner) {
     Type_t* t = calloc(1,sizeof(Type_t));
     t->base = base;

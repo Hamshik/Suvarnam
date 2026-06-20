@@ -3,6 +3,8 @@
 #include "ast/ast.h"
 #include <string.h>
 
+
+
 ASTNode_t* new_num(char *rawval, DataTypes_t datatype, SV_Location loc) {
     ASTNode_t *node = ast_alloc();
     node->kind = AST_NUM;
@@ -90,7 +92,6 @@ ASTNode_t* new_assign(ASTNode_t *lhs, ASTNode_t *rhs, Type_t* datatype, bool is_
     node->assign.lhs = lhs;
     node->assign.rhs = rhs;
     node->type = datatype; // Already heap-allocated by the parser
-    node->assign.is_mutable = is_mutable;
     node->ismut = is_mutable;
     node->loc = loc;
     return node;

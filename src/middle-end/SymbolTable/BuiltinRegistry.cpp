@@ -4,6 +4,7 @@
 #include <iostream>
 #include <cstdio>
 
+
 #define macro(val, str)  if (val) { \
         printf((str), (val)); \
     } \
@@ -54,7 +55,7 @@ void BuiltinRegistry::bootstrap() {
     // Register SV_print_list: void SV_print_list(list[any], i32)
     // Using make_type to build the signature
     Type_t* void_ty = make_type(VOID, nullptr);
-    Type_t* list_ty = make_type(LIST, make_type(UNKNOWN, nullptr)); // Generic list
+    Type_t* list_ty = make_type(LIST, make_type(UNKNOWN, NULL)); // Generic list
     Type_t* i32_ty = make_type(I32, nullptr);
 
     register_builtin(

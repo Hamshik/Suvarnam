@@ -19,11 +19,6 @@ ASTNode_t* get_base_var(const char* name){
   if(symbol->node_ptr->kind == AST_UNOP && symbol->node_ptr->unop.op == OP_ADDR)
     return get_base_var(symbol->node_ptr->unop.operand->var);
 
-  if(symbol->node_ptr->kind == AST_ASSIGN &&
-      symbol->node_ptr->assign.rhs->kind == AST_UNOP &&
-      symbol->node_ptr->assign.rhs->unop.op == OP_ADDR)
-    return get_base_var(symbol->node_ptr->assign.rhs->unop.operand->var);
-
   return symbol->node_ptr;
 }
 
@@ -47,10 +42,10 @@ Type_t* unop(ASTNode_t *n, Type_t* type) {
     std::string name = node->kind == AST_ASSIGN ? node->assign.lhs->var : node->var;
     
     if(!node) return nullptr;
-    if(!node->ismut && n->unop.is_mut_addr) panic(n->loc, SEM_ASSIGN_IMMUTABLE, name.c_str());
+    if(!node->ismut && n->unop.operand->ismut) panic(n->loc, SEM_ASSIGN_IMMUTABLE, name.c_str());
 
     // 🎯 Save reference capability right inside the pointer type layout layer
-    n->type->is_mutable_reference = n->unop.is_mut_addr;
+    n->type->is_mutable_reference = n->unop.operand->ismut;
 
     return n->type;
   }
@@ -59,17 +54,14 @@ Type_t* unop(ASTNode_t *n, Type_t* type) {
     // If the operand is a nested deref, check_expr will resolve it first!
     if (!t) {
         type_error(n, "Cannot dereference an invalid or unresolvable expression");
-        return make_type(UNKNOWN, nullptr);
     }
     
     if (t->base != PTR) {
         type_error(n, "dereference requires a pointer type");
-        return make_type(UNKNOWN, nullptr);
     }
     
     if (!t->inner) {
         type_error(n, "pointer target type is missing");
-        return make_type(UNKNOWN, nullptr);
     }
         
     // Deeply assign the unwrapped inner type to this node's resolution frame

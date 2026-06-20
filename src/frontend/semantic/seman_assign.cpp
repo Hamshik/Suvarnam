@@ -9,6 +9,8 @@
 #include <cstdlib>
 #include <string.h>
 
+
+
 static bool is_f32(const char *s) { return s && strchr(s, '.') != NULL; }
 extern "C" SemanticSymbolRecord *semantic_find_global_symbol(const char *name);
 
@@ -73,7 +75,7 @@ static void process_declaration(ASTNode_t *n, Type_t *&lhs_t, Type_t *rhs_t) {
   
   resolve_nested_numerics(rhs, lhs_t);
 
-  if (!SV_semantic_declare(var_name, &n->isglobal, lhs_t, n, n->assign.is_mutable)) {
+  if (!SV_semantic_declare(var_name, &n->isglobal, lhs_t, n, n->ismut)) {
     panic(n->loc, SEM_VAR_REDECL, var_name);
   }
 }
@@ -130,7 +132,7 @@ static void validate_assignment(ASTNode_t *n, Type_t *lhs_t, Type_t *rhs_t) {
   }
 
   // Double verification step for raw pointer mappings
-  if (lhs_t && lhs_t->base == PTR && rhs_t && rhs_t->base == PTR) {
+  else if (lhs_t && lhs_t->base == PTR && rhs_t && rhs_t->base == PTR) {
     if (!types_are_equal(lhs_t->inner, rhs_t->inner)) {
       panic(n->loc, SEM_ASSIGN_TYPE_MISMATCH, "Pointer target type mismatch");
     }
@@ -168,7 +170,7 @@ static void resolve_target_type(ASTNode_t *n, Type_t *&type) {
   if (lhs->kind == AST_VAR) {
     const char* name = lhs->var ? lhs->var : lhs->var;
     if (n->assign.is_declaration) {
-      if(!n->type) n->type = make_type(UNKNOWN, nullptr);
+      if(!n->type) n->type = make_type(UNKNOWN, NULL);
       type = n->type;
     } else {
       type = SV_semantic_lookup(name);
@@ -205,7 +207,6 @@ Type_t *assign(ASTNode_t *n, Type_t *type) {
   // Resolve target memory space type (Now correctly extracts STRINGS for *i1)
   resolve_target_type(n, lhs_t);
 
-  // This block will now safely skip because lhs_t->base is STRINGS, not a numeric type!
   if (is_numeric(lhs_t->base)) {
     force_numeric_type(n->assign.rhs, lhs_t->base);
   }
@@ -283,7 +284,7 @@ Type_t *assign(ASTNode_t *n, Type_t *type) {
   n->type = n->assign.lhs->type = lhs_t;
 
   if (n->assign.is_declaration) {
-    n->assign.lhs->ismut = n->assign.is_mutable;
+    n->assign.lhs->ismut = n->ismut;
   }
 
   return lhs_t;

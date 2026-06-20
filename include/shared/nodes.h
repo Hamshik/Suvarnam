@@ -27,12 +27,10 @@ typedef struct ASTNode {
         struct {
             OP_kind_t op;
             struct ASTNode *operand;
-            bool is_mut_addr;
         } unop;
         // assignment
         struct {
             struct ASTNode *lhs, *rhs;
-            bool is_mutable;
             bool is_declaration;
             OP_kind_t op;
         } assign;

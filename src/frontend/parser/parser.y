@@ -271,6 +271,11 @@ recursive_type:
     | recursive_type[base] AMP  %prec UADDR {
         $$ = make_type(PTR, $base);
     }
+    /* If the lexer accidentally punches out an AND, treat it as two PTR layers! */
+    | recursive_type[base] AND %prec UADDR {
+        Type_t* first_ptr = make_type(PTR, $base);
+        $$ = make_type(PTR, first_ptr);
+    }
 ;
 
 param:
@@ -365,17 +370,17 @@ expr:
     | AMP expr[e] %prec UADDR   
     { 
         $$ = new_unop($e, @$, OP_ADDR); 
-        $$->unop.is_mut_addr = false; // Custom property flag
+        $$->unop.operand->ismut = false; // Custom property flag
     }
     
     // 🎯 2. Mutable reference (Rust: &mut i)
     | AMP MUT expr[e] %prec UADDR   
     { 
         $$ = new_unop($e, @$, OP_ADDR); 
-        $$->unop.is_mut_addr = true; // Custom property flag
+        $$->unop.operand->ismut = true; // Custom property flag
     }
     
-    | deref_expression                { $$ = $1;  }
+    | LPAREN deref_expression[der_expr] RPAREN  { $$ = $der_expr;  }
     | PLUS expr[e] %prec UPLUS        { $$ = new_unop($e, @$, OP_POS); }
     | MINUS expr[e] %prec UMINUS      { $$ = new_unop($e, @$, OP_NEG); }
     | NOT expr[e]                     { $$ = new_unop($e, @$, OP_NOT); }

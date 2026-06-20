@@ -28,7 +28,9 @@
                 }
             ],
             "miDebuggerPath": "/usr/bin/gdb", // Ensure this path is correct for your system
+            
         }
-    ]
+    ],
+    "justMyCode": true
 
 }

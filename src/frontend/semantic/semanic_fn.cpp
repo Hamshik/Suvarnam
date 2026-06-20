@@ -10,6 +10,8 @@
 
 extern Type_t* g_current_fn_ret_type;
 
+
+
 /**
  * Unified structure to hold function signature information
  */
@@ -59,7 +61,7 @@ Type_t* handle_fn(ASTNode_t *n) {
 
   SV_semantic_scope_push();
   for (int i = 0; i < n->fn_def.param_count; i++) {
-    if (!n->fn_def.params[i].type) n->fn_def.params[i].type = make_type(UNKNOWN, nullptr);
+    if (!n->fn_def.params[i].type) n->fn_def.params[i].type = make_type(UNKNOWN, NULL);
     
     if (!SV_semantic_declare(n->fn_def.params[i].name, &n->isglobal,
        n->fn_def.params[i].type, nullptr, true))
@@ -153,7 +155,7 @@ Type_t* call(ASTNode_t *n) {
   }
 
   if (!sig.ret) {
-      sig.ret = make_type(UNKNOWN, nullptr);
+      sig.ret = make_type(UNKNOWN, NULL);
   }
   n->type = sig.ret;
   return sig.ret;
