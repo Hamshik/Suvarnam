@@ -51,10 +51,61 @@ Type_t *check_expr(ASTNode_t *n) {
   return check_expr(n, dummy);
 }
 
+void register_global_var_and_fn(ASTNode_t *n) {
+  if (!n)
+    return;
+
+  // If it's a sequence node, scan down both branches
+  if (n->kind == AST_SEQ) {
+    register_global_var_and_fn(n->seq.a);
+    register_global_var_and_fn(n->seq.b);
+    return;
+  }
+
+  // Capture every function signature early
+  if (n->kind == AST_FN) {
+    const char *fn_name = n->fn_def.name;
+
+    // Ensure the function isn't duplicated
+    if (SV_semantic_fn_lookup(fn_name) != nullptr) {
+      panic(n->loc, SEM_INTERNAL_ERROR, "Redefinition of function signature");
+    }
+
+    // Build the signature representation and save it to the symbol registry
+    FnSymbol_t *f = (FnSymbol_t *)malloc(sizeof(FnSymbol_t));
+    f->name = strdup(fn_name);
+    f->ret = n->fn_def.ret; // e.g., I32, VOID, PTR
+    f->param_count = n->fn_def.param_count;
+
+    // Transfer parameter types to symbol record
+    f->params = (Param_t *)calloc(sizeof(Type_t *), f->param_count);
+    Param_t *curr_p = n->fn_def.params;
+    for (int i = 0; i < f->param_count && curr_p; ++i) {
+      f->params[i] = curr_p[i];
+    }
+
+    // Push into the global functional index map
+    SV_semantic_fn_declare(f->name, f->params, f->param_count, f->ret);
+  }
+
+  if (n->kind == AST_ASSIGN && n->assign.is_declaration) {
+    if (n->assign.lhs && n->assign.lhs->kind == AST_VAR) {
+      const char *global_var_name = n->assign.lhs->var;
+
+      // Mark the node as global explicitly so the type checker and codegen know
+      // later
+      n->isglobal = true;
+      assign(n);
+
+    }
+  }
+}
+
 extern "C" void semantic_check(ASTNode_t *root) {
   if (!root)
     return;
   BuiltinRegistry::instance().bootstrap();
+  register_global_var_and_fn(root);
   SV_semantic_scope_push();
 
   check_expr(root);

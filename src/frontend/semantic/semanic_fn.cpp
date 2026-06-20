@@ -49,16 +49,6 @@ Type_t* handle_fn(ASTNode_t *n) {
   if (n->fn_def.name && strcmp(n->fn_def.name, "main") == 0)
     n->fn_def.ret = make_type(I32, nullptr);
 
-  // Ensure return type exists
-  if (!n->fn_def.ret) {
-     n->fn_def.ret = make_type(VOID, nullptr);
-  }
-
-  if (!SV_semantic_fn_declare(n->fn_def.name, n->fn_def.params,
-                              n->fn_def.param_count, n->fn_def.ret)) {
-    panic( n->loc, SEM_FN_REDECL, n->fn_def.name);
-  }
-
   SV_semantic_scope_push();
   for (int i = 0; i < n->fn_def.param_count; i++) {
     if (!n->fn_def.params[i].type) n->fn_def.params[i].type = make_type(UNKNOWN, NULL);

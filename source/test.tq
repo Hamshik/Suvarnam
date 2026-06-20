@@ -1,9 +1,12 @@
 
 fn main() {
     var mut a = 10;
-    var mut a1 = &mut a;
-    var mut i32&& i = &mut a1;
-    var mut i32&& b = &mut i;
-    var mut c = a *(**b);
-    printlni(c);
+    var mut b = get_num();
+    printlni(a+b);
 }
+
+fn i32 get_num(){
+    ret global_num;
+}
+
+var mut global_num = 10;
