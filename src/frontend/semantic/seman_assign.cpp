@@ -75,10 +75,10 @@ static void process_declaration(ASTNode_t *n, Type_t *&lhs_t, Type_t *rhs_t) {
   
   resolve_nested_numerics(rhs, lhs_t);
 
-  if (!SV_semantic_declare(var_name, &n->isglobal, lhs_t, n, n->ismut)) {
-    if(!n->isglobal && !n->assign.is_declaration)
-      panic(n->loc, SEM_VAR_REDECL, var_name);
-  }
+  bool isreloved = SV_semantic_declare(var_name, &n->isglobal, lhs_t, n, n->ismut);
+
+  if (!isreloved && !n->isglobal)
+    panic(n->loc, SEM_VAR_REDECL, var_name);
 }
 
 bool verify_expression_path_is_mutable(ASTNode_t *n) {

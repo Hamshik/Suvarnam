@@ -333,6 +333,10 @@ index_stmt:
         $$ = new_index($call, $idx, false, @1);
         $$->isglobal =  $idx->isglobal;
     }
+    | deref_expression[expr] indexing[idx]  {
+        $$ = new_index($expr, $idx, false, @1);
+        $$->isglobal =  $idx->isglobal;
+    }
 ;
 
 expr:
