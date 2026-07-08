@@ -78,7 +78,7 @@ void register_global_var_and_fn(ASTNode_t *n) {
     f->param_count = n->fn_def.param_count;
 
     // Transfer parameter types to symbol record
-    f->params = (Param_t *)calloc(sizeof(Type_t *), f->param_count);
+    f->params = (Param_t *)calloc((size_t)f->param_count, sizeof(Param_t));
     Param_t *curr_p = n->fn_def.params;
     for (int i = 0; i < f->param_count && curr_p; ++i) {
       f->params[i] = curr_p[i];

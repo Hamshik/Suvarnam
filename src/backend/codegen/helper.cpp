@@ -1,6 +1,7 @@
 #include "codegen/codegen.hpp"
 #include "shared/enums.h"
 #include <cstdio>
+#include <iostream>
 
 __int128 parse_i128(const char *s, int *ok) {
   if (ok)
@@ -197,8 +198,11 @@ llvm::Value *emit_if(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
 
   // 1. Emit condition
   llvm::Value *condV = emit_expr(n->if_stmt.condition, ctx, b, entryBuilder, locals);
-  if (!condV)
-    return nullptr;
+  if (!condV) {
+      // Stop the layout corruption immediately!
+      condV = llvm::ConstantInt::getFalse(ctx);
+      std::cerr << "Codegen Error: Condition expression inside 'if' failed to generate valid IR!" << std::endl;
+  }
 
   // Ensure condition is i1 (bool)
   if (condV->getType()->isIntegerTy() &&

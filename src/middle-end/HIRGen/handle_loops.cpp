@@ -63,7 +63,13 @@ HIRNode *HIRGenerator::emit_MAST_for_range_loop(ASTNode_t *node) {
     iterator_id->type =
         range_node->range.start->type; // Matches the range type context
 
-    OP_kind_t cond_op = is_descending ? OP_kind::OP_GE : OP_kind::OP_LE;
+    // Exclusive range (0..10): use < or >. Inclusive range (0..=10): use <= or >=
+    OP_kind_t cond_op;
+    if (range_node->range.isexslusive) {
+        cond_op = is_descending ? OP_kind::OP_GE : OP_kind::OP_LE;
+    } else {
+        cond_op = is_descending ? OP_kind::OP_GT : OP_kind::OP_LT;
+    }
 
     while_node->while_loop.condition = create_binary_op(
         cond_op, iterator_id, end_val, iterator_id->type);

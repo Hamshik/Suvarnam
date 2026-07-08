@@ -1,4 +1,5 @@
 #include "HIRGen/HIRGen.hpp"
+#include "shared/HIRNode.hpp"
 #include "shared/enums.h"
 #include "shared/structs.h"
 #include <cstdio>
@@ -258,6 +259,12 @@ HIRNode *HIRGenerator::generate(ASTNode_t *node) {
     return_node->ret_stmt.value = generate(node->ret_stmt.value);
     return return_node;
   }
+
+  case AST_CONTINUE:
+    return new HIRNode(ASTKind::AST_CONTINUE);
+  
+  case AST_BREAK:
+    return new HIRNode(ASTKind::AST_BREAK);
 
   default:
     fprintf(stderr, "[HIRGen] Error: Unhandled AST node kind %d at line %zu\n",

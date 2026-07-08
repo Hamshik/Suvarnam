@@ -14,7 +14,7 @@ static const long double I16_MIN_LD = (long double)(-0x8000);             /* -32
 static const long double I16_MAX_LD = (long double)( 0x7FFF);             /*  32767 */
 static const long double I32_MIN_LD = (long double)(-0x80000000LL);       /* -2147483648 */
 static const long double I32_MAX_LD = (long double)( 0x7FFFFFFFLL);       /*  2147483647 */
-static const long double I64_MIN_LD = (long double)(-0x8000000000000000LL);
+static const long double I64_MIN_LD = (long double)(-0x7FFFFFFFFFFFFFFFLL - 1LL);
 static const long double I64_MAX_LD = (long double)( 0x7FFFFFFFFFFFFFFFLL);
 
 static const long double U8_MAX_LD  = (long double)(0xFF);                /* 255 */

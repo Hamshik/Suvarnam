@@ -8,8 +8,9 @@
 
 // Helper: Generate an Integer Literal
 HIRNode *HIRGenerator::create_literal(SV_Value value, Type_t *type) {
-  HIRNode *node = new HIRNode(is_numeric(type->base) ?
-                          ASTKind::AST_NUM : type->base == STRINGS ? ASTKind::AST_STR : ASTKind::AST_CHAR);
+  HIRNode *node = new HIRNode(is_numeric(type->base) ? ASTKind::AST_NUM :
+                          type->base == STRINGS ? ASTKind::AST_STR : 
+                          type->base == CHARACTER ? ASTKind::AST_CHAR : ASTKind::AST_BOOL);
 
   node->literals.val = value;
   node->type = type;

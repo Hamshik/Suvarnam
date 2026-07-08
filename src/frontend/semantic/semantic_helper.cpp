@@ -65,6 +65,7 @@ bool is_integer(DataTypes_t t) {
   case I8:
   case I16:
   case I32:
+  case I64:
   case I128:
   case U8:
   case U16:
@@ -139,6 +140,8 @@ bool literal_fits_type(const ASTNode_t *lit, DataTypes_t t) {
       return is_i16(raw);
     case I32:
       return is_i32(raw);
+    case I64:
+      return is_i64(raw);
     case I128:
       return is_i128(raw);
     case U8:
@@ -225,6 +228,8 @@ DataTypes_t promote(DataTypes_t a, DataTypes_t b) {
   }
   if (a == I128 || b == I128)
     return I128;
+  if (a == I64 || b == I64)
+    return I64;
   if (a == I32 || b == I32)
     return I32;
   if (a == I16 || b == I16)

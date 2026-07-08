@@ -60,7 +60,8 @@ Value *emit_expr(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
       return foundVal;
     }
 
-    fprintf(stderr, "Codegen Error: Undefined variable '%s' evaluated at runtime.\n", varName);
+    fprintf(stderr, "Codegen Error: Undefined variable '%s' evaluated at runtime \
+      at line %zu col %zu\n", varName, n->loc.first_line, n->loc.first_column);
     return nullptr;
   }
 
@@ -84,14 +85,13 @@ Value *emit_expr(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
 
   case AST_BLOCK: {
     // ITERATIVE processing of block statements
-    Codegen::Scope blockScope(&locals);
     Value* lastVal = nullptr;
     for (auto stmt : *n->block_stmts) {
         // If the current instruction stream is truly terminated (e.g., a return),
         // we skip the rest of this specific block.
         if (blockTerminated(b)) break;
         
-        lastVal = emit_expr(stmt, ctx, b, entryBuilder, blockScope);
+        lastVal = emit_expr(stmt, ctx, b, entryBuilder, locals);
     }
     return lastVal;
   }

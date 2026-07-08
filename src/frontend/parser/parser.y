@@ -4,7 +4,6 @@
 %define api.location.type { SV_Location }
 %locations
 
-%expect 0
 
 %require "3.8.2"
 
@@ -57,7 +56,7 @@
 
 %type <node>  top_level_stmts block if_stmt for_stmt while_stmt import_stmt expr_stmts call_stmt
 %type <node> fn_def param return_stmt opt_args args list_stmt expr_stmt top_level_stmt index_stmt fn_block_t
-%type <node> lvalue import_list expr assignment program range  deref_expression
+%type <node> lvalue import_list expr assignment program range
 %type <paramlist> opt_params params
 %type <type> recursive_type
 %type <size> opt_list_size
@@ -219,7 +218,7 @@ fn_def:
     }
   | FN IDENTIFIER[id] LPAREN opt_params[params] RPAREN fn_block_t[body]
     {
-        $$ = new_fn_def($id->var, $params.params, $params.count, NULL, $body, @$);
+        $$ = new_fn_def($id->var, $params.params, $params.count, make_type(VOID, NULL), $body, @$);
         ast_free($id);
     } 
 ;
@@ -240,14 +239,14 @@ opt_params:
 params:
     param[p] {
         $$.count = 1;
-        $$.params = calloc(0, sizeof(Param_t));
+        $$.params = calloc(1, sizeof(Param_t));
         $$.params[0].name = strdup($p->var);
         $$.params[0].type = $p->type; 
         ast_free($p);
     }
   | param[p] COMMA params[plist] {
         $$.count = $plist.count + 1;
-        $$.params = calloc(0, sizeof(Param_t) * (size_t)$$.count);
+        $$.params = calloc((size_t)$$.count, sizeof(Param_t));
         $$.params[0].name = strdup($p->var);
         $$.params[0].type = $p->type;
         ast_free($p);
@@ -306,9 +305,7 @@ opt_args:
          
 args:
     expr               { $$ = $1; }
-    | deref_expression { $$ = $1; }
     | expr[e] COMMA args[alist]  { $$ = new_seq($e, $alist); }
-    | deref_expression[e] COMMA args[alist]  { $$ = new_seq($e, $alist); }
     ;
 
 list_stmt:
@@ -335,22 +332,10 @@ indexing:
 ;
 
 index_stmt:
-    IDENTIFIER[id] indexing[idx] 
+    expr[id] indexing[idx] 
     { 
         $$ = new_index($id, $idx, false, @1);
         $$->isglobal =  $id->isglobal;
-    }
-    | call_stmt[call] indexing[idx]  {
-        $$ = new_index($call, $idx, false, @1);
-        $$->isglobal =  $idx->isglobal;
-    }
-    | deref_expression[expr] indexing[idx]  {
-        $$ = new_index($expr, $idx, false, @1);
-        $$->isglobal =  $idx->isglobal;
-    }
-    | LPAREN deref_expression[expr] RPAREN indexing[idx]  {
-        $$ = new_index($expr, $idx, false, @1);
-        $$->isglobal =  $idx->isglobal;
     }
 ;
 
@@ -360,6 +345,8 @@ expr:
     | STRING_LITERAL            { $$ = $1;}
     | CHAR_LITERAL              { $$ = $1;}
     | BOOL_LITERAL              { $$ = $1;}
+
+    /* | deref_expression          { $$ = $1;} */
 
     | expr[lhs] PLUS expr[rhs]        { $$ = new_binop($lhs, $rhs, @$, OP_ADD); }
     | expr[lhs] MINUS expr[rhs]       { $$ = new_binop($lhs, $rhs, @$, OP_SUB); }
@@ -398,6 +385,8 @@ expr:
         $$ = new_unop($e, @$, OP_ADDR); 
         $$->unop.operand->ismut = true; // Custom property flag
     }
+
+    | STAR expr[e] %prec UPLUS        { $$ = new_unop($e, @$, OP_DEREF); }
     
     | PLUS expr[e] %prec UPLUS        { $$ = new_unop($e, @$, OP_POS); }
     | MINUS expr[e] %prec UMINUS      { $$ = new_unop($e, @$, OP_NEG); }
@@ -414,46 +403,10 @@ expr:
     | LBRACE range[r] RBRACE          { $$ = $r; }
 ;
 
-deref_expression:
-      STAR IDENTIFIER %prec UDEREF       { $$ = new_unop($2, @2, OP_DEREF); }
-    | STAR call_stmt %prec UDEREF        { $$ = new_unop($2, @2, OP_DEREF); }
-    | STAR IDENTIFIER[id] indexing[idx] %prec UDEREF
-    {
-        ASTNode_t *indexed = new_index($id, $idx, false, @2);
-        indexed->isglobal = $id->isglobal;
-        $$ = new_unop(indexed, @2, OP_DEREF);
-        $$->isglobal = indexed->isglobal;
-    }
-    | STAR call_stmt[call] indexing[idx] %prec UDEREF
-    {
-        ASTNode_t *indexed = new_index($call, $idx, false, @2);
-        $$ = new_unop(indexed, @2, OP_DEREF);
-        $$->isglobal = indexed->isglobal;
-    }
-    | STAR LPAREN deref_expression[expr] RPAREN indexing[idx] %prec UDEREF
-    {
-        ASTNode_t *indexed = new_index($expr, $idx, false, @2);
-        indexed->isglobal = $expr->isglobal;
-        $$ = new_unop(indexed, @2, OP_DEREF);
-        $$->isglobal = indexed->isglobal;
-    }
-    | STAR LPAREN expr RPAREN %prec UDEREF
-    {
-        $$ = new_unop($3, @3, OP_DEREF);
-        $$->isglobal = $3->isglobal;
-    }
-    | STAR deref_expression %prec UDEREF
-    { 
-        $$ = new_unop($2, @1, OP_DEREF);
-        /* Carry over global flags if needed */
-        $$->isglobal = $2->isglobal; 
-    }
-;
-
 lvalue:
       IDENTIFIER                            { $$ = $1; }
     | index_stmt[idx]                       { $$ = $idx; $$->index.islhs = 1; $$->isglobal = $idx->isglobal; }
-    | deref_expression                      { $$ = $1; }
+    | STAR expr                             { $$ = new_unop($2, @$, OP_DEREF); $$->isglobal = $2->isglobal; }
 ;
 
 assignment:
