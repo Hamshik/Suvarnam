@@ -1,7 +1,10 @@
 
 fn main() {
     var mut a = 10;
-    var mut b = [&mut a];
-    var mut c = &mut b;
-    printf("%d",*c[0]);
+    inc(&a);
+    printf("a = %d\n", a);
+}
+
+fn void inc(var mut i32& x) {
+    *x += 1;
 }

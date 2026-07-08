@@ -105,7 +105,7 @@ bool verify_expression_path_is_mutable(ASTNode_t *n) {
             if (n->unop.operand->type->base == PTR) {
                 // In your type engine, ensure that taking a mutable reference (&mut i)
                 // sets a flag like 'is_mut_ptr' or check if the container allows writing.
-                if (!n->unop.operand->type->is_mutable_reference) {
+                if (!n->unop.operand->type->ismut) {
                     return false; // Immutable reference rejection!
                 }
             }

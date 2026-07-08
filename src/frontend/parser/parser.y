@@ -280,8 +280,16 @@ recursive_type:
 ;
 
 param:
-    recursive_type[t] IDENTIFIER[id] {
+    VAR MUT recursive_type[t] IDENTIFIER[id] {
         $id->type = $t; 
+        $id->type->ismut = true;
+        $id->ismut = true;
+        $$ = $id; 
+    }
+    | VAR recursive_type[t] IDENTIFIER[id] {
+        $id->type = $t; 
+        $id->type->ismut = false;
+        $id->ismut = false;
         $$ = $id; 
     }
 ;

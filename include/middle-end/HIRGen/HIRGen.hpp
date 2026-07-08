@@ -4,15 +4,14 @@
 #include "shared/enums.h"
 #include "shared/structs.h"
 #include <string>
-#define assign_cases(op, bin_op) \
-      case OP_kind::op: { \
-      node->assign.target->name = strdup(name);\
-      node->assign.target->type = value->type;\
-      HIRNode *lhs_var = new HIRNode(ASTKind::AST_VAR);\
-      lhs_var->name = strdup(name);\
-      lhs_var->type = value->type;\
-      node->assign.value = create_binary_op(OP_kind::bin_op, lhs_var, value, value->type);\
-    } break; \
+#define assign_cases(assign_op, bin_op)                     \
+    case OP_kind::assign_op:                               \
+        node->assign.value = create_binary_op(             \
+            OP_kind::bin_op,                               \
+            clone_node(target),                            \
+            value,                                         \
+            value->type);                                  \
+        break;
 
 class HIRGenerator {
   private:
@@ -33,7 +32,10 @@ class HIRGenerator {
   HIRNode *create_block(std::vector<HIRNode *> *statements);
   HIRNode *create_literal(SV_Value value, Type_t *type);
   HIRNode *create_binary_op(OP_kind_t op, HIRNode *left, HIRNode *right, Type_t *result_type);
-  HIRNode *create_assignment(const char *name, HIRNode *value, OP_kind_t op = OP_kind_t::OP_ASSIGN, bool is_declaration = false);
+  HIRNode *create_assignment(HIRNode *target,
+                                         HIRNode *value,
+                                         OP_kind_t op = OP_ASSIGN,
+                                         bool is_declaration = true);
   HIRNode *create_if_stmt(HIRNode *condition, HIRNode *then_branch, HIRNode *else_branch);
   HIRNode *emit_MAST_for_loop(ASTNode_t *node);
   HIRNode *emit_call(ASTNode_t* node);
@@ -41,6 +43,8 @@ class HIRGenerator {
   HIRNode *emit_idx(ASTNode_t* node);
   HIRNode *emit_MAST_for_range_loop(ASTNode_t *node);
   HIRNode *emit_MAST_for_iterable_obj_loop(ASTNode_t *node);
+  HIRNode *clone_node(const HIRNode *src);
+  HIRNode *create_var(ASTNode_t* node);
   void flatten_sequence(ASTNode_t *node, std::vector<HIRNode *> *stmts);
 
 public:

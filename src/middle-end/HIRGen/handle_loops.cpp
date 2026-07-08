@@ -40,11 +40,14 @@ HIRNode *HIRGenerator::emit_MAST_for_range_loop(ASTNode_t *node) {
         step_val = create_literal(step_raw, range_node->range.start->type);
     }
 
-    // 🎯 FIX: iterator_var is a direct string pointer here
     const char *iterator_name = strdup(node->fornode.iterator_var_name);
 
+    HIRNode *iterator_target = new HIRNode(ASTKind::AST_VAR);
+    iterator_target->name = strdup(iterator_name);
+    iterator_target->type = start_val->type;
+
     // 3. Emit Initializer: i = start_val
-    HIRNode *init_assign = create_assignment(iterator_name, start_val, OP_kind::OP_ASSIGN);
+    HIRNode *init_assign = create_assignment(iterator_target, start_val, OP_kind::OP_ASSIGN);
     init_assign->loc = node->loc;
     root_block->block_stmts->push_back(init_assign);
 
@@ -82,7 +85,11 @@ HIRNode *HIRGenerator::emit_MAST_for_range_loop(ASTNode_t *node) {
     HIRNode *add_step_expr = create_binary_op(
         OP_kind::OP_ADD, iterator_id_for_step, step_val, iterator_id->type);
 
-    HIRNode *step_assign = create_assignment(iterator_name, add_step_expr, OP_kind::OP_ASSIGN);
+    HIRNode *step_target = new HIRNode(ASTKind::AST_VAR);
+    step_target->name = strdup(iterator_name);
+    step_target->type = iterator_id->type;
+
+    HIRNode *step_assign = create_assignment(step_target, add_step_expr, OP_kind::OP_ASSIGN);
     step_assign->loc = node->loc;
     body_block->block_stmts->push_back(step_assign);
 
@@ -137,14 +144,21 @@ HIRNode *HIRGenerator::emit_MAST_for_loop(ASTNode_t *node) {
     iterator_decl->loc = node->loc;
     root_block->block_stmts->push_back(iterator_decl);
 
+    HIRNode *arr_target = new HIRNode(ASTKind::AST_VAR);
+    arr_target->name = strdup(arr_var_name);
+    arr_target->type = iterable_expr->type;
+
     // Cache the iterable reference: __arr__0 = iterable
-    HIRNode *arr_assign = create_assignment(arr_var_name, iterable_expr, OP_kind::OP_ASSIGN, true);
+    HIRNode *arr_assign = create_assignment(arr_target, iterable_expr, OP_kind::OP_ASSIGN, true);
     arr_assign->loc = node->loc;
     root_block->block_stmts->push_back(arr_assign);
 
     // Setup counter tracking reference variables: __idx__0 = 0
     HIRNode *zero_lit = create_literal((SV_Value){0}, int_type);
-    HIRNode *idx_init = create_assignment(idx_var_name, zero_lit, OP_kind::OP_ASSIGN, true);
+    HIRNode *idx_target = new HIRNode(ASTKind::AST_VAR);
+    idx_target->name = strdup(idx_var_name);
+    idx_target->type = int_type;
+    HIRNode *idx_init = create_assignment(idx_target, zero_lit, OP_kind::OP_ASSIGN, true);
     idx_init->loc = node->loc;
     root_block->block_stmts->push_back(idx_init);
 
@@ -186,8 +200,12 @@ HIRNode *HIRGenerator::emit_MAST_for_loop(ASTNode_t *node) {
     index_expr->index.idx->push_back(idx_id_read);
     index_expr->index.islhs = false;
 
+    HIRNode *iterator_target_update = new HIRNode(ASTKind::AST_VAR);
+    iterator_target_update->name = strdup(iterator_name);
+    iterator_target_update->type = element_type;
+
     // 🎯 NOTICE: altered to 'is_declaration = false' because j was pre-declared above!
-    HIRNode *iterator_update = create_assignment(iterator_name, index_expr, OP_kind::OP_ASSIGN, false);
+    HIRNode *iterator_update = create_assignment(iterator_target_update, index_expr, OP_kind::OP_ASSIGN, false);
     iterator_update->loc = node->loc;
     body_block->block_stmts->push_back(iterator_update);
 
@@ -201,7 +219,10 @@ HIRNode *HIRGenerator::emit_MAST_for_loop(ASTNode_t *node) {
 
     HIRNode *one_lit = create_literal((SV_Value){1}, int_type);
     HIRNode *add_step_expr = create_binary_op(OP_kind::OP_ADD, idx_id_step, one_lit, int_type);
-    HIRNode *step_assign = create_assignment(idx_var_name, add_step_expr, OP_kind::OP_ASSIGN, false);
+    HIRNode *idx_step_target = new HIRNode(ASTKind::AST_VAR);
+    idx_step_target->name = strdup(idx_var_name);
+    idx_step_target->type = int_type;
+    HIRNode *step_assign = create_assignment(idx_step_target, add_step_expr, OP_kind::OP_ASSIGN, false);
     step_assign->loc = node->loc;
     body_block->block_stmts->push_back(step_assign);
 

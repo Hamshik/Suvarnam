@@ -27,13 +27,58 @@ HIRNode *HIRGenerator::create_binary_op(OP_kind_t op, HIRNode *left, HIRNode *ri
   return node;
 }
 
-// Helper: Generate an Assignment
-HIRNode *HIRGenerator::create_assignment(const char *name, HIRNode *value, OP_kind_t op, bool is_declaration) {
-  HIRNode *node = new HIRNode(ASTKind::AST_ASSIGN);
-  node->assign.target = new HIRNode(ASTKind::AST_VAR);
-  node->assign.target->name = strdup(name); // Ensure name is always set
-  node->assign.target->type = value->type;
+HIRNode *HIRGenerator::clone_node(const HIRNode *src) {
+    if (!src)
+        return nullptr;
 
+    HIRNode *dst = new HIRNode(src->kind);
+
+    dst->type = src->type;
+    dst->loc = src->loc;
+    dst->isglobal = src->isglobal;
+
+    switch (src->kind) {
+        case AST_VAR:
+            dst->name = strdup(src->name);
+            break;
+
+        case AST_UNOP:
+            dst->binary.op = src->binary.op;
+            dst->binary.left = clone_node(src->binary.left);
+            break;
+
+        case AST_INDEX:
+            dst->index.target = clone_node(src->index.target);
+            dst->index.idx = &*(src->index.idx);
+            dst->index.islhs = src->index.islhs;
+            break;
+
+        case AST_BINOP:
+            dst->binary.op = src->binary.op;
+            dst->binary.left = clone_node(src->binary.left);
+            dst->binary.right = clone_node(src->binary.right);
+            break;
+
+        // Add other node kinds as needed.
+
+        default:
+            fprintf(stderr, "clone_node: unsupported HIR kind %d\n", src->kind);
+            abort();
+    }
+
+    return dst;
+}
+
+// Helper: Generate an Assignment
+HIRNode *HIRGenerator::create_assignment(HIRNode *target,
+                                         HIRNode *value,
+                                         OP_kind_t op,
+                                         bool is_declaration) {
+    HIRNode *node = new HIRNode(ASTKind::AST_ASSIGN);
+
+    node->assign.target = target;
+    node->assign.is_declaration = is_declaration;
+  
   switch (op) {
     case OP_kind::OP_ASSIGN:
       node->assign.value = value;

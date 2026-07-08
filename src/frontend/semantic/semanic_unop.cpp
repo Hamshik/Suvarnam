@@ -45,7 +45,7 @@ Type_t* unop(ASTNode_t *n, Type_t* type) {
     if(!node->ismut && n->unop.operand->ismut) panic(n->loc, SEM_ASSIGN_IMMUTABLE, name.c_str());
 
     // 🎯 Save reference capability right inside the pointer type layout layer
-    n->type->is_mutable_reference = n->unop.operand->ismut;
+    n->type->ismut = n->unop.operand->ismut;
 
     return n->type;
   }
