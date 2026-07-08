@@ -1,7 +1,9 @@
 #include "codegen/codegen.hpp"
 #include "SymbolTable/BuiltinRegistry.hpp"
+#include "shared/enums.h"
 #include <cstddef>
 #include <iostream>
+#include <llvm-22/llvm/IR/DerivedTypes.h>
 #include <llvm-22/llvm/Support/Alignment.h>
 
 // Forward declare the helper
@@ -19,16 +21,30 @@ FunctionCallee get_builtin_llvm_fn(const char* name, Module &m, LLVMContext &ctx
     }
 
     // Construct the LLVM signature from our metadata
-    Type* retTy = ir_type(builtin->return_type->base, ctx);
-    std::vector<Type*> argTys;
-    for (auto* pt : builtin->param_types) {
-        // Map LIST to generic Pointer for external C calls
-        if (pt->base == LIST) argTys.push_back(PointerType::getUnqual(ctx));
-        else argTys.push_back(ir_type(pt->base, ctx));
-    }
+   Type* retTy = ir_type(builtin->return_type->base, ctx);
+std::vector<Type*> argTys;
+bool isVarArg = false;
 
-    FunctionType *ftype = FunctionType::get(retTy, argTys, false);
-    return m.getOrInsertFunction(name, ftype);
+for (auto* pt : builtin->param_types) {
+  // Check for the start of variadic arguments
+  if (pt->base == UNKNOWN) {
+    isVarArg = true;
+    break; // Stop processing fixed arguments. Everything from here is vararg.
+  }
+
+  // Map LIST to generic Pointer for external C calls
+  if (pt->base == LIST) {
+    argTys.push_back(PointerType::getUnqual(ctx));
+  } else {
+    argTys.push_back(ir_type(pt->base, ctx));
+  }
+}
+
+// Create the function type
+// The third argument 'true' tells LLVM this function accepts variable arguments (...)
+FunctionType* funcTy = FunctionType::get(retTy, argTys, isVarArg);   
+
+    return m.getOrInsertFunction(name, funcTy);
 }
 
 void emit_list_print_call(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b, IRBuilder<> &entryBuilder, Codegen::Scope &locals) {
@@ -114,6 +130,11 @@ Value *generateListElementPtr(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
   Type_t *current_type_data = n->index.target->type;
   std::vector<HIRNode*> &indices = *n->index.idx;
 
+  if(current_type_data->base == PTR){
+    currentPtr = b.CreateLoad(PointerType::getUnqual(ctx),
+         currentPtr, "implicit_load");
+    current_type_data = current_type_data->inner;
+  }
   for (size_t i = 0; i < indices.size(); ++i) {
     HIRNode* idx_expr_node = indices[i];
     // 1. Peek at the semantic type

@@ -9,3 +9,4 @@ TODO.md
 .codex
 build/
 compile_commands.json
+*bin*

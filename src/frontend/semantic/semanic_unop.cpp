@@ -52,16 +52,16 @@ Type_t* unop(ASTNode_t *n, Type_t* type) {
 
   case OP_DEREF:
     // If the operand is a nested deref, check_expr will resolve it first!
-    if (!t) {
-        type_error(n, "Cannot dereference an invalid or unresolvable expression");
-    }
+    if (!t) return nullptr;
     
     if (t->base != PTR) {
         type_error(n, "dereference requires a pointer type");
+        return nullptr;
     }
     
     if (!t->inner) {
         type_error(n, "pointer target type is missing");
+        return nullptr;
     }
         
     // Deeply assign the unwrapped inner type to this node's resolution frame

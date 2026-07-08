@@ -12,7 +12,7 @@ extern file_t* file;
 void type_error(ASTNode_t *n, const char *msg) {
   if (n && n->type)
     n->type = make_type(UNKNOWN, NULL);
-  panic(n ? (SV_Location){0} : n->loc,
+  panic(n ? n->loc : (SV_Location){0},
         SEM_BINOP_INVALID, msg ? msg : NULL);
   return;
 }

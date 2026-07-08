@@ -77,6 +77,7 @@
 %right POWER
 %right UPLUS UMINUS UADDR UDEREF NOT BITNOT
 %left INC DEC
+%left LSQUARE RSQUARE
 %left LPAREN RPAREN
 %precedence POSTFIX
 %nonassoc LOWER_THAN_ELSE
@@ -297,7 +298,9 @@ opt_args:
          
 args:
     expr               { $$ = $1; }
+    | deref_expression { $$ = $1; }
     | expr[e] COMMA args[alist]  { $$ = new_seq($e, $alist); }
+    | deref_expression[e] COMMA args[alist]  { $$ = new_seq($e, $alist); }
     ;
 
 list_stmt:
@@ -334,6 +337,10 @@ index_stmt:
         $$->isglobal =  $idx->isglobal;
     }
     | deref_expression[expr] indexing[idx]  {
+        $$ = new_index($expr, $idx, false, @1);
+        $$->isglobal =  $idx->isglobal;
+    }
+    | LPAREN deref_expression[expr] RPAREN indexing[idx]  {
         $$ = new_index($expr, $idx, false, @1);
         $$->isglobal =  $idx->isglobal;
     }
@@ -384,7 +391,6 @@ expr:
         $$->unop.operand->ismut = true; // Custom property flag
     }
     
-    | LPAREN deref_expression[der_expr] RPAREN  { $$ = $der_expr;  }
     | PLUS expr[e] %prec UPLUS        { $$ = new_unop($e, @$, OP_POS); }
     | MINUS expr[e] %prec UMINUS      { $$ = new_unop($e, @$, OP_NEG); }
     | NOT expr[e]                     { $$ = new_unop($e, @$, OP_NOT); }
@@ -401,10 +407,36 @@ expr:
 ;
 
 deref_expression:
-      STAR IDENTIFIER %prec UDEREF       { $$ = new_unop($2, @$, OP_DEREF); }
+      STAR IDENTIFIER %prec UDEREF       { $$ = new_unop($2, @2, OP_DEREF); }
+    | STAR call_stmt %prec UDEREF        { $$ = new_unop($2, @2, OP_DEREF); }
+    | STAR IDENTIFIER[id] indexing[idx] %prec UDEREF
+    {
+        ASTNode_t *indexed = new_index($id, $idx, false, @2);
+        indexed->isglobal = $id->isglobal;
+        $$ = new_unop(indexed, @2, OP_DEREF);
+        $$->isglobal = indexed->isglobal;
+    }
+    | STAR call_stmt[call] indexing[idx] %prec UDEREF
+    {
+        ASTNode_t *indexed = new_index($call, $idx, false, @2);
+        $$ = new_unop(indexed, @2, OP_DEREF);
+        $$->isglobal = indexed->isglobal;
+    }
+    | STAR LPAREN deref_expression[expr] RPAREN indexing[idx] %prec UDEREF
+    {
+        ASTNode_t *indexed = new_index($expr, $idx, false, @2);
+        indexed->isglobal = $expr->isglobal;
+        $$ = new_unop(indexed, @2, OP_DEREF);
+        $$->isglobal = indexed->isglobal;
+    }
+    | STAR LPAREN expr RPAREN %prec UDEREF
+    {
+        $$ = new_unop($3, @3, OP_DEREF);
+        $$->isglobal = $3->isglobal;
+    }
     | STAR deref_expression %prec UDEREF
     { 
-        $$ = new_unop($2, @$, OP_DEREF); 
+        $$ = new_unop($2, @1, OP_DEREF);
         /* Carry over global flags if needed */
         $$->isglobal = $2->isglobal; 
     }

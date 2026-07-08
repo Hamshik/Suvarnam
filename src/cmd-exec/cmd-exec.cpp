@@ -147,16 +147,15 @@ extern "C" int compile_and_execute(ASTNode_t *root, const Options *opts) {
 
     char *clang_argv[] = {
        (char*)"clang",
-       (char*)"SV_lib/helper/printer.c",
        (char*)"SV_lib/helper/SV_strcmp.c",
-        opts->ir_output_path,   // your .ll file
+       (char*)opts->ir_output_path,   // your .ll file
        (char*)"-Wl,-e,entrypoint",
        (char*)"-no-pie",
        (char*)"-g",
        (char*)"-O0",
        (char*)"-o",
-        (char *)opts->bin_output_path,
-        NULL
+       (char *)opts->bin_output_path,
+       NULL
     };
 
     if (run_exec(clang_argv[0], clang_argv)) {

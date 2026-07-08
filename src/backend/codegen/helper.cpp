@@ -1,4 +1,5 @@
 #include "codegen/codegen.hpp"
+#include "shared/enums.h"
 #include <cstdio>
 
 __int128 parse_i128(const char *s, int *ok) {
@@ -109,7 +110,7 @@ Type *ir_type(DataTypes_t t, LLVMContext &ctx) {
   }
   case VOID:
     return Type::getVoidTy(ctx);
-
+  
   default:
     fprintf(stderr, "CODEGEN ERROR: UNhandled type \n");
     return nullptr;

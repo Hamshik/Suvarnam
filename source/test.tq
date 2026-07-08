@@ -1,7 +1,7 @@
 
 fn main() {
     var mut a = 10;
-    var mut b = &mut a;
-    var mut c = [&mut b];
-    printlni(c[0]);
+    var mut b = [&mut a];
+    var mut c = &mut b;
+    printf("%d",*c[0]);
 }

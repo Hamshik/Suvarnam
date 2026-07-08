@@ -3,6 +3,7 @@
 #include "shared/enums.h"
 #include <iostream>
 #include <cstdio>
+#include <stdlib.h>
 
 
 #define macro(val, str)  if (val) { \
@@ -55,42 +56,22 @@ void BuiltinRegistry::bootstrap() {
     // Register SV_print_list: void SV_print_list(list[any], i32)
     // Using make_type to build the signature
     Type_t* void_ty = make_type(VOID, nullptr);
-    Type_t* list_ty = make_type(LIST, make_type(UNKNOWN, NULL)); // Generic list
-    Type_t* i32_ty = make_type(I32, nullptr);
-
-    register_builtin(
-        "SV_print_list", 
-        void_ty, 
-        {list_ty, i32_ty}, 
-        SV_print_list_interpreter
-    );
-
-    register_builtin(
-        "printlns", 
-        void_ty,
-        { make_type(STRINGS, nullptr)}, 
-        println_str
-    );
-
-    register_builtin(
-        "printlni", 
-        void_ty,
-        { make_type(I128, nullptr)}, 
-        printlni
-    );
-
-    register_builtin(
-        "printlnf", 
-        void_ty,
-        { make_type(U128, nullptr)}, 
-        printlnf
-    );
 
     register_builtin(
         "malloc", 
-        make_type(PTR, make_type(I32, nullptr)),
+        make_type(PTR, void_ty),
         { make_type(U128, nullptr)}, 
-        printlnf
+        nullptr
+    );
+
+    register_builtin(
+        "printf", 
+        void_ty,
+        { 
+            make_type(STRINGS, nullptr),
+            make_type(UNKNOWN, nullptr)
+        }, 
+        nullptr
     );
 
     // Add more built-ins here (sin, cos, println, etc.)

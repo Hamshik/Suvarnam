@@ -118,6 +118,8 @@ extern "C" Type_t *semantic_index_handle(ASTNode_t *n) {
   if (!target_base)
     return nullptr;
 
+  if (target_base->base == PTR) target_base = target_base->inner;
+  
   if (target_base->base != LIST) {
     panic(n->index.target->loc, SEM_INDEX_NOT_ARRAY, NULL);
     return nullptr;
@@ -125,9 +127,8 @@ extern "C" Type_t *semantic_index_handle(ASTNode_t *n) {
 
   // Start with the head of the indexing list
   idx_expr_t *current_idx = n->index.idx;
-  Type_t *current_target = target_base;
 
-  while (current_idx != NULL && current_target != NULL) {
+  while (current_idx != NULL && target_base != NULL) {
     // 1. Get the expression node for this specific dimension
     ASTNode_t *expr = current_idx->expr_node;
 
@@ -151,14 +152,14 @@ extern "C" Type_t *semantic_index_handle(ASTNode_t *n) {
 
     // 3. Move to the next dimension in the linked list
     current_idx = current_idx->next;
-    current_target = current_target->inner;
+    target_base = target_base->inner;
   }
 
   // 3. Resolve the element type
-  if (!current_target) {
+  if (!target_base) {
       return nullptr;
   }
-  n->type = current_target;
+  n->type = target_base;
   return n->type;
 }
 
