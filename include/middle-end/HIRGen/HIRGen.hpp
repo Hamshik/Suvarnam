@@ -18,12 +18,6 @@ class HIRGenerator {
     // Accumulates side-effect statements synthesized during nested expression lowering
     std::vector<HIRNode*> side_effect_buffer;
     size_t temporary_variable_counter = 0;
-    bool is_generating_lhs = false;
-
-    // Helper to generate a unique temporary name string
-    std::string generate_unique_temp_name(std::string prefix) {
-      return "__" + prefix + "__deref" + std::to_string(++temporary_variable_counter);
-    }
   
   HIRNode *create_fn_definition(ASTNode_t *node);
   HIRNode *create_declaration(const char *name, HIRNode *init, Type_t *type);

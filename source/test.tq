@@ -1,0 +1,8 @@
+
+fn main() {
+    var mut x = 10;
+    var y = &x;
+    var z = &mut x;
+    printf("%d\n", *y);
+    printf("%d\n", *z);
+}

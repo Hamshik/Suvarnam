@@ -1,3 +1,4 @@
+#include "SymbolTable/SymbolTable.hpp"
 #include "semantic/semantic.hpp"
 #include "SymbolTable/BuiltinRegistry.hpp"
 #include "shared/enums.h"
@@ -9,7 +10,7 @@
 #include "utils/error_handler/error.h"
 
 extern Type_t* g_current_fn_ret_type;
-
+Type_t* fn_ret = nullptr;
 
 
 /**
@@ -48,6 +49,7 @@ static ResolvedSig get_call_sig(const char* name) {
 Type_t* handle_fn(ASTNode_t *n) {
   if (n->fn_def.name && strcmp(n->fn_def.name, "main") == 0)
     n->fn_def.ret = make_type(I32, nullptr);
+  
 
   SV_semantic_scope_push();
   for (int i = 0; i < n->fn_def.param_count; i++) {
@@ -179,6 +181,9 @@ Type_t* ret(ASTNode_t *n) {
 
   // Check the type of the return expression, passing the expected return type for inference
   Type_t* rt = check_expr(n->ret_stmt.value, g_current_fn_ret_type);
+  
+  if(g_fn_ret == UNKNOWN)
+    g_current_fn_ret_type = rt;
 
   // Handle potential null from check_expr (error already reported)
   if (!rt) {

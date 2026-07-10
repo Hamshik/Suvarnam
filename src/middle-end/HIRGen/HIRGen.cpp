@@ -30,58 +30,12 @@ HIRNode *HIRGenerator::generate(ASTNode_t *node) {
   }
 
   case AST_UNOP: {
-    if (node->unop.op != OP_DEREF) {
-      HIRNode *m_node = new HIRNode(ASTKind::AST_UNOP);
-      m_node->binary.op = node->unop.op;
-      m_node->binary.left = generate(node->unop.operand);
-      m_node->type = node->type;
-      m_node->loc = node->loc;
-      return m_node;
-    }
-
-    // Preserve the structural layout for Left-Hand Side modification paths
-    if (is_generating_lhs) {
-      HIRNode *m_node = new HIRNode(ASTKind::AST_UNOP);
-      m_node->binary.op = OP_DEREF;
-      m_node->binary.left = generate(node->unop.operand);
-      m_node->type = node->type;
-      m_node->loc = node->loc;
-      return m_node;
-    }
-
-    // 1. Lower the expression under the dereference first
-    HIRNode *inner_operand = generate(node->unop.operand);
-
-    // 2. 🎯 THE SEGFAULT FIX: Generate a 100% unique temporary variable name.
-    // Do NOT pass inner_operand->name if your constructor uses it as the
-    // definitive storage target!
-    std::string temp_var_name = generate_unique_temp_name("ptr");
-
-    // 3. Construct the actual standalone UNOP Deref statement node
-    HIRNode *deref_op_node = new HIRNode(ASTKind::AST_UNOP);
-    deref_op_node->binary.op = OP_DEREF;
-    deref_op_node->binary.left = inner_operand;
-    deref_op_node->type = node->type;
-    deref_op_node->loc = node->loc;
-
-    // 4. Construct a completely isolated temporary assignment wrapper node
-    HIRNode *assignment_statement = create_assignment(
-        create_var(node->unop.operand), deref_op_node, OP_ASSIGN,
-        true // Forces an isolated local variable registration
-    );
-    assignment_statement->loc = node->loc;
-
-    // 5. Commit this individual step to our side-effect stream buffer
-    side_effect_buffer.push_back(assignment_statement);
-
-    // 6. Return a reference to the temporary variable name node as the output
-    // expression
-    HIRNode *variable_reference_node = new HIRNode(ASTKind::AST_VAR);
-    variable_reference_node->name = strdup(temp_var_name.c_str());
-    variable_reference_node->type = node->type;
-    variable_reference_node->loc = node->loc;
-
-    return variable_reference_node;
+    HIRNode *m_node = new HIRNode(ASTKind::AST_UNOP);
+    m_node->binary.op = node->unop.op;
+    m_node->binary.left = generate(node->unop.operand);
+    m_node->type = node->type;
+    m_node->loc = node->loc;
+    return m_node;
   }
 
   case AST_STR: {
@@ -156,9 +110,7 @@ HIRNode *HIRGenerator::generate(ASTNode_t *node) {
       if (node->assign.lhs->unop.op != OP_DEREF)
         break;
 
-      is_generating_lhs = true;
       target = generate(node->assign.lhs);
-      is_generating_lhs = false;
       break;
     }
 
