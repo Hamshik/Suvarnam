@@ -49,7 +49,7 @@ typedef struct ASTNode {
         } fornode;
         
         // function definition and call
-        struct { char *name; Param_t *params; int param_count; Type_t* ret; struct ASTNode *body; } fn_def;
+        struct { char *name; Param_t *params; int param_count; struct ASTNode *body; } fn_def;
         struct { char *name; struct ASTNode *args; } call;
         struct { struct ASTNode *value; } ret_stmt;
         //Import Nodes

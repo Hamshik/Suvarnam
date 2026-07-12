@@ -38,10 +38,10 @@ public:
     static BuiltinRegistry& instance();
 
     // Maps a name to an implementation. Metadata is populated during bootstrap.
-    void register_builtin(const char* name, Type_t* ret, std::vector<Type_t*> params, InterpreterCallback impl);
-    BuiltinFunction* lookup(const char* name);
+    void register_builtin(const char*, Type_t*, std::vector<Type_t*>, InterpreterCallback);
+    BuiltinFunction* lookup(const char*);
     
-    void bootstrap(); 
+    void bootstrap();
 
 private:
     std::map<const char*, BuiltinFunction, CStringLess> registry;

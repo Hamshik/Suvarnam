@@ -1,5 +1,6 @@
 #pragma once
 
+#include "shared/nodes.h"
 #include "shared/structs.h"
 #include "utils/uhash.h"
 #include <stddef.h>
@@ -30,7 +31,7 @@ typedef struct fnsymbol{
     int param_count;
     bool isReturned;
     Type_t* ret;
-    UT_hash_handle hh;
+    ASTNode_t* node_ptr;
 }FnSymbol_t;
 
 typedef enum exitcode{
@@ -67,36 +68,36 @@ typedef struct module {
 void SV_runtime_env_push(void);
 void SV_runtime_env_pop(void);
 void SV_runtime_env_clear_all(void);
-void SV_runtime_env_set(const char *name,  SV_Value *val, Type_t* type);
-void SV_runtime_env_set_current(const char *name,  SV_Value *val, Type_t* type);
-SV_Value SV_runtime_env_get(const char *name, Type_t* type, SV_Location loc);
-TypedValue *  SV_runtime_env_get_ref(const char *name, SV_Location loc);
-int SV_runtime_env_frame_id_of(const char *name, SV_Location loc);
-TypedValue *  SV_runtime_env_get_ref_at(int frame_id, const char *name, SV_Location loc);
-void SV_runtime_env_set_at(int frame_id, const char *name,  SV_Value *val, Type_t* type, SV_Location loc);
+void SV_runtime_env_set(const char *, SV_Value *, Type_t *);
+void SV_runtime_env_set_current(const char *, SV_Value *, Type_t *);
+SV_Value SV_runtime_env_get(const char *, Type_t *, SV_Location);
+TypedValue *SV_runtime_env_get_ref(const char *, SV_Location);
+int SV_runtime_env_frame_id_of(const char *, SV_Location);
+TypedValue *SV_runtime_env_get_ref_at(int, const char *, SV_Location);
+void SV_runtime_env_set_at(int, const char *, SV_Value *, Type_t *, SV_Location);
 
-bool SV_runtime_fn_register(ASTNode_t *fn);
-ASTNode_t *  SV_runtime_fn_lookup(const char *name);
+bool SV_runtime_fn_register(ASTNode_t *);
+ASTNode_t *SV_runtime_fn_lookup(const char *);
 void SV_runtime_fn_clear(void);
 
-Type_t* SV_semantic_lookup(const char *name);
+Type_t *SV_semantic_lookup(const char *);
 
 #ifdef __cplusplus
-bool SV_semantic_declare(const char *name, bool* isglobal, Type_t* type, ASTNode_t* node, bool is_mutable);
+bool SV_semantic_declare(const char *, bool *, Type_t *, ASTNode_t *, bool);
 #endif
 
-exitcode_t SV_semantic_exists(const char *name, Type_t* type);
-exitcode_t SV_semantic_assign_check(const char *name, bool isglobal, DataTypes_t rhs_type, DataTypes_t rhs_sub_type);
-bool SV_semantic_is_mutable(const char *name);
+exitcode_t SV_semantic_exists(const char *, Type_t *);
+exitcode_t SV_semantic_assign_check(const char *, bool, DataTypes_t, DataTypes_t);
+bool SV_semantic_is_mutable(const char *);
 void SV_semantic_scope_push(void);
 void SV_semantic_scope_pop(void);
 void SV_semantic_clear_symbols(void);
-bool SV_semantic_fn_declare(const char *name, Param_t *params, int param_count, Type_t* ret);
-FnSymbol_t *  SV_semantic_fn_lookup(const char *name);
+bool SV_semantic_fn_declare(ASTNode_t *);
+FnSymbol_t *SV_semantic_fn_lookup(const char *);
 void SV_semantic_clear_fns(void);
-DataTypes_t SV_semantic_update_datatype(const char *name, DataTypes_t want);
-Module_t *  SV_semantic_get_module(const char *path);
-Module_t *  SV_semantic_load_module(const char *path, bool *already_imported);
+DataTypes_t SV_semantic_update_datatype(const char *, DataTypes_t);
+Module_t *SV_semantic_get_module(const char *);
+Module_t *SV_semantic_load_module(const char *, bool *);
 
 #ifdef __cplusplus
 }

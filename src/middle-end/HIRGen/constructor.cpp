@@ -4,6 +4,7 @@
 #include "shared/enums.h"
 #include "shared/nodes.h"
 #include "shared/structs.h"
+#include "utils/error_handler/error.h"
 #include <cstring>
 
 // Helper: Generate an Integer Literal
@@ -119,6 +120,9 @@ HIRNode *HIRGenerator::create_block(std::vector<HIRNode *> *statements) {
 
 // Helper: Lower a function definition/declaration
 HIRNode *HIRGenerator::create_fn_definition(ASTNode_t *node) {
+  if(strcmp(node->fn_def.name, "main") == 0 && !node->type || !is_numeric(node->type->base))
+    panic(node->loc, SEM_RETURN_TYPE_MISMATCH,
+     "main requires return stmt or mumeric return datatype");
   // Create the specific Function node
   HIRNode *fn_node = new HIRNode(ASTKind::AST_FN);
 
@@ -127,7 +131,8 @@ HIRNode *HIRGenerator::create_fn_definition(ASTNode_t *node) {
   fn_node->fn.body = new std::vector<HIRNode*>();
 
   fn_node->fn.name = strdup(node->fn_def.name);
-  fn_node->type = node->fn_def.ret; // Function return type
+  fn_node->type = node->type ? node->type : 
+      make_type(VOID, nullptr); // Function return type
   fn_node->fn.param_count = node->fn_def.param_count;
   fn_node->loc = node->loc;
 

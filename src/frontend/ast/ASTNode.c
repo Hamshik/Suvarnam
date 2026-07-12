@@ -146,7 +146,7 @@ ASTNode_t *new_fn_def(const char *name, Param_t *params, int param_count, Type_t
     node->fn_def.name = strdup(name);
     node->fn_def.params = params;
     node->fn_def.param_count = param_count;
-    node->fn_def.ret = ret_type;
+    node->type = ret_type;
     node->fn_def.body = body;
     node->type = ret_type; // The type of a function definition is its return type
     node->loc = loc;

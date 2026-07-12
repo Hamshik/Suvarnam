@@ -218,7 +218,7 @@ fn_def:
     }
   | FN IDENTIFIER[id] LPAREN opt_params[params] RPAREN fn_block_t[body]
     {
-        $$ = new_fn_def($id->var, $params.params, $params.count, make_type(VOID, NULL), $body, @$);
+        $$ = new_fn_def($id->var, $params.params, $params.count, NULL , $body, @$);
         ast_free($id);
     } 
 ;

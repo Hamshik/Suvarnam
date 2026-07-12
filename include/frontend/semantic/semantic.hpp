@@ -11,21 +11,22 @@
 extern "C" {
 #endif
 
-void semantic_check(ASTNode_t *root);
-bool is_numeric(DataTypes_t t);
+void semantic_check(ASTNode_t *);
+bool is_numeric(DataTypes_t);
 
 #ifdef __cplusplus
 }
 
 
 extern "C" {
-    Type_t* check_expr(ASTNode_t *n, Type_t*& type);
-    Type_t* semantic_index_handle(ASTNode_t *n);
-    Type_t* list_handle(ASTNode_t *n, Type_t* type = nullptr);
-    bool islist(ASTNode_t *target);
+    Type_t* check_expr(ASTNode_t *, Type_t*&);
+    Type_t* semantic_index_handle(ASTNode_t *);
+    Type_t* list_handle(ASTNode_t *, Type_t* type = nullptr);
+    bool islist(ASTNode_t *);
 }
-ASTNode_t* parse_file(FILE *f);
-Type_t* check_expr(ASTNode_t *n);
+ASTNode_t* parse_file(FILE *);
+Type_t* check_expr(ASTNode_t *);
+bool fn_always_returns(ASTNode_t *);
 
 extern bool isError;
 extern size_t err_no;
@@ -33,33 +34,33 @@ extern size_t warn_no;
 extern bool isWarning;
 extern ASTNode_t *root;
 
-void type_error(ASTNode_t *n, const char *msg);
-bool is_integer(DataTypes_t t);
+void type_error(ASTNode_t *, const char *);
+bool is_integer(DataTypes_t);
 void check_err();
 
-Type_t* unop(ASTNode_t* n, Type_t* type = nullptr);
-Type_t* binop(ASTNode_t* n, Type_t* type = nullptr);
-Type_t* assign(ASTNode_t* n, Type_t* type = nullptr);
-void handle_idx_assign(ASTNode* &n, ASTNode_t* &lhs, Type_t* &type);
+Type_t* unop(ASTNode_t*, Type_t* type = nullptr);
+Type_t* binop(ASTNode_t*, Type_t* type = nullptr);
+Type_t* assign(ASTNode_t*, Type_t* type = nullptr);
+void handle_idx_assign(ASTNode* &, ASTNode_t* &, Type_t* &);
 
-Type_t* handle_fn(ASTNode_t* n);
-Type_t* ret(ASTNode_t *n);
-Type_t* call(ASTNode_t* n);
+Type_t* handle_fn(ASTNode_t*);
+Type_t* ret(ASTNode_t *);
+Type_t* call(ASTNode_t*);
 
-void type_error(ASTNode_t *n,const char* msg);
-bool is_numeric(DataTypes_t t);
-DataTypes_t promote(DataTypes_t a, DataTypes_t b);
-void force_numeric_type(ASTNode_t *n, DataTypes_t t);
+void type_error(ASTNode_t *, const char*);
+bool is_numeric(DataTypes_t);
+DataTypes_t promote(DataTypes_t, DataTypes_t);
+void force_numeric_type(ASTNode_t *, DataTypes_t);
 
-bool literal_fits_type(const ASTNode_t *lit, DataTypes_t t);
-bool is_unsigned_numeric(DataTypes_t t);
-bool is_signed_numeric(DataTypes_t t);
-bool is_numeric(DataTypes_t t);
-bool is_integer(DataTypes_t t);
-int numeric_bits(DataTypes_t t);
-bool types_are_equal(Type_t* a, Type_t* b);
-extern "C" Type_t* make_type(DataTypes_t base, Type_t* inner);
+bool literal_fits_type(const ASTNode_t *, DataTypes_t);
+bool is_unsigned_numeric(DataTypes_t);
+bool is_signed_numeric(DataTypes_t);
+bool is_numeric(DataTypes_t);
+bool is_integer(DataTypes_t);
+int numeric_bits(DataTypes_t);
+bool types_are_equal(Type_t*, Type_t*);
+extern "C" Type_t* make_type(DataTypes_t, Type_t*);
 
-void ensure_semantic(Module_t *m);
+void ensure_semantic(Module_t *);
 
 #endif

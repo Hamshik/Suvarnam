@@ -20,6 +20,63 @@ int yyparse();
 
 extern ASTNode_t *root;
 
+typedef struct {
+  bool always_return;
+  bool always_fallthrough;
+} ReturnInfo;
+
+static ReturnInfo analyze_returns(ASTNode_t *n) {
+  if (!n) return (ReturnInfo){false, true};
+
+  switch (n->kind) {
+  case AST_RETURN:
+    return (ReturnInfo){true, false};
+
+  case AST_SEQ: {
+    ReturnInfo left = analyze_returns(n->seq.a);
+    if (left.always_return)
+      return (ReturnInfo){true, false};
+    ReturnInfo right = analyze_returns(n->seq.b);
+    return (ReturnInfo){
+      left.always_fallthrough && right.always_return,
+      left.always_fallthrough && right.always_fallthrough
+    };
+  }
+
+  case AST_IF: {
+    ReturnInfo then_info = analyze_returns(n->ifnode.then_branch);
+    if(*n->ifnode.cond->literal.raw == 't')
+      return (ReturnInfo){true, true};
+    if (!n->ifnode.else_branch)
+      return (ReturnInfo){false, true};
+    ReturnInfo else_info = analyze_returns(n->ifnode.else_branch);
+    return (ReturnInfo){
+      *n->ifnode.cond->literal.raw == 'f' ?
+      else_info.always_return : then_info.always_return && else_info.always_return,
+      then_info.always_fallthrough && else_info.always_fallthrough
+    };
+  }
+
+  case AST_WHILE:
+  case AST_FOR:
+    return (ReturnInfo){false, true};
+
+  case AST_BREAK:
+  case AST_CONTINUE:
+    return (ReturnInfo){false, false};
+
+  case AST_BLOCK:
+    return analyze_returns(n->block.block);
+
+  default:
+    return (ReturnInfo){false, true};
+  }
+}
+
+bool fn_always_returns(ASTNode_t *body) {
+  return analyze_returns(body).always_return;
+}
+
 ASTNode_t* parse_file(FILE *f) {
     ASTNode_t *old_root = root;   // save current AST
 
@@ -74,7 +131,7 @@ void register_global_var_and_fn(ASTNode_t *n) {
     // Build the signature representation and save it to the symbol registry
     FnSymbol_t *f = (FnSymbol_t *)malloc(sizeof(FnSymbol_t));
     f->name = strdup(fn_name);
-    f->ret = n->fn_def.ret; // e.g., I32, VOID, PTR
+    f->ret = n->type; // e.g., I32, VOID, PTR
     f->param_count = n->fn_def.param_count;
 
     // Transfer parameter types to symbol record
@@ -85,7 +142,7 @@ void register_global_var_and_fn(ASTNode_t *n) {
     }
 
     // Push into the global functional index map
-    SV_semantic_fn_declare(f->name, f->params, f->param_count, f->ret);
+    SV_semantic_fn_declare(n);
   }
 
   if (n->kind == AST_ASSIGN && n->assign.is_declaration) {

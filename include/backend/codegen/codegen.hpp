@@ -19,7 +19,7 @@ extern file_t* file;
  #ifdef __cplusplus
 }
 
-int codegen(HIRNode *root, const char *ll_path, char **ir_out);
+int codegen(HIRNode *, const char *, char **);
 enum class Utf8Error {
   None = 0,
   Empty,         // ''
@@ -46,53 +46,39 @@ using namespace SV;
 using argvec = std::vector<llvm::Value *>;
 struct RangeScalars { llvm::Value *start, *end, *step; };
 
-bool is_unsigned_dtype(DataTypes_t t);
-bool is_float_dtype(DataTypes_t t);
-Type *ir_type(DataTypes_t t, LLVMContext &ctx);
-Function *get_or_create_prototype(HIRNode *fn_ast, Module &mod,
-                                  LLVMContext &ctx);
-void emit_function(HIRNode *fn_ast, Module &mod, LLVMContext &ctx);
-void emit_global(HIRNode *n, Module &mod, LLVMContext &ctx);
+bool is_unsigned_dtype(DataTypes_t);
+bool is_float_dtype(DataTypes_t);
+Type *ir_type(DataTypes_t, LLVMContext &);
+Function *get_or_create_prototype(HIRNode *, Module &, LLVMContext &);
+void emit_function(HIRNode *, Module &, LLVMContext &);
+void emit_global(HIRNode *, Module &, LLVMContext &);
 
-llvm::Value *emit_expr(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
-                       IRBuilder<> &entryBuilder, Codegen::Scope &locals);
-AllocaInst *get_or_create_alloca(const std::string &name, DataTypes_t t,
-                                 LLVMContext &ctx, IRBuilder<> &entryBuilder,
-                                 Codegen::Scope &locals);
+llvm::Value *emit_expr(HIRNode *, LLVMContext &, IRBuilder<> &, IRBuilder<> &, Codegen::Scope &);
+AllocaInst *get_or_create_alloca(const std::string &, DataTypes_t, LLVMContext &, IRBuilder<> &, Codegen::Scope &);
 
-llvm::Value *emit_number(HIRNode *n, LLVMContext &ctx);
-llvm::Value *emit_expr(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
-                       IRBuilder<> &entryBuilder, Codegen::Scope &locals);
-llvm::Value *emit_forloops(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
-                           IRBuilder<> &entryBuilder, Codegen::Scope &locals);
-llvm::Value *emit_whileloop(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
-                            IRBuilder<> &entryBuilder, Codegen::Scope &locals);
-llvm::Value *emit_binop(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
-                        IRBuilder<> &entryBuilder, Codegen::Scope &locals);
-llvm::Value *emit_unop(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
-                       IRBuilder<> &entryBuilder, Codegen::Scope &locals);
-llvm::Value *emit_assing(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
-                         IRBuilder<> &entryBuilder, Codegen::Scope &locals);
-llvm::Value *emit_call(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
-                       IRBuilder<> &entryBuilder, Codegen::Scope &locals);
-llvm::Value *emit_if(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
-                     IRBuilder<> &entryBuilder, Codegen::Scope &locals);
+llvm::Value *emit_number(HIRNode *, LLVMContext &);
+llvm::Value *emit_expr(HIRNode *, LLVMContext &, IRBuilder<> &, IRBuilder<> &, Codegen::Scope &);
+llvm::Value *emit_forloops(HIRNode *, LLVMContext &, IRBuilder<> &, IRBuilder<> &, Codegen::Scope &);
+llvm::Value *emit_whileloop(HIRNode *, LLVMContext &, IRBuilder<> &, IRBuilder<> &, Codegen::Scope &);
+llvm::Value *emit_binop(HIRNode *, LLVMContext &, IRBuilder<> &, IRBuilder<> &, Codegen::Scope &);
+llvm::Value *emit_unop(HIRNode *, LLVMContext &, IRBuilder<> &, IRBuilder<> &, Codegen::Scope &);
+llvm::Value *emit_assing(HIRNode *, LLVMContext &, IRBuilder<> &, IRBuilder<> &, Codegen::Scope &);
+llvm::Value *emit_call(HIRNode *, LLVMContext &, IRBuilder<> &, IRBuilder<> &, Codegen::Scope &);
+llvm::Value *emit_if(HIRNode *, LLVMContext &, IRBuilder<> &, IRBuilder<> &, Codegen::Scope &);
 
-__int128 parse_i128(const char *s, int *ok);
-__int128 parse_i128(const char *s, int *ok);
+__int128 parse_i128(const char *, int *);
+__int128 parse_i128(const char *, int *);
 
-bool blockTerminated(IRBuilder<> &b);
-uint32_t decode_utf8(const char *raw_ptr, size_t raw_len, size_t *byte_len,
-                     Utf8Error *error);
+bool blockTerminated(IRBuilder<> &);
+uint32_t decode_utf8(const char *, size_t, size_t *, Utf8Error *);
 
-llvm::Value* generateList(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b, IRBuilder<> &entryBuilder, Codegen::Scope &locals);
-Value *generateListAccess(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b, IRBuilder<> &entryBuilder, Codegen::Scope &locals);
-Value *generateListElementPtr(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b, IRBuilder<> &entryBuilder, Codegen::Scope &locals);
-char* SV_concat(const char *a, const char *b);
-Value *to_i8_ptr(Value *v, IRBuilder<> &b) ;
-Value *emit_char_to_string(Value *ch, LLVMContext &ctx, IRBuilder<> &b);
-Value *emit_char(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b);
-Value *emit_strs(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b);
-llvm::Value* emit_range(HIRNode *n, llvm::LLVMContext &ctx, llvm::IRBuilder<> &b,
-                           llvm::IRBuilder<> &entryBuilder, Codegen::Scope &locals);
+llvm::Value *generateList(HIRNode *, LLVMContext &, IRBuilder<> &, IRBuilder<> &, Codegen::Scope &);
+Value *generateListAccess(HIRNode *, LLVMContext &, IRBuilder<> &, IRBuilder<> &, Codegen::Scope &);
+Value *generateListElementPtr(HIRNode *, LLVMContext &, IRBuilder<> &, IRBuilder<> &, Codegen::Scope &);
+char *SV_concat(const char *, const char *);
+Value *to_i8_ptr(Value *, IRBuilder<> &);
+Value *emit_char_to_string(Value *, LLVMContext &, IRBuilder<> &);
+Value *emit_char(HIRNode *, LLVMContext &, IRBuilder<> &);
+Value *emit_strs(HIRNode *, LLVMContext &, IRBuilder<> &);
+llvm::Value *emit_range(HIRNode *, llvm::LLVMContext &, llvm::IRBuilder<> &, llvm::IRBuilder<> &, Codegen::Scope &);
 #endif

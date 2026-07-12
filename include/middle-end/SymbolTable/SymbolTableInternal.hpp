@@ -2,6 +2,7 @@
 #define TACA_SYMBOL_TABLE_INTERNAL_HPP
 
 #include "SymbolTable.hpp"
+#include "shared/nodes.h"
 #include "shared/structs.h"
 #include <llvm-22/llvm/IR/Value.h>
 #include <string>
@@ -29,16 +30,16 @@ namespace  SV::runtime_symbol_table {
 void env_push();
 void env_pop();
 void env_clear_all();
-void env_set(const char *name,  SV_Value *val, Type_t* type);
-void env_set_current(const char *name,  SV_Value *val, Type_t* type);
- SV_Value env_get(const char *name, Type_t* datatype, SV_Location loc);
-TypedValue *env_get_ref(const char *name, SV_Location loc);
-int env_frame_id_of(const char *name, SV_Location loc);
-TypedValue *env_get_ref_at(int frame_id, const char *name, SV_Location loc);
-void env_set_at(int frame_id, const char *name,  SV_Value *val, Type_t* type, SV_Location loc);
+void env_set(const char *, SV_Value *, Type_t *);
+void env_set_current(const char *, SV_Value *, Type_t *);
+SV_Value env_get(const char *, Type_t *, SV_Location);
+TypedValue *env_get_ref(const char *, SV_Location);
+int env_frame_id_of(const char *, SV_Location);
+TypedValue *env_get_ref_at(int, const char *, SV_Location);
+void env_set_at(int, const char *, SV_Value *, Type_t *, SV_Location);
 
-bool fn_register(ASTNode_t *fn);
-ASTNode_t *fn_lookup(const char *name);
+bool fn_register(ASTNode_t *);
+ASTNode_t *fn_lookup(const char *);
 void fn_clear();
 
 } // namespace  SV::runtime_symbol_table
@@ -46,22 +47,22 @@ void fn_clear();
 
 namespace  SV::semantic_symbol_table {
 
-Type_t* lookup(const char *name);
-bool declare(const char *name, bool *isglobal,Type_t* type, ASTNode_t* node, bool is_mutable);
-exitcode_t exists(const char *name, Type_t* type);
-exitcode_t assign_check(const char *name, bool isglobal, DataTypes_t rhs_type, DataTypes_t rhs_sub_type);
-bool is_mutable(const char *name);
+Type_t *lookup(const char *);
+bool declare(const char *, bool *, Type_t *, ASTNode_t *, bool);
+exitcode_t exists(const char *, Type_t *);
+exitcode_t assign_check(const char *, bool, DataTypes_t, DataTypes_t);
+bool is_mutable(const char *);
 void scope_push();
 void scope_pop();
 void clear_symbols();
-bool fn_declare(const char *name, Param_t *params, int param_count, Type_t* ret);
-FnSymbol_t *fn_lookup(const char *name);
+bool fn_declare(ASTNode_t *);
+FnSymbol_t *fn_lookup(const char *);
 void clear_fns();
-DataTypes_t update_datatype(const char *name, DataTypes_t want);
-Module_t *get_module(const char *path);
-Module_t *load_module(const char *path, bool &already_imported);
-extern "C" SemanticSymbolRecord *semantic_find_symbol(const char *name);
-extern "C" SemanticSymbolRecord *semantic_find_global_symbol(const char *name);
+DataTypes_t update_datatype(const char *, DataTypes_t);
+Module_t *get_module(const char *);
+Module_t *load_module(const char *, bool &);
+extern "C" SemanticSymbolRecord *semantic_find_symbol(const char *);
+extern "C" SemanticSymbolRecord *semantic_find_global_symbol(const char *);
 
 } // namespace  SV::semantic_symbol_table
 

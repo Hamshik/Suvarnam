@@ -10,8 +10,7 @@
 #include "utils/error_handler/error.h"
 
 extern Type_t* g_current_fn_ret_type;
-Type_t* fn_ret = nullptr;
-
+char* fn_name = nullptr;
 
 /**
  * Unified structure to hold function signature information
@@ -46,10 +45,25 @@ static ResolvedSig get_call_sig(const char* name) {
   return sig;
 }
 
+static void update_ret_type(const char *fn_name, Type_t *rt) {
+  if (!fn_name || !rt)
+    return;
+
+  FnSymbol_t *fn = SV_semantic_fn_lookup(fn_name);
+  if (!fn)
+    return;
+
+  fn->ret = rt;
+  fn->node_ptr->type = rt;
+
+  if (g_current_fn_ret_type && g_current_fn_ret_type->base == UNKNOWN) 
+    g_current_fn_ret_type = rt;
+
+}
+
 Type_t* handle_fn(ASTNode_t *n) {
-  if (n->fn_def.name && strcmp(n->fn_def.name, "main") == 0)
-    n->fn_def.ret = make_type(I32, nullptr);
   
+  fn_name = n->fn_def.name;
 
   SV_semantic_scope_push();
   for (int i = 0; i < n->fn_def.param_count; i++) {
@@ -64,10 +78,25 @@ Type_t* handle_fn(ASTNode_t *n) {
   DataTypes_t saved_g_fn_ret = g_fn_ret; // Save old g_fn_ret
   Type_t* saved_current_fn_ret_type = g_current_fn_ret_type; // Save old g_current_fn_ret_type
   int saved_in_fn = g_in_fn;
-  g_fn_ret = n->fn_def.ret ? n->fn_def.ret->base : UNKNOWN; // Still set base type for compatibility
-  g_current_fn_ret_type = n->fn_def.ret; // Set the full return type
+  g_fn_ret = n->type ? n->type->base : UNKNOWN; // Still set base type for compatibility
+  g_current_fn_ret_type = n->type; // Set the full return type
   g_in_fn = 1;
   check_expr(n->fn_def.body);
+
+  bool isret = fn_always_returns(n->fn_def.body);
+
+  // After semantic-checking the body, ensure that a non-void function returns on all paths.
+  if (g_current_fn_ret_type && g_current_fn_ret_type->base != VOID) {
+    if (!isret) {
+      panic(n->loc, SEM_RETURN_TYPE_MISMATCH,
+            "Function declared to return a value, but not all paths return.");
+    }
+  } else if (n->type && !isret && n->type->base != VOID){
+    panic(n->loc, SEM_RETURN_TYPE_MISMATCH,
+      "Function declared to return a value, but not all paths return.");
+
+  }
+
   g_fn_ret = saved_g_fn_ret; // Restore old g_fn_ret
   g_current_fn_ret_type = saved_current_fn_ret_type; // Restore old g_current_fn_ret_type
   g_in_fn = saved_in_fn;
@@ -182,8 +211,9 @@ Type_t* ret(ASTNode_t *n) {
   // Check the type of the return expression, passing the expected return type for inference
   Type_t* rt = check_expr(n->ret_stmt.value, g_current_fn_ret_type);
   
-  if(g_fn_ret == UNKNOWN)
-    g_current_fn_ret_type = rt;
+  if(g_fn_ret == UNKNOWN){
+    update_ret_type(fn_name, rt);
+  }
 
   // Handle potential null from check_expr (error already reported)
   if (!rt) {
@@ -194,6 +224,7 @@ Type_t* ret(ASTNode_t *n) {
   if (g_current_fn_ret_type && !types_are_equal(rt, g_current_fn_ret_type)) {
     panic( n->loc, SEM_RETURN_TYPE_MISMATCH, "Return expression type does not match function return type.");
     return nullptr;
-    }
+  }
+  fn_name = nullptr;
   return rt;
 }

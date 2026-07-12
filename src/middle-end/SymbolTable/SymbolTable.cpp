@@ -77,8 +77,8 @@ void SV_semantic_clear_symbols(void) {
  SV::semantic_symbol_table::clear_symbols();
 }
 
-bool SV_semantic_fn_declare(const char *name, Param_t *params, int param_count, Type_t* ret) {
-  return  SV::semantic_symbol_table::fn_declare(name, params, param_count, ret);
+bool SV_semantic_fn_declare(ASTNode_t* node_ptr) {
+  return  SV::semantic_symbol_table::fn_declare(node_ptr);
 }
 
 FnSymbol_t *  SV_semantic_fn_lookup(const char *name) {

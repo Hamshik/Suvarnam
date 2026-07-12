@@ -1,0 +1,11 @@
+
+fn main() {
+    var mut x = 10;
+    var y = &x;
+    var z = &mut x;
+    printf("a + b: %d\n", add(y, z));
+}
+
+fn add(var i32& a, var i32& b) {
+    return *a + *b;
+}

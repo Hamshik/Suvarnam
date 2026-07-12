@@ -1,5 +1,6 @@
 #include "SymbolTable/SymbolTableInternal.hpp"
 #include "semantic/semantic.hpp"
+#include "shared/nodes.h"
 #include "shared/structs.h"
 #include "utils/error_handler/error.h"
 
@@ -150,7 +151,8 @@ void scope_pop() {
 
 void clear_symbols() { semantic_scope_top()->symbols.clear(); }
 
-bool fn_declare(const char *name, Param_t *params, int param_count, Type_t* ret) {
+bool fn_declare(ASTNode_t* node_ptr) {
+  char* name = node_ptr->fn_def.name;
   if (g_semantic_functions.find(name) != g_semantic_functions.end()) {
     return false;
   }
@@ -164,10 +166,11 @@ bool fn_declare(const char *name, Param_t *params, int param_count, Type_t* ret)
   if (!fn->name) {
     die_allocation("strdup");
   }
-  fn->params = params;
-  fn->param_count = param_count;
-  fn->ret = ret;
+  fn->params = node_ptr->fn_def.params;
+  fn->param_count = node_ptr->fn_def.param_count;
+  fn->ret = node_ptr->type;
   fn->isReturned = false;
+  fn->node_ptr = node_ptr;
 
   g_semantic_functions.emplace(name, std::move(fn));
   return true;

@@ -54,23 +54,23 @@
 #include <math.h>
 #include "SymbolTable/SymbolTable.hpp"
 
-TypedValue ast_eval(ASTNode_t *node);
-TypedValue ast_eval_main(ASTNode_t *root);
+TypedValue ast_eval(ASTNode_t *);
+TypedValue ast_eval_main(ASTNode_t *);
 
-char* do_operation_str(const char* a, const char* b, OP_kind_t op);
-  SV_Value eval_bool(OP_kind_t op, DataTypes_t type ,  SV_Value a, SV_Value b);
-void do_unop_operation(  SV_Value *result, SV_Value *operand,DataTypes_t datatype,OP_kind_t op);
-  SV_Value eval_binop_double(OP_kind_t op, double a, double b);
-  SV_Value eval_binop_float(OP_kind_t op, float a, float b);
-  SV_Value eval_binop_int(OP_kind_t op, bool isShort, int a, int b);
-OP_kind_t get_assign_op(OP_kind_t op);
-bool isBoolOP(OP_kind_t op);
+char *do_operation_str(const char *, const char *, OP_kind_t);
+SV_Value eval_bool(OP_kind_t, DataTypes_t, SV_Value, SV_Value);
+void do_unop_operation(SV_Value *, SV_Value *, DataTypes_t, OP_kind_t);
+SV_Value eval_binop_double(OP_kind_t, double, double);
+SV_Value eval_binop_float(OP_kind_t, float, float);
+SV_Value eval_binop_int(OP_kind_t, bool, int, int);
+OP_kind_t get_assign_op(OP_kind_t);
+bool isBoolOP(OP_kind_t);
 
-  SV_Value default_step(DataTypes_t type);
-bool step_is_positive(DataTypes_t type, SV_Value step);
-bool step_is_zero(DataTypes_t type, SV_Value step);
-bool should_continue_for(DataTypes_t type, SV_Value cur, SV_Value end, SV_Value step);
-  SV_Value add_step_for(DataTypes_t type, SV_Value cur, SV_Value step);
+SV_Value default_step(DataTypes_t);
+bool step_is_positive(DataTypes_t, SV_Value);
+bool step_is_zero(DataTypes_t, SV_Value);
+bool should_continue_for(DataTypes_t, SV_Value, SV_Value, SV_Value);
+SV_Value add_step_for(DataTypes_t, SV_Value, SV_Value);
 
 /* Numeric helpers (runtime) */
 DataTypes_t SV_promote_runtime(DataTypes_t a, DataTypes_t b);

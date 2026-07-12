@@ -9,18 +9,18 @@ extern "C" {
 #include <stddef.h>
 #include "shared/structs.h"
 
-const char *errc_msg(errc_t code);
-const char *warnc_msg(warnc_t code);
+const char *errc_msg(errc_t);
+const char *warnc_msg(warnc_t);
 
-char *logf_msg(const char *fmt, ...);
-int digits_int(int v);
-int starts_with(const char *s, const char *prefix);
-char *read_entire_path(FILE *file, size_t *out_len);
+char *logf_msg(const char *, ...);
+int digits_int(int);
+int starts_with(const char *, const char *);
+char *read_entire_path(FILE *, size_t *);
 
-void panic(SV_Location loc, errc_t code, const char *detail);
-void warn(SV_Location loc, warnc_t code, const char *detail);
-void syserr(const char *context);
-void syswarn(const char *context);
+void panic(SV_Location, errc_t, const char *);
+void warn(SV_Location, warnc_t, const char *);
+void syserr(const char *);
+void syswarn(const char *);
 
 #ifdef __cplusplus
 }

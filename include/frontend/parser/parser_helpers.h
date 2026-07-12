@@ -46,13 +46,13 @@ static const char *g_last_parse_err_msg = NULL;
 
 extern file_t* file;
 
-void SV_annotate_decl_list(ASTNode_t *n, DataTypes_t default_t, DataTypes_t default_sub_type, bool is_mutable);
+void SV_annotate_decl_list(ASTNode_t *, DataTypes_t, DataTypes_t, bool);
 
 /* ----------------- external function declaration --------------------------*/
 
-void panic(SV_Location loc, errc_t code, const char *detail);
-void warn(file_t *file, SV_Location loc, warnc_t code, const char *detail);
-unsigned __int128 SV_parse_u128(const char *s, int *ok);
+void panic(SV_Location, errc_t, const char *);
+void warn(file_t *, SV_Location, warnc_t, const char *);
+unsigned __int128 SV_parse_u128(const char *, int *);
 
 #ifdef __cplusplus
 }

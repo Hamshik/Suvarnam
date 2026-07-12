@@ -12,7 +12,7 @@
             // Use this command to let CMake find your binary automatically
             "program": "${command:cmake.launchTargetPath}", 
             "args": [
-                "${workspaceFolder}/source/test.tq",
+                "${workspaceFolder}/test/test.tq",
                 "-o",
                 "${workspaceFolder}/output/test",
                 "--emit-ir",
