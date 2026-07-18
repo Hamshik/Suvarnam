@@ -91,7 +91,8 @@ typedef struct {
 } TypedValue;
 typedef struct Param {
     char *name;
-    Type_t* type; 
+    Type_t* type;
+    bool is_variadic;
 } Param_t;
 
 #include "nodes.h"

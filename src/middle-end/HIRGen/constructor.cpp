@@ -120,9 +120,11 @@ HIRNode *HIRGenerator::create_block(std::vector<HIRNode *> *statements) {
 
 // Helper: Lower a function definition/declaration
 HIRNode *HIRGenerator::create_fn_definition(ASTNode_t *node) {
-  if(strcmp(node->fn_def.name, "main") == 0 && !node->type || !is_numeric(node->type->base))
+  if (strcmp(node->fn_def.name, "main") == 0 &&
+      (!node->type || !is_numeric(node->type->base))) {
     panic(node->loc, SEM_RETURN_TYPE_MISMATCH,
-     "main requires return stmt or mumeric return datatype");
+          "main requires return stmt or mumeric return datatype");
+  }
   // Create the specific Function node
   HIRNode *fn_node = new HIRNode(ASTKind::AST_FN);
 
@@ -136,12 +138,27 @@ HIRNode *HIRGenerator::create_fn_definition(ASTNode_t *node) {
   fn_node->fn.param_count = node->fn_def.param_count;
   fn_node->loc = node->loc;
 
+  current_params.clear();
+
   // 1. Flatten Parameters: Convert frontend array to mid-end vector
   for (int i = 0; i < node->fn_def.param_count; i++) {
     Param_t* p = new Param_t();
     p->name = strdup(node->fn_def.params[i].name);
     p->type = node->fn_def.params[i].type;
-    fn_node->fn.params->push_back(p);
+    p->is_variadic = node->fn_def.params[i].is_variadic;
+    current_params.insert(p->name);
+    if (p->is_variadic && p->type && p->type->base == LIST) {
+      p->type->size = 0;
+      auto int_arg = new Param_t();
+      int_arg->type = make_type(I64, nullptr);
+      std::string count_name = std::string(p->name) + "\003_count";
+      int_arg->name = strdup(count_name.c_str()); 
+      current_params.insert(count_name);
+      fn_node->fn.params->push_back(p);
+      fn_node->fn.params->push_back(int_arg);
+    } else {
+      fn_node->fn.params->push_back(p);
+    }
   }
 
   // 2. Flatten Body: Transform recursive AST_SEQ into a linear vector

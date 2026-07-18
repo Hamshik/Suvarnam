@@ -6,6 +6,7 @@ typedef struct ASTNode {
 
     Type_t* type;
     bool isglobal;
+    bool is_variadic;
     
     bool ismut;
     SV_Location loc; /* 0-based byte offset (start) */ /* 0-based byte offset (end) */ 

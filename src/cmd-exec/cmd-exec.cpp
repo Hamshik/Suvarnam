@@ -114,6 +114,7 @@ extern "C" bool setup_input_file(const Options *opts, file_t *file) {
 }
 
 /* Compile and execute the AST */
+
 extern "C" int compile_and_execute(ASTNode_t *root, const Options *opts) {
     error_fatal = false; /* collect semantic errors like Rust */
     semantic_check(root);

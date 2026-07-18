@@ -47,7 +47,7 @@
 %token AMP PIPE BITXOR BITNOT
 %token LPAREN RPAREN LBRACE RBRACE SEMICOLON LSQUARE RSQUARE COLON
 %token ASSIGN PLUS_ASSIGN MINUS_ASSIGN STAR_ASSIGN SLASH_ASSIGN MOD_ASSIGN POWER_ASSIGN
-%token LSHIFT_ASSIGN RSHIFT_ASSIGN IN COMMA DOT_DOT 
+%token LSHIFT_ASSIGN RSHIFT_ASSIGN IN COMMA DOT_DOT ELLIPSIS
 %token AND OR NOT EQ NEQ LT LE GT GE AT
 %token IF ELSE FOR WHILE MUT VAR FN RETURN IMPORT CONTINUE BREAK
 
@@ -55,7 +55,7 @@
 %token <node> IDENTIFIER NUMBER STRING_LITERAL BOOL_LITERAL CHAR_LITERAL
 
 %type <node>  top_level_stmts block if_stmt for_stmt while_stmt import_stmt expr_stmts call_stmt
-%type <node> fn_def param return_stmt opt_args args list_stmt expr_stmt top_level_stmt index_stmt fn_block_t
+%type <node> fn_def param param_tail return_stmt opt_args args list_stmt expr_stmt top_level_stmt index_stmt fn_block_t
 %type <node> lvalue import_list expr assignment program range
 %type <paramlist> opt_params params
 %type <type> recursive_type
@@ -241,7 +241,8 @@ params:
         $$.count = 1;
         $$.params = calloc(1, sizeof(Param_t));
         $$.params[0].name = strdup($p->var);
-        $$.params[0].type = $p->type; 
+        $$.params[0].type = $p->type;
+        $$.params[0].is_variadic = $p->is_variadic;
         ast_free($p);
     }
   | param[p] COMMA params[plist] {
@@ -249,6 +250,7 @@ params:
         $$.params = calloc((size_t)$$.count, sizeof(Param_t));
         $$.params[0].name = strdup($p->var);
         $$.params[0].type = $p->type;
+        $$.params[0].is_variadic = $p->is_variadic;
         ast_free($p);
         for (int i = 0; i < $plist.count; i++) $$.params[i + 1] = $plist.params[i];
         free($plist.params);
@@ -279,17 +281,34 @@ recursive_type:
 ;
 
 param:
-    VAR MUT recursive_type[t] IDENTIFIER[id] {
-        $id->type = $t; 
+    VAR MUT recursive_type[t] param_tail[id] {
+        $id->type = $id->is_variadic ? make_type(LIST, $t) : $t;
         $id->type->ismut = true;
         $id->ismut = true;
-        $$ = $id; 
+        $$ = $id;
     }
-    | VAR recursive_type[t] IDENTIFIER[id] {
-        $id->type = $t; 
+    | VAR recursive_type[t] param_tail[id] {
+        $id->type = $id->is_variadic ? make_type(LIST, $t) : $t;
         $id->type->ismut = false;
         $id->ismut = false;
-        $$ = $id; 
+        $$ = $id;
+    }
+    | recursive_type[t] param_tail[id] {
+        $id->type = $id->is_variadic ? make_type(LIST, $t) : $t;
+        $id->type->ismut = false;
+        $id->ismut = false;
+        $$ = $id;
+    }
+;
+
+param_tail:
+    IDENTIFIER[id] {
+        $id->is_variadic = false;
+        $$ = $id;
+    }
+    | ELLIPSIS IDENTIFIER[id] {
+        $id->is_variadic = true;
+        $$ = $id;
     }
 ;
 

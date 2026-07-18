@@ -137,24 +137,59 @@ Type_t* call(ASTNode_t *n) {
       it = NULL;
   }
 
-  if (argc != sig.param_count)
+  FnSymbol_t *f = SV_semantic_fn_lookup(n->call.name);
+  BuiltinFunction* b = BuiltinRegistry::instance().lookup(n->call.name);
+
+  bool is_variadic_builtin = false;
+  bool has_variadic_user_param = false;
+  size_t fixed_user_param_count = 0;
+  if (b) {
+    for (auto *param_type : b->param_types) {
+      if (param_type && param_type->base == UNKNOWN) {
+        is_variadic_builtin = true;
+        break;
+      }
+    }
+  }
+  if (f) {
+    for (int i = 0; i < f->param_count; ++i) {
+      if (f->params[i].is_variadic) {
+        has_variadic_user_param = true;
+        break;
+      }
+      ++fixed_user_param_count;
+    }
+  }
+
+  size_t expected_param_count = sig.param_count;
+  if (is_variadic_builtin) {
+    expected_param_count = (size_t)argc;
+  } else if (has_variadic_user_param) {
+    expected_param_count = std::max((size_t)argc, fixed_user_param_count);
+  }
+
+  if (argc < (int)fixed_user_param_count || (sig.param_count > 0 && argc != sig.param_count && !is_variadic_builtin && !has_variadic_user_param))
     panic( n->loc, SEM_ARGC_MISMATCH, n->call.name);
 
   // walk args in the same order as we built them (left then seq.b chain)
   ASTNode_t *arg = n->call.args;
-  int param_count = sig.param_count;
-
-  // We re-lookup FnSymbol if it exists just to get access to the params array 
-  // because our struct uses Type_t** which is hard to map from FnSymbol_t's param struct.
-  FnSymbol_t *f = SV_semantic_fn_lookup(n->call.name);
-  BuiltinFunction* b = BuiltinRegistry::instance().lookup(n->call.name);
+  int param_count = (int)expected_param_count;
 
   for (int i = 0; i < param_count; i++) {
     ASTNode_t *cur = arg ? (arg->kind == AST_SEQ ? arg->seq.a : arg) : NULL;
 
     Type_t *want = nullptr;
-    if (f && i < f->param_count) want = f->params[i].type;
-    else if (b && i < (int)b->param_types.size()) want = b->param_types[i];
+    if (f && i < f->param_count) {
+      want = f->params[i].type;
+    } else if (b && i < (int)b->param_types.size()) {
+      want = b->param_types[i];
+    }
+
+    if (has_variadic_user_param && i >= fixed_user_param_count) {
+      want = f->params[fixed_user_param_count].type->inner;
+    } else if (is_variadic_builtin && i >= (int)b->param_types.size() - 1) {
+      want = b->param_types.back();
+    }
 
     // Pass 'want' as a type hint to allow list literals to inherit their type
     if (want && want->base != UNKNOWN && is_numeric(want->base))

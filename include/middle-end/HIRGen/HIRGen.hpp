@@ -3,7 +3,10 @@
 #include "shared/HIRNode.hpp"
 #include "shared/enums.h"
 #include "shared/structs.h"
+
+#include <unordered_set>
 #include <string>
+
 #define assign_cases(assign_op, bin_op)                     \
     case OP_kind::assign_op:                               \
         node->assign.value = create_binary_op(             \
@@ -18,6 +21,9 @@ class HIRGenerator {
     // Accumulates side-effect statements synthesized during nested expression lowering
     std::vector<HIRNode*> side_effect_buffer;
     size_t temporary_variable_counter = 0;
+    std::unordered_set<std::string> current_params;
+
+    bool is_param(const std::string& name) const;
   
   HIRNode *create_fn_definition(ASTNode_t *);
   HIRNode *create_declaration(const char *, HIRNode *, Type_t *);

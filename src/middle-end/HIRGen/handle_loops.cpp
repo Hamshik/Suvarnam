@@ -133,8 +133,8 @@ HIRNode *HIRGenerator::emit_MAST_for_loop(ASTNode_t *node) {
   HIRNode *iterable_expr = generate(iterable);
 
   static int loop_counter = 0;
-  std::string idx_var_str = "__idx__" + std::to_string(loop_counter);
-  std::string arr_var_str = "__arr__" + std::to_string(loop_counter++);
+  std::string idx_var_str = "\003__idx__" + std::to_string(loop_counter);
+  std::string arr_var_str = "\003__arr__" + std::to_string(loop_counter++);
 
   const char *idx_var_name = strdup(idx_var_str.c_str());
   const char *arr_var_name = strdup(arr_var_str.c_str());
@@ -147,6 +147,8 @@ HIRNode *HIRGenerator::emit_MAST_for_loop(ASTNode_t *node) {
   // 🎯 THE FIX: PRE-DECLARE ALL VARIABLES FIRST
   // ==========================================
 
+  bool iterable_is_param = (iterable->kind == AST_VAR && is_param(iterable->var) && is_param(std::string(iterable->var) + "\003_count"));
+
   // Explicitly declare 'j' at the absolute top of the scope block
   HIRNode *iterator_decl = new HIRNode(ASTKind::AST_ASSIGN);
   iterator_decl->assign.is_declaration = true;
@@ -154,11 +156,24 @@ HIRNode *HIRGenerator::emit_MAST_for_loop(ASTNode_t *node) {
   iterator_decl->assign.target->name = strdup(iterator_name);
   iterator_decl->assign.target->type = element_type;
   iterator_decl->assign.is_declaration = true; // FORCE declaration status!
-  iterator_decl->assign.value = create_literal(
-      (SV_Value){0}, element_type); // Default zero initialization
+  iterator_decl->assign.value = create_literal((SV_Value){0}, element_type);
   iterator_decl->type = element_type;
   iterator_decl->loc = node->loc;
   root_block->block_stmts->push_back(iterator_decl);
+
+  if (iterable_is_param) {
+    HIRNode *arr_count_target = new HIRNode(ASTKind::AST_VAR);
+    arr_count_target->name = strdup((arr_var_str + "\003_count").c_str());
+    arr_count_target->type = int_type;
+
+    HIRNode *param_count_var = new HIRNode(ASTKind::AST_VAR);
+    param_count_var->name = strdup((std::string(iterable->var) + "\003_count").c_str());
+    param_count_var->type = int_type;
+
+    HIRNode *count_assign = create_assignment(arr_count_target, param_count_var, OP_kind::OP_ASSIGN, true);
+    count_assign->loc = node->loc;
+    root_block->block_stmts->push_back(count_assign);
+  }
 
   HIRNode *arr_target = new HIRNode(ASTKind::AST_VAR);
   arr_target->name = strdup(arr_var_name);
@@ -166,7 +181,7 @@ HIRNode *HIRGenerator::emit_MAST_for_loop(ASTNode_t *node) {
 
   // Cache the iterable reference: __arr__0 = iterable
   HIRNode *arr_assign =
-      create_assignment(arr_target, iterable_expr, OP_kind::OP_ASSIGN, true);
+  create_assignment(arr_target, iterable_expr, OP_kind::OP_ASSIGN, true);
   arr_assign->loc = node->loc;
   root_block->block_stmts->push_back(arr_assign);
 
@@ -192,10 +207,17 @@ HIRNode *HIRGenerator::emit_MAST_for_loop(ASTNode_t *node) {
   idx_id_cond->name = strdup(idx_var_name);
   idx_id_cond->type = int_type;
 
-  HIRNode *len_lit = create_literal(
-      (SV_Value){.i64 = (int64_t)iterable->type->size}, int_type);
+  HIRNode *limit_node;
+  if (iterable_is_param) {
+    limit_node = new HIRNode(ASTKind::AST_VAR);
+    limit_node->name = strdup((arr_var_str + "\003_count").c_str());
+    limit_node->type = int_type;
+  } else {
+    limit_node = create_literal(
+        (SV_Value){.i64 = (int64_t)iterable->type->size}, int_type);
+  }
   while_node->while_loop.condition =
-      create_binary_op(OP_kind::OP_LT, idx_id_cond, len_lit, int_type);
+      create_binary_op(OP_kind::OP_LT, idx_id_cond, limit_node, int_type);
 
   // ==========================================
   // 3. CONSTRUCT LOOP BODY BASIC BLOCKS

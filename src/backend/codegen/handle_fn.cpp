@@ -69,6 +69,25 @@ void emit_function(HIRNode *fn_ast, Module &mod, LLVMContext &ctx) {
   }
 }
 
+static bool is_variadic_builtin_call(const HIRNode *n) {
+  if (!n || !n->call.target_fn) {
+    return false;
+  }
+
+  BuiltinFunction *builtin = BuiltinRegistry::instance().lookup(n->call.target_fn);
+  if (!builtin) {
+    return false;
+  }
+
+  for (auto *param_type : builtin->param_types) {
+    if (param_type && param_type->base == UNKNOWN) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 llvm::Value *emit_call(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
                        IRBuilder<> &entryBuilder, Codegen::Scope &locals) {
 
@@ -77,6 +96,16 @@ llvm::Value *emit_call(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
   // 🔹 Evaluate arguments
   if (n->call.args) {
     for (HIRNode *arg_node : *n->call.args) {
+      if (is_variadic_builtin_call(n) && arg_node && arg_node->kind == AST_LIST) {
+        for (HIRNode *packed_arg : *arg_node->element.elements) {
+          llvm::Value *v = emit_expr(packed_arg, ctx, b, entryBuilder, locals);
+          if (!v)
+            v = ConstantInt::get(Type::getInt32Ty(ctx), 0);
+          args.push_back(v);
+        }
+        continue;
+      }
+
       llvm::Value *v = emit_expr(arg_node, ctx, b, entryBuilder, locals);
       if (!v)
         v = ConstantInt::get(Type::getInt32Ty(ctx), 0);

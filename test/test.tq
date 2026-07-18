@@ -1,11 +1,17 @@
-
-fn main() {
-    var mut x = 10;
-    var y = &x;
-    var z = &mut x;
-    printf("a + b: %d\n", add(y, z));
+fn void foo(var str... args, var i32... ints) {
+    var str first = args[0];
+    printf("Fist element is....: %s\n",first);
+    for (item in args) {
+        var str copy = item;
+        printf("%s\n", copy);
+    }
+    for (item in ints) {
+        var str copy = item;
+        printf("%d\n", copy);
+    }
 }
 
-fn add(var i32& a, var i32& b) {
-    return *a + *b;
+fn i32 main() {
+    foo("Hamshik", "Shrinith", "Adi");
+    return 0;
 }
