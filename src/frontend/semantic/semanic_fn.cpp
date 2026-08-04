@@ -161,53 +161,182 @@ Type_t* call(ASTNode_t *n) {
     }
   }
 
-  size_t expected_param_count = sig.param_count;
-  if (is_variadic_builtin) {
-    expected_param_count = (size_t)argc;
-  } else if (has_variadic_user_param) {
-    expected_param_count = std::max((size_t)argc, fixed_user_param_count);
-  }
-
-  if (argc < (int)fixed_user_param_count || (sig.param_count > 0 && argc != sig.param_count && !is_variadic_builtin && !has_variadic_user_param))
-    panic( n->loc, SEM_ARGC_MISMATCH, n->call.name);
-
-  // walk args in the same order as we built them (left then seq.b chain)
-  ASTNode_t *arg = n->call.args;
-  int param_count = (int)expected_param_count;
-
-  for (int i = 0; i < param_count; i++) {
-    ASTNode_t *cur = arg ? (arg->kind == AST_SEQ ? arg->seq.a : arg) : NULL;
-
-    Type_t *want = nullptr;
-    if (f && i < f->param_count) {
-      want = f->params[i].type;
-    } else if (b && i < (int)b->param_types.size()) {
-      want = b->param_types[i];
+  // If builtin variadic, keep the old semantics: accept any number of
+  // trailing args. If user-defined variadic parameters exist (possibly
+  // multiple, e.g., `str..., i32...`) we must distribute call-site args
+  // into the declared variadic groups by matching element types.
+  if (!is_variadic_builtin && !has_variadic_user_param) {
+    // Non-variadic: exact arg count must match signature
+    if (argc != (int)sig.param_count) {
+      panic(n->loc, SEM_ARGC_MISMATCH, n->call.name);
+      return nullptr;
     }
 
-    if (has_variadic_user_param && i >= fixed_user_param_count) {
-      want = f->params[fixed_user_param_count].type->inner;
-    } else if (is_variadic_builtin && i >= (int)b->param_types.size() - 1) {
-      want = b->param_types.back();
+    // Simple one-to-one checking
+    ASTNode_t *arg = n->call.args;
+    for (int i = 0; i < sig.param_count; ++i) {
+      ASTNode_t *cur = arg ? (arg->kind == AST_SEQ ? arg->seq.a : arg) : NULL;
+      Type_t *want = nullptr;
+      if (f && i < f->param_count) {
+        want = f->params[i].type;
+      } else if (b && i < (int)b->param_types.size()) {
+        want = b->param_types[i];
+      }
+
+      if (want && want->base != UNKNOWN && is_numeric(want->base))
+        force_numeric_type(cur, want->base);
+
+      Type_t *at = check_expr(cur, want);
+      if (!at) return nullptr;
+      if (at && want && want->base != UNKNOWN && !types_are_equal(at, want)) {
+        panic(n->loc, SEM_ARG_TYPE_MISMATCH, n->call.name);
+        return nullptr;
+      }
+
+      if (arg && arg->kind == AST_SEQ)
+        arg = arg->seq.b;
+      else
+        arg = NULL;
+    }
+  } else if (is_variadic_builtin) {
+    // builtin variadic: compute fixed param count (parameters before UNKNOWN)
+    int fixed_param_count = 0;
+    if (b) {
+      for (auto *pt : b->param_types) {
+        if (!pt || pt->base == UNKNOWN) break;
+        ++fixed_param_count;
+      }
     }
 
-    // Pass 'want' as a type hint to allow list literals to inherit their type
-    if (want && want->base != UNKNOWN && is_numeric(want->base))
-      force_numeric_type(cur, want->base);
-
-    Type_t* at = check_expr(cur, want);
-    
-    if (!at) return nullptr; // Propagate error if check_expr failed
-
-    if (at && want && want->base != UNKNOWN && !types_are_equal(at, want)) {
-      panic( n->loc, SEM_ARG_TYPE_MISMATCH,
-            n->call.name);
+    // check up to fixed params
+    ASTNode_t *arg = n->call.args;
+    for (int i = 0; i < fixed_param_count; ++i) {
+      ASTNode_t *cur = arg ? (arg->kind == AST_SEQ ? arg->seq.a : arg) : NULL;
+      Type_t *want = (b && i < (int)b->param_types.size()) ? b->param_types[i] : nullptr;
+      if (want && want->base != UNKNOWN && is_numeric(want->base))
+        force_numeric_type(cur, want->base);
+      Type_t *at = nullptr;
+      Type_t *want_ref = want;
+      at = check_expr(cur, want_ref);
+      if (!at) return nullptr;
+      if (at && want && want->base != UNKNOWN && !types_are_equal(at, want)) {
+        panic(n->loc, SEM_ARG_TYPE_MISMATCH, n->call.name);
+        return nullptr;
+      }
+      if (arg && arg->kind == AST_SEQ)
+        arg = arg->seq.b;
+      else
+        arg = NULL;
     }
 
-    if (arg && arg->kind == AST_SEQ)
-      arg = arg->seq.b;
-    else
-      arg = NULL;
+    // Remaining args: check against last builtin param type if present
+    Type_t *last_want = b && !b->param_types.empty() ? b->param_types.back() : nullptr;
+    while (arg) {
+      ASTNode_t *cur = (arg->kind == AST_SEQ ? arg->seq.a : arg);
+      if (last_want && last_want->base != UNKNOWN && is_numeric(last_want->base))
+        force_numeric_type(cur, last_want->base);
+      Type_t *at = nullptr;
+      Type_t *want_ref = last_want;
+      at = check_expr(cur, want_ref);
+      if (!at) return nullptr;
+      if (at && last_want && last_want->base != UNKNOWN && !types_are_equal(at, last_want)) {
+        panic(n->loc, SEM_ARG_TYPE_MISMATCH, n->call.name);
+        return nullptr;
+      }
+      if (arg->kind == AST_SEQ)
+        arg = arg->seq.b;
+      else
+        arg = NULL;
+    }
+  } else /* has_variadic_user_param */ {
+    // Build variadic inner type list
+    std::vector<Type_t *> variadic_inner_types;
+    for (int i = fixed_user_param_count; i < f->param_count; ++i) {
+      if (f->params[i].is_variadic) {
+        Type_t *inner = f->params[i].type ? f->params[i].type->inner : nullptr;
+        variadic_inner_types.push_back(inner);
+      }
+    }
+
+    if (argc < (int)fixed_user_param_count) {
+      panic(n->loc, SEM_ARGC_MISMATCH, n->call.name);
+      return nullptr;
+    }
+
+    ASTNode_t *arg = n->call.args;
+    int idx = 0; // argument index
+    // First, check fixed parameters
+    for (int i = 0; i < (int)fixed_user_param_count; ++i, ++idx) {
+      ASTNode_t *cur = arg ? (arg->kind == AST_SEQ ? arg->seq.a : arg) : NULL;
+      Type_t *want = f && i < f->param_count ? f->params[i].type : nullptr;
+      if (want && want->base != UNKNOWN && is_numeric(want->base))
+        force_numeric_type(cur, want->base);
+      Type_t *at = check_expr(cur, want);
+      if (!at) return nullptr;
+      if (at && want && want->base != UNKNOWN && !types_are_equal(at, want)) {
+        panic(n->loc, SEM_ARG_TYPE_MISMATCH, n->call.name);
+        return nullptr;
+      }
+      if (arg && arg->kind == AST_SEQ)
+        arg = arg->seq.b;
+      else
+        arg = NULL;
+    }
+
+    // Now distribute remaining args into variadic groups
+    size_t current_group = 0;
+    std::vector<bool> group_has_arg(variadic_inner_types.size(), false);
+    auto type_matches = [](Type_t *expected, Type_t *actual) {
+      if (!expected) return true;
+      if (!actual) return false;
+      return expected->base == actual->base;
+    };
+
+    while (arg) {
+      ASTNode_t *cur = (arg->kind == AST_SEQ ? arg->seq.a : arg);
+      Type_t *actual_hint = nullptr;
+      // Try to infer actual type by checking without hint first
+      Type_t *at = nullptr;
+      Type_t *tmp_want = nullptr;
+      at = check_expr(cur, tmp_want);
+      if (!at) return nullptr;
+      // Find matching variadic group starting from current_group
+      size_t g = current_group;
+      for (; g < variadic_inner_types.size(); ++g) {
+        if (type_matches(variadic_inner_types[g], at)) break;
+      }
+      if (g >= variadic_inner_types.size()) g = variadic_inner_types.size() - 1; // default last
+
+      // Now validate the argument against the chosen group's inner type
+      Type_t *want = variadic_inner_types[g];
+      if (want && want->base != UNKNOWN && is_numeric(want->base))
+        force_numeric_type(cur, want->base);
+      Type_t *at2 = check_expr(cur, want);
+      if (!at2) return nullptr;
+      if (at2 && want && want->base != UNKNOWN && !types_are_equal(at2, want)) {
+        panic(n->loc, SEM_ARG_TYPE_MISMATCH, n->call.name);
+        return nullptr;
+      }
+
+      group_has_arg[g] = true;
+
+      // advance
+      if (arg->kind == AST_SEQ)
+        arg = arg->seq.b;
+      else
+        arg = NULL;
+      ++idx;
+      current_group = g; // Continue from this group
+    }
+
+    if (variadic_inner_types.size() > 1) {
+      for (size_t i = 0; i < group_has_arg.size(); ++i) {
+        if (!group_has_arg[i]) {
+          panic(n->loc, SEM_ARGC_MISMATCH, n->call.name);
+          return nullptr;
+        }
+      }
+    }
   }
 
   if (!sig.ret) {

@@ -17,7 +17,7 @@
         break;
 
 class HIRGenerator {
-  private:
+  public:
     // Accumulates side-effect statements synthesized during nested expression lowering
     std::vector<HIRNode*> side_effect_buffer;
     size_t temporary_variable_counter = 0;
@@ -30,7 +30,7 @@ class HIRGenerator {
   HIRNode *create_call(const char *, std::vector<HIRNode *> *, Type_t *);
   HIRNode *create_while_loop(HIRNode *, HIRNode *);
   HIRNode *create_block(std::vector<HIRNode *> *);
-  HIRNode *create_literal(SV_Value, Type_t *);
+  static HIRNode *create_literal(SV_Value, Type_t *);
   HIRNode *create_binary_op(OP_kind_t, HIRNode *, HIRNode *, Type_t *);
   HIRNode *create_assignment(HIRNode *, HIRNode *, OP_kind_t op = OP_ASSIGN, bool is_declaration = true);
   HIRNode *create_if_stmt(HIRNode *, HIRNode *, HIRNode *);

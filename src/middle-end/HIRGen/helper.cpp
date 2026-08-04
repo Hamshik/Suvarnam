@@ -1,6 +1,4 @@
 #include "HIRGen/HIRGen.hpp"
-#include "SymbolTable/BuiltinRegistry.hpp"
-#include "SymbolTable/SymbolTable.hpp"
 #include "shared/HIRNode.hpp"
 #include "shared/nodes.h"
 #include "shared/structs.h"
@@ -15,46 +13,6 @@ Type_t *make_type(DataTypes_t base, Type_t *inner);
 }
 
 SV_Value handle_num(ASTNode_t *node);
-
-static bool is_variadic_builtin(const char *name) {
-  if (!name) {
-    return false;
-  }
-
-  BuiltinFunction *builtin = BuiltinRegistry::instance().lookup(name);
-  if (!builtin) {
-    return false;
-  }
-
-  for (auto *param_type : builtin->param_types) {
-    if (param_type && param_type->base == UNKNOWN) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-static size_t count_fixed_builtin_params(const char *name) {
-  if (!name) {
-    return 0;
-  }
-
-  BuiltinFunction *builtin = BuiltinRegistry::instance().lookup(name);
-  if (!builtin) {
-    return 0;
-  }
-
-  size_t fixed_params = 0;
-  for (auto *param_type : builtin->param_types) {
-    if (!param_type || param_type->base == UNKNOWN) {
-      break;
-    }
-    ++fixed_params;
-  }
-
-  return fixed_params;
-}
 
 // Flattens front-end binary sequence trees into a flat vector of Mid-AST
 // nodes
@@ -94,99 +52,6 @@ void HIRGenerator::flatten_sequence(ASTNode_t *node,
   }
 }
 
-HIRNode *HIRGenerator::emit_call(ASTNode_t *node) {
-  HIRNode *call_node = new HIRNode(ASTKind::AST_CALL);
-  call_node->name = strdup(node->call.name);
-  call_node->call.args = new std::vector<HIRNode *>();
-
-  const bool is_vararg_builtin = is_variadic_builtin(node->call.name);
-  const size_t fixed_param_count =
-      is_vararg_builtin ? count_fixed_builtin_params(node->call.name) : 0;
-
-  bool has_variadic_user_param = false;
-  size_t fixed_user_param_count = 0;
-  FnSymbol_t *fn_symbol = SV_semantic_fn_lookup(node->call.name);
-  if (fn_symbol && fn_symbol->params) {
-    for (int i = 0; i < fn_symbol->param_count; ++i) {
-      if (fn_symbol->params[i].is_variadic) {
-        has_variadic_user_param = true;
-        break;
-      }
-      ++fixed_user_param_count;
-    }
-  }
-
-  std::vector<HIRNode *> *packed_varargs = nullptr;
-  size_t arg_index = 0;
-
-  for (ASTNode_t *curr = node->call.args; curr;) {
-    ASTNode_t *arg_expr = (curr->kind == AST_SEQ) ? curr->seq.a : curr;
-
-    HIRNode *lowered_arg = generate(arg_expr);
-
-    if (!lowered_arg) {
-      curr = (curr->kind == AST_SEQ) ? curr->seq.b : nullptr;
-      continue;
-    }
-
-    if ((is_vararg_builtin && arg_index >= fixed_param_count) ||
-        (has_variadic_user_param && arg_index >= fixed_user_param_count)) {
-      if (!packed_varargs) {
-        packed_varargs = new std::vector<HIRNode *>();
-      }
-      packed_varargs->push_back(lowered_arg);
-    } else {
-      call_node->call.args->push_back(lowered_arg);
-    }
-
-    curr = (curr->kind == AST_SEQ) ? curr->seq.b : nullptr;
-    ++arg_index;
-  }
-
-  if (has_variadic_user_param) {
-    if (!packed_varargs) {
-      packed_varargs = new std::vector<HIRNode *>();
-    }
-
-    // 1. Pack the elements into an AST_LIST as usual[cite: 3]
-    HIRNode *vararg_list = new HIRNode(ASTKind::AST_LIST);
-    vararg_list->element.elements = packed_varargs;
-    vararg_list->type = make_type(LIST, nullptr);
-    if (fn_symbol && fn_symbol->params &&
-        fixed_user_param_count < fn_symbol->param_count) {
-      vararg_list->type->inner =
-          fn_symbol->params[fixed_user_param_count].type
-              ? fn_symbol->params[fixed_user_param_count].type->inner
-              : nullptr;
-    
-    }
-
-    size_t total_elements = packed_varargs->size();
-    vararg_list->type->size = total_elements;
-    call_node->call.args->push_back(vararg_list); // Map to 'ptr'[cite: 3]
-
-    // 2. NEW FIX: Inject the explicit hidden length node right into the call
-    // args!
-    SV_Value raw_count = {0};
-    raw_count.i64 = static_cast<int64_t>(total_elements);
-
-    Type_t *count_type = make_type(I64, nullptr);
-    HIRNode *hidden_count_arg =
-        create_literal(raw_count, count_type); // Map to 'i64'[cite: 1]
-
-    call_node->call.args->push_back(hidden_count_arg);
-  } else if (is_vararg_builtin && packed_varargs && !packed_varargs->empty()) {
-    HIRNode *vararg_list = new HIRNode(ASTKind::AST_LIST);
-    vararg_list->element.elements = packed_varargs;
-    vararg_list->type = make_type(LIST, nullptr);
-    vararg_list->type->size = packed_varargs->size();
-    call_node->call.args->push_back(vararg_list);
-  }
-
-  call_node->type = node->type;
-  call_node->loc = node->loc;
-  return call_node;
-}
 
 HIRNode *HIRGenerator::emit_idx(ASTNode_t *node) {
   HIRNode *index_node = new HIRNode(ASTKind::AST_INDEX);
