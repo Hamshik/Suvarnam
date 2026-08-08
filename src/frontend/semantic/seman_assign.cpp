@@ -127,9 +127,12 @@ static void validate_assignment(ASTNode_t *n, Type_t *lhs_t, Type_t *rhs_t) {
 
   if (lhs_t == rhs_t) return;
 
+  bool isnum = is_numeric(lhs_t->base) && is_numeric(rhs_t->base) ||
+    rhs_t->base == CHARACTER && lhs_t->base == CHARACTER;
+
   // Structural type validation
-  if (!types_are_equal(lhs_t, rhs_t) && !is_numeric(lhs_t->base) && !is_numeric(rhs_t->base)) {
-    panic(n->loc, SEM_ASSIGN_TYPE_MISMATCH, safe_get_target_name(n->assign.lhs));
+  if (!types_are_equal(lhs_t, rhs_t) && !isnum) {
+    panic(n->assign.rhs->loc, SEM_ASSIGN_TYPE_MISMATCH, safe_get_target_name(n->assign.lhs));
   }
 
   // Double verification step for raw pointer mappings

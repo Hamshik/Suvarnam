@@ -15,6 +15,7 @@ bool isError = false;
 bool isWarning = false;
 bool error_fatal = true;
 
+extern "C"{
 void panic(SA_Location loc, errc_t code, const char *detail) {
   const char *filename = (file && file->filename) ? file->filename : "<input>";
   const char *base = errc_msg(code);
@@ -31,10 +32,10 @@ void panic(SA_Location loc, errc_t code, const char *detail) {
               SA_BOLD SA_RED "error[SA%04d]:" SA_RESET SA_RED " %s\n" SA_RESET,
               (int)code, detail);
     else
-      fprintf(stderr, SA_BOLD SA_RED "error[SA%04d]: %s:"SA_RESET SA_RED"%s\n" SA_RESET,
+      fprintf(stderr, SA_BOLD SA_RED "error[SA%04d]: %s, " SA_RESET SA_RED"%s\n" SA_RESET,
               (int)code, base, detail);
   } else {
-    fprintf(stderr,  SA_BOLD SA_RED "error[SA%04d]:"SA_RESET SA_RED" %s\n" SA_RESET, (int)code,
+    fprintf(stderr,  SA_BOLD SA_RED "error[SA%04d]:" SA_RESET SA_RED" %s\n" SA_RESET, (int)code,
             base);
   }
   if (!src || src_len == 0) {
@@ -70,7 +71,7 @@ void panic(SA_Location loc, errc_t code, const char *detail) {
     ++display_column;
   }
 
-  fprintf(stderr, SA_BOLD SA_DIM " --> %s:%zu:%zu\n" SA_RESET, filename,
+  fprintf(stderr, SA_DIM " --> %s" SA_BOLD ":%zu:%zu\n" SA_RESET, filename,
           display_line, display_column);
 
   size_t line_start = pos;
@@ -201,4 +202,5 @@ void syswarn(const char *context) {
     fprintf(stderr, SA_BOLD SA_DIM " note:" SA_RESET " %s\n",
             strerror(saved_errno));
   }
+}
 }

@@ -125,6 +125,7 @@ extern "C" int compile_and_execute(ASTNode_t *root, const Options *opts) {
     HIRNode *mast_root =  mgen->generate(root);
     delete mgen;
     
+    if(isError) return -1;
     // ast_eval_main(root);
     if (codegen(mast_root, opts->emit_ir ? opts->ir_output_path : NULL, &ir_text) == EXIT_FAILURE)
         return 1;

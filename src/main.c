@@ -30,12 +30,9 @@ int main(int argc, char **argv) {
     yyrestart(yyin);
 
     yyparse();
-    if (root && !isError) {
-        short result = compile_and_execute(root, &opts);
-        if (result != 0) {
-            return result;
-        }
-    }
+    if (root && !isError) 
+        compile_and_execute(root, &opts);
+    
     check_err();
 
 

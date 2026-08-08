@@ -3,12 +3,11 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "error.h"
 #include <stdbool.h>
 
 static SA_MessageTranslator message_translator = NULL;
 static void *message_translator_context = NULL;
-
+extern "C"{
 void SA_set_message_translator(SA_MessageTranslator translator, void *context)
 {
     message_translator = translator;
@@ -131,7 +130,7 @@ char *logf_msg(const char *fmt, ...) {
 
     if (n < 0) return NULL;
 
-    char *buf = calloc(1, (size_t)n + 1);
+    char *buf = (char*)calloc(1, (size_t)n + 1);
     if (!buf) return NULL;
 
     va_start(ap, fmt);
@@ -155,7 +154,7 @@ char *read_entire_path(FILE *f, size_t *out_len) {
     }
     rewind(f);
 
-    char *buf = calloc(1, (size_t)n + 1);
+    char *buf = (char*)calloc(1, (size_t)n + 1);
     if (!buf) {
         (void)fseek(f, saved, SEEK_SET);
         return NULL;
@@ -181,4 +180,5 @@ int starts_with(const char *s, const char *prefix) {
         if (*s++ != *prefix++) return 0;
     }
     return 1;
+}
 }

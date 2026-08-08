@@ -1,17 +1,18 @@
 #include "frontend/lexer/keywords.h"
 
-#include <string.h>
+#include <string_view>
+#include <unordered_map>
 
 #include "lexer/lexer.h"
 
 #define TOKEN_KEYWORD(word, token_name) \
-    { word, SA_KEYWORD_TOKEN, token_name, UNKNOWN, false }
+    { word, { word, SA_KEYWORD_TOKEN, token_name, UNKNOWN, false } }
 #define TYPE_KEYWORD(word, type_name) \
-    { word, SA_KEYWORD_DATATYPE, DATATYPES, type_name, false }
+    { word, { word, SA_KEYWORD_DATATYPE, DATATYPES, type_name, false } }
 #define BOOL_KEYWORD(word, value) \
-    { word, SA_KEYWORD_BOOL_LITERAL, BOOL_LITERAL, UNKNOWN, value }
+    { word, { word, SA_KEYWORD_BOOL_LITERAL, BOOL_LITERAL, UNKNOWN, value } }
 
-static const SA_Keyword SA_keywords[] = {
+static const std::unordered_map<std::string_view, SA_Keyword> SA_keywords = {
     TOKEN_KEYWORD("#import", IMPORT),
     TOKEN_KEYWORD("else", ELSE),
     TOKEN_KEYWORD("if", IF),
@@ -51,17 +52,13 @@ static const SA_Keyword SA_keywords[] = {
 
 const SA_Keyword *SA_find_keyword(const char *text, size_t len)
 {
-    if (!text) return NULL;
+    if (!text) return nullptr;
 
-    for (size_t i = 0; i < sizeof(SA_keywords) / sizeof(SA_keywords[0]); ++i) {
-        const SA_Keyword *keyword = &SA_keywords[i];
-        if (strlen(keyword->text) == len && memcmp(keyword->text, text, len) == 0)
-            return keyword;
-    }
-    return NULL;
+    const auto keyword = SA_keywords.find(std::string_view{text, len});
+    return keyword == SA_keywords.end() ? nullptr : &keyword->second;
 }
 
 bool SA_is_keyword(const char *text, size_t len)
 {
-    return SA_find_keyword(text, len) != NULL;
+    return SA_find_keyword(text, len) != nullptr;
 }
