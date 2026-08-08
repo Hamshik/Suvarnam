@@ -2,8 +2,8 @@
 // #include "shared/structs.h"
 // #include "utils/uhash.h"
 
-// SV_Value default_step(DataTypes_t type) {
-//   SV_Value step = {0};
+// SA_Value default_step(DataTypes_t type) {
+//   SA_Value step = {0};
 //   switch (type) {
 //   case I8:
 //     step.i8 = 1;
@@ -57,7 +57,7 @@
 //   return step;
 // }
 
-// bool step_is_positive(DataTypes_t type, SV_Value step) {
+// bool step_is_positive(DataTypes_t type, SA_Value step) {
 //   switch (type) {
 //   case I8:
 //     return step.i8 > 0;
@@ -94,7 +94,7 @@
 //   }
 // }
 
-// bool step_is_zero(DataTypes_t type, SV_Value step) {
+// bool step_is_zero(DataTypes_t type, SA_Value step) {
 //   switch (type) {
 //   case I8:
 //     return step.i8 == 0;
@@ -131,8 +131,8 @@
 //   }
 // }
 
-// bool should_continue_for(DataTypes_t type, SV_Value cur, SV_Value end,
-//                          SV_Value step) {
+// bool should_continue_for(DataTypes_t type, SA_Value cur, SA_Value end,
+//                          SA_Value step) {
 //   if (step_is_positive(type, step)) {
 //     switch (type) {
 //     case I8:
@@ -206,8 +206,8 @@
 //   }
 // }
 
-// SV_Value add_step_for(DataTypes_t type, SV_Value cur, SV_Value step) {
-//   SV_Value next = cur;
+// SA_Value add_step_for(DataTypes_t type, SA_Value cur, SA_Value step) {
+//   SA_Value next = cur;
 //   switch (type) {
 //   case I8:
 //     next.i8 = (int8_t)(next.i8 + step.i8);
@@ -273,13 +273,13 @@
 //   DataTypes_t loop_type = node->fornode.init->type->base;
 //   const char *loop_name = node->fornode.init->assign.lhs->var;
 
-//   TypedValue endt = SV_cast_typed(ast_eval(node->fornode.end), node->fornode.init->type);
-//   SV_Value endv_cast = endt.val;
+//   TypedValue endt = SA_cast_typed(ast_eval(node->fornode.end), node->fornode.init->type);
+//   SA_Value endv_cast = endt.val;
 //   TypedValue stept =
 //       node->fornode.step
-//           ? SV_cast_typed(ast_eval(node->fornode.step), node->fornode.init->type)
+//           ? SA_cast_typed(ast_eval(node->fornode.step), node->fornode.init->type)
 //           : (TypedValue){.type = node->fornode.init->type, .val = default_step(loop_type)};
-//   SV_Value stepv = stept.val;
+//   SA_Value stepv = stept.val;
 
 //   if (step_is_zero(loop_type, stepv)) {
 //     panic( node->loc, RT_FOR_STEP_ZERO, NULL);
@@ -290,14 +290,14 @@
 
 //   while (should_continue_for(
 //       loop_type,
-//       SV_runtime_env_get(loop_name, node->fornode.init->type, node->loc),
+//       SA_runtime_env_get(loop_name, node->fornode.init->type, node->loc),
 //       endv_cast, stepv)) {
 //     last = ast_eval(node->fornode.body);
 //     if (g_returning)
 //       return g_return_value;
-//     SV_Value cur = SV_runtime_env_get(loop_name, node->fornode.init->type, node->loc);
-//     SV_Value next = add_step_for(loop_type, cur, stepv);
-//     SV_runtime_env_set(loop_name, &next, node->fornode.init->type);
+//     SA_Value cur = SA_runtime_env_get(loop_name, node->fornode.init->type, node->loc);
+//     SA_Value next = add_step_for(loop_type, cur, stepv);
+//     SA_runtime_env_set(loop_name, &next, node->fornode.init->type);
 //   }
 
 //   return last;

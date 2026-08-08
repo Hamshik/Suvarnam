@@ -80,7 +80,7 @@ static bool is_variadic_builtin_call(const HIRNode *n) {
   }
 
   for (auto *param_type : builtin->param_types) {
-    if (param_type && param_type->base == UNKNOWN) {
+    if (param_type && param_type->type->base == UNKNOWN) {
       return true;
     }
   }

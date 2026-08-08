@@ -8,14 +8,14 @@ llvm::Value *emit_mul_strs(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
 
   llvm::Module *module = b.GetInsertBlock()->getModule();
   // ensure multiplication function exists
-  llvm::Function *mulFn = module->getFunction("SVmulstr");
+  llvm::Function *mulFn = module->getFunction("_SA_mulstr");
   if (!mulFn) {
-    // Signature: char* SVmulstr(char* s, int64_t count)
+    // Signature: char* _SA_mulstr(char* s, int64_t count)
     llvm::FunctionType *ft =
         llvm::FunctionType::get(i8Ptr, {i8Ptr, i64Ty}, false);
 
     mulFn = llvm::Function::Create(ft, llvm::Function::ExternalLinkage,
-                                   "SVmulstr", *module);
+                                   "_SA_mulstr", *module);
   }
 
   llvm::Value *strVal, *countVal;
@@ -46,13 +46,13 @@ llvm::Value *emit_add_strs(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
     llvm::Type *i8Ptr = llvm::PointerType::getUnqual(ctx);
 
     // ensure concat function exists
-    llvm::Function *concatFn = module->getFunction("SVconcat");
+    llvm::Function *concatFn = module->getFunction("_SA_concat");
 
     if (!concatFn) {
       llvm::FunctionType *ft =
           llvm::FunctionType::get(i8Ptr, {i8Ptr, i8Ptr}, false);
       concatFn = llvm::Function::Create(ft, llvm::Function::ExternalLinkage,
-                                        "SVconcat", *module);
+                                        "_SA_concat", *module);
     }
 
     // IMPORTANT: ensure L and R are i8*

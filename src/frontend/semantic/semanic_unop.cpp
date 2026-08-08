@@ -13,7 +13,7 @@ bool verify_expression_path_is_mutable(ASTNode_t *n);
 ASTNode_t* get_base_var(const char* name){
   if(!name) return nullptr;
 
-  auto symbol = SV::semantic_symbol_table::semantic_find_symbol(name);
+  auto symbol = SA::semantic_symbol_table::semantic_find_symbol(name);
   if(!symbol) return nullptr;
 
   if(symbol->node_ptr->kind == AST_UNOP && symbol->node_ptr->unop.op == OP_ADDR)
@@ -83,7 +83,7 @@ Type_t* unop(ASTNode_t *n, Type_t* type) {
   if (!is_numeric(t->base))
     panic(n->loc, SEM_UNARY_NEEDS_NUM, NULL);
 
-  if ((n->unop.op == OP_INC || n->unop.op == OP_DEC) && !SV_semantic_is_mutable(n->unop.operand->var)) 
+  if ((n->unop.op == OP_INC || n->unop.op == OP_DEC) && !SA_semantic_is_mutable(n->unop.operand->var)) 
     panic(n->loc, SEM_ASSIGN_IMMUTABLE, "cannot increment/decrement immutable variable");
 
   if (n->unop.op == OP_BITNOT && !is_integer(t->base)) {

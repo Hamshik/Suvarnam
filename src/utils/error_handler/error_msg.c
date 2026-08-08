@@ -6,7 +6,16 @@
 #include "error.h"
 #include <stdbool.h>
 
-const char *errc_msg(errc_t code) {
+static SA_MessageTranslator message_translator = NULL;
+static void *message_translator_context = NULL;
+
+void SA_set_message_translator(SA_MessageTranslator translator, void *context)
+{
+    message_translator = translator;
+    message_translator_context = context;
+}
+
+static const char *errc_msg_english(errc_t code) {
     switch (code) {
         case LEX_UNKNOWN_CHAR: return "unknown character";
         case LEX_INVALID_ESCAPE: return "invalid escape sequence";
@@ -61,7 +70,7 @@ const char *errc_msg(errc_t code) {
         case SEM_CONTINUE_OUTSIDE_LOOP: return "continue statement outside of loop";
         case SEM_RANGE_STEP_ERROR: return "Loop contradiction";
 
-        case INVAILD_UTF8_CHAR: return "invalid UTF-8 character literal";
+        case INVAILD_UTF8_CHAR: return "a character literal must contain exactly one Unicode code point";
         case RET_NOT_DECLARED: return "return value is not declared in a function";
         
         case RT_NUM_LITERAL_UNSUPPORTED: return "unsupported numeric literal type";
@@ -82,7 +91,7 @@ const char *errc_msg(errc_t code) {
     }
 }
 
-const char *warnc_msg(warnc_t code) {
+static const char *warnc_msg_english(warnc_t code) {
     switch (code) {
         case SEM_VAR_SHADOW: return "variable shadows another variable";
         case SEM_UNUSED_VAR: return "unused variable";
@@ -90,6 +99,27 @@ const char *warnc_msg(warnc_t code) {
         case SEM_TYPE_WIDENED: return "type widened to fit literal";
         default: return "warning";
     }
+}
+
+static const char *translated_message(const char *kind, int code, const char *fallback)
+{
+    if (!message_translator) return fallback;
+
+    char message_id[32];
+    snprintf(message_id, sizeof(message_id), "%s.SA%04d", kind, code);
+    const char *translation = message_translator(message_id, fallback,
+                                                 message_translator_context);
+    return translation ? translation : fallback;
+}
+
+const char *errc_msg(errc_t code)
+{
+    return translated_message("error", (int)code, errc_msg_english(code));
+}
+
+const char *warnc_msg(warnc_t code)
+{
+    return translated_message("warning", (int)code, warnc_msg_english(code));
 }
 
 char *logf_msg(const char *fmt, ...) {

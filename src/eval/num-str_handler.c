@@ -3,7 +3,7 @@
 
 TypedValue handle_num(ASTNode_t *node, TypedValue v) {
   if (!node || !node->literal.raw) {
-    panic( node ? node->loc : (SV_Location){0}, RT_NUM_LITERAL_UNSUPPORTED,
+    panic( node ? node->loc : (SA_Location){0}, RT_NUM_LITERAL_UNSUPPORTED,
           "Numeric literal missing raw string value");
     return (TypedValue){0};
   }
@@ -29,7 +29,7 @@ TypedValue handle_num(ASTNode_t *node, TypedValue v) {
     break;
   case I128: {
     int ok = 0;
-    v.val.i128 = SV_parse_i128(node->literal.raw, &ok);
+    v.val.i128 = SA_parse_i128(node->literal.raw, &ok);
     if (!ok) {
       panic( node->loc, RT_NUM_LITERAL_UNSUPPORTED,
             NULL);
@@ -51,7 +51,7 @@ TypedValue handle_num(ASTNode_t *node, TypedValue v) {
     break;
   case U128: {
     int ok = 0;
-    v.val.u128 = SV_parse_u128(node->literal.raw, &ok);
+    v.val.u128 = SA_parse_u128(node->literal.raw, &ok);
     if (!ok) {
       panic( node->loc, RT_NUM_LITERAL_UNSUPPORTED,
             NULL);

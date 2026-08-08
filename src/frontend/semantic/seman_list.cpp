@@ -120,7 +120,7 @@ extern "C" Type_t *semantic_index_handle(ASTNode_t *n) {
 
   if (target_base->base == PTR) target_base = target_base->inner;
   
-  if (target_base->base != LIST) {
+  if (target_base->base != LIST && target_base->base != STRINGS) {
     panic(n->index.target->loc, SEM_INDEX_NOT_ARRAY, NULL);
     return nullptr;
   }
@@ -152,7 +152,7 @@ extern "C" Type_t *semantic_index_handle(ASTNode_t *n) {
 
     // 3. Move to the next dimension in the linked list
     current_idx = current_idx->next;
-    target_base = target_base->inner;
+    target_base = target_base->inner ? target_base->inner : make_type(CHARACTER, nullptr);
   }
 
   // 3. Resolve the element type
@@ -172,7 +172,7 @@ bool islist(ASTNode_t *target) {
     return false;
 
   SemanticSymbolRecord *symbol =
-      SV::semantic_symbol_table::semantic_find_symbol(target->var);
+      SA::semantic_symbol_table::semantic_find_symbol(target->var);
   if (!symbol)
     return false;
 
@@ -206,8 +206,8 @@ void handle_idx_assign(ASTNode_t *&n, ASTNode_t *&lhs, Type_t *&final_type) {
   if (base->kind == AST_VAR) {
     // Ensure we check the specific identifier (preserving @ for globals)
     // to avoid accidental shadowing by immutable locals of the same name.
-    base->ismut = n->isglobal ? SV::semantic_symbol_table::semantic_find_global_symbol(base->var)->is_mutable
-        : SV_semantic_is_mutable(base->var);
+    base->ismut = n->isglobal ? SA::semantic_symbol_table::semantic_find_global_symbol(base->var)->is_mutable
+        : SA_semantic_is_mutable(base->var);
     if (!base->ismut) {
       panic(n->loc, SEM_ASSIGN_IMMUTABLE, base->var);
     }

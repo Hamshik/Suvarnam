@@ -8,7 +8,7 @@ class HIRNode {
     public:
     ASTKind kind;
     Type_t *type;      // Every mid-end node is strictly typed
-    SV_Location loc;
+    SA_Location loc;
     bool isglobal;
 
     // Tracks sequential statements inside a MASTKind::BLOCK node.
@@ -26,7 +26,7 @@ class HIRNode {
         } decl;
 
         struct {
-            SV_Value val;
+            SA_Value val;
         } literals;
 
         // Assignment (e.g., i = i + 1)

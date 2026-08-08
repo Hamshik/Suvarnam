@@ -1,5 +1,6 @@
 #include "codegen/codegen.hpp"
 #include "utils/utf-8_lib/utf8/unchecked.hpp"
+#include <cstring>
 
 uint32_t decode_utf8(const char *raw, size_t raw_len, size_t *byte_len,
                      Utf8Error *error) {
@@ -62,47 +63,56 @@ Value *to_i8_ptr(Value *v, IRBuilder<> &b) {
 }
 
 Value *emit_char_to_string(Value *ch, LLVMContext &ctx, IRBuilder<> &b) {
-  // allocate 2 bytes: char + null
-  auto *i8Ty = Type::getInt8Ty(ctx);
-  auto *i8Ptr = PointerType::getUnqual(ctx);
-  auto *i32Ty = Type::getInt32Ty(ctx);
-
+  // Use runtime `SA_encode_cp(uint32_t)` to encode the codepoint into a
+  // malloc'd UTF-8 C string. This correctly handles multi-byte characters
+  // (emojis, etc.) instead of truncating to a single byte.
   auto m = b.GetInsertBlock()->getModule();
 
-  Function *mallocFn = m->getFunction("malloc");
+  // Ensure encoder function exists with a parameter matching `ch`'s type
+  Type *i8PtrTy = PointerType::getUnqual(ctx);
+  Type *cpTy = ch->getType();
 
-  if (!mallocFn) {
-    LLVMContext &ctx = m->getContext();
-
-    Type *i8Ptr = PointerType::getUnqual(ctx);
-    Type *i64 = Type::getInt64Ty(ctx);
-
-    FunctionType *mallocTy = FunctionType::get(i8Ptr, {i64}, false);
-
-    mallocFn =
-        Function::Create(mallocTy, Function::ExternalLinkage, "malloc", m);
+  Function *encFn = m->getFunction("SA_encode_cp");
+  if (!encFn) {
+    FunctionType *encTy = FunctionType::get(i8PtrTy, {cpTy}, false);
+    encFn = Function::Create(encTy, Function::ExternalLinkage, "SA_encode_cp", m);
   }
 
-  Value *mem = b.CreateCall(mallocFn, ConstantInt::get(i32Ty, 2));
+  // If the existing declaration has a different param type, try to adapt.
+  Value *arg = ch;
+  if (encFn->getFunctionType()->getNumParams() >= 1) {
+    Type *paramTy = encFn->getFunctionType()->getParamType(0);
+    if (arg->getType() != paramTy) {
+      if (arg->getType()->isIntegerTy() && paramTy->isIntegerTy()) {
+        unsigned srcBits = arg->getType()->getIntegerBitWidth();
+        unsigned dstBits = paramTy->getIntegerBitWidth();
+        if (srcBits > dstBits)
+          arg = b.CreateTrunc(arg, paramTy);
+        else if (srcBits < dstBits)
+          arg = b.CreateZExt(arg, paramTy);
+      }
+    }
+  }
 
-  Value *c8 = b.CreateTrunc(ch, i8Ty);
-
-  b.CreateStore(c8, mem);
-  Value *zeroPtr = b.CreateGEP(i8Ty, mem, b.getInt32(1));
-  b.CreateStore(ConstantInt::get(i8Ty, 0), zeroPtr);
-
-  return mem;
+  return b.CreateCall(encFn, {arg});
 }
 
 Value *emit_char(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b) {
   if (!n->literals.val.chars) {
-    panic(n->loc,INVAILD_UTF8_CHAR, nullptr);
+    panic(n->loc, INVAILD_UTF8_CHAR, nullptr);
     return nullptr;
   }
 
   size_t len = 0;
   Utf8Error err = Utf8Error::None;
-  uint32_t codepoint = decode_utf8(n->literals.val.chars, n->type->size, &len, &err);
+  // Ensure we pass the actual byte length of the literal to the decoder.
+  // `n->type->size` may be 0 or incorrect; fall back to strlen when needed.
+  size_t raw_len = 4;
+  if (raw_len == 0 && n->literals.val.chars)
+    raw_len = std::strlen(n->literals.val.chars);
+
+  uint32_t codepoint =
+      decode_utf8(n->literals.val.chars, raw_len, &len, &err);
 
   // Error Handling
   if (err != Utf8Error::None) {
@@ -116,8 +126,7 @@ Value *emit_char(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b) {
     else if (err == Utf8Error::InvalidUtf8)
       msg = n->literals.val.chars;
 
-    panic(n->loc, INVAILD_UTF8_CHAR,
-          msg ? msg : "unknown");
+    panic(n->loc, INVAILD_UTF8_CHAR, msg ? msg : "unknown");
     return nullptr;
   }
 
@@ -149,8 +158,7 @@ Value *emit_strs(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b) {
   Value *zero = llvm::ConstantInt::get(llvm::Type::getInt32Ty(ctx), 0);
 
   Value *ptr = b.CreateInBoundsGEP(global->getValueType(), global,
-                                         {b.getInt32(0), b.getInt32(0)});
+                                   {b.getInt32(0), b.getInt32(0)});
 
-  return b.CreateBitCast(
-      ptr, llvm::PointerType::getUnqual(ctx));
+  return b.CreateBitCast(ptr, llvm::PointerType::getUnqual(ctx));
 }

@@ -1,0 +1,8 @@
+
+fn i32 main() {
+    var strs = "🦀";
+    printf("charAt(5): %s\n", strs);
+    {
+        return 0;
+    }
+}

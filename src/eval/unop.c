@@ -9,11 +9,11 @@ TypedValue eval_unop(ASTNode_t *node) {
             "address-of requires a variable");
       return (TypedValue){0};
     }
-    int fid = SV_runtime_env_frame_id_of(node->unop.operand->var, node->loc);
-    SV_Value pv = {0};
+    int fid = SA_runtime_env_frame_id_of(node->unop.operand->var, node->loc);
+    SA_Value pv = {0};
     pv.ptr.frame_id = fid;
     pv.ptr.name = node->unop.operand->var;
-    return (TypedValue){.type = SV_semantic_lookup(node->unop.operand->var), .val = pv};
+    return (TypedValue){.type = SA_semantic_lookup(node->unop.operand->var), .val = pv};
   }
 
   if (node->unop.op == OP_DEREF) {
@@ -22,7 +22,7 @@ TypedValue eval_unop(ASTNode_t *node) {
       panic( node->loc, RT_DANGLING_PTR, NULL);
       return (TypedValue){0};
     }
-    TypedValue *ref = SV_runtime_env_get_ref_at(
+    TypedValue *ref = SA_runtime_env_get_ref_at(
         pv.val.ptr.frame_id, pv.val.ptr.name, node->loc);
     if (!ref)
       return (TypedValue){0};
@@ -31,13 +31,13 @@ TypedValue eval_unop(ASTNode_t *node) {
 
   TypedValue r = ast_eval(node->unop.operand);
   TypedValue casted =
-      SV_cast_typed(r, node->type);
+      SA_cast_typed(r, node->type);
   TypedValue out = {.type = casted.type, .val = {0}};
   do_unop_operation(&out.val, &casted.val, node->type->base, node->unop.op);
   return out;
 }
 
-void do_unop_operation(SV_Value *result, SV_Value *operand, DataTypes_t datatype,
+void do_unop_operation(SA_Value *result, SA_Value *operand, DataTypes_t datatype,
                        OP_kind_t op) {
   switch (datatype) {
   case I8:

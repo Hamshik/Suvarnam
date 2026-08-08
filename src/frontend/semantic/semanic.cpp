@@ -122,7 +122,7 @@ void register_global_var_and_fn(ASTNode_t *n) {
     const char *fn_name = n->fn_def.name;
 
     // Ensure the function isn't duplicated
-    if (SV_semantic_fn_lookup(fn_name) != nullptr) {
+    if (SA_semantic_fn_lookup(fn_name) != nullptr) {
       panic(n->loc, SEM_INTERNAL_ERROR, "Redefinition of function signature");
     }
 
@@ -154,7 +154,7 @@ void register_global_var_and_fn(ASTNode_t *n) {
     }
 
     // Push into the global functional index map
-    SV_semantic_fn_declare(n);
+    SA_semantic_fn_declare(n);
   }
 
   if (n->kind == AST_ASSIGN && n->assign.is_declaration) {
@@ -175,11 +175,10 @@ extern "C" void semantic_check(ASTNode_t *root) {
     return;
   BuiltinRegistry::instance().bootstrap();
   register_global_var_and_fn(root);
-  SV_semantic_scope_push();
+  SA_semantic_scope_push();
 
   check_expr(root);
-  SV_semantic_scope_pop();
-  check_err();
+  SA_semantic_scope_pop();
 }
 
 /* Main recursive checker */
@@ -227,9 +226,9 @@ extern "C" Type_t *check_expr(ASTNode_t *n, Type_t *&type) {
 
   case AST_VAR: {
     if (n->type->base == UNKNOWN)
-      n->type = SV_semantic_lookup(n->var);
+      n->type = SA_semantic_lookup(n->var);
 
-    exitcode_t exit_code = SV_semantic_exists(n->var, n->type);
+    exitcode_t exit_code = SA_semantic_exists(n->var, n->type);
     switch (exit_code) {
     case NOT_DECLARED:
       panic(n->loc, SEM_VAR_UNDECL, n->var);
@@ -297,7 +296,7 @@ extern "C" Type_t *check_expr(ASTNode_t *n, Type_t *&type) {
   case AST_IMPORT: {
     char *path = n->importNode.path;
     bool already_imported = false;
-    Module_t *mod = SV_semantic_load_module(path, &already_imported);
+    Module_t *mod = SA_semantic_load_module(path, &already_imported);
     if (!mod)
       panic(n->loc, SEM_IMPORT_FILE_NOT_FOUND, path);
 

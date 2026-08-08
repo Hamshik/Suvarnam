@@ -57,7 +57,7 @@ extern "C" SemanticSymbolRecord *semantic_find_symbol(const char *name) {
 
 } // namespace
 
-namespace  SV::semantic_symbol_table {
+namespace  SA::semantic_symbol_table {
 
 Type_t* lookup(const char *name) {
   SemanticSymbolRecord *symbol = semantic_find_symbol(name);
@@ -231,7 +231,7 @@ Module_t *load_module(const char *path, bool &already_imported) {
 
   FILE *source = fopen(path, "r");
   if (!source) {
-    panic( (SV_Location){0}, SEM_IMPORT_FILE_NOT_FOUND, path);
+    panic( (SA_Location){0}, SEM_IMPORT_FILE_NOT_FOUND, path);
     return nullptr;
   }
 
@@ -243,4 +243,4 @@ Module_t *load_module(const char *path, bool &already_imported) {
   return raw;
 }
 
-} // namespace  SV::semantic_symbol_table
+} // namespace  SA::semantic_symbol_table

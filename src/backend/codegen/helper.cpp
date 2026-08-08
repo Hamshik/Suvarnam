@@ -16,7 +16,7 @@ __int128 parse_i128(const char *s, int *ok) {
     s++;
   }
   int ok_u = 0;
-  unsigned __int128 u = SV_parse_u128(s, &ok_u);
+  unsigned __int128 u = SA_parse_u128(s, &ok_u);
   if (!ok_u)
     return 0;
   if (ok)

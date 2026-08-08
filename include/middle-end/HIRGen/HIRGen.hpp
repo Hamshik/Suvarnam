@@ -30,7 +30,7 @@ class HIRGenerator {
   HIRNode *create_call(const char *, std::vector<HIRNode *> *, Type_t *);
   HIRNode *create_while_loop(HIRNode *, HIRNode *);
   HIRNode *create_block(std::vector<HIRNode *> *);
-  static HIRNode *create_literal(SV_Value, Type_t *);
+  static HIRNode *create_literal(SA_Value, Type_t *);
   HIRNode *create_binary_op(OP_kind_t, HIRNode *, HIRNode *, Type_t *);
   HIRNode *create_assignment(HIRNode *, HIRNode *, OP_kind_t op = OP_ASSIGN, bool is_declaration = true);
   HIRNode *create_if_stmt(HIRNode *, HIRNode *, HIRNode *);

@@ -1,0 +1,67 @@
+#include "frontend/lexer/keywords.h"
+
+#include <string.h>
+
+#include "lexer/lexer.h"
+
+#define TOKEN_KEYWORD(word, token_name) \
+    { word, SA_KEYWORD_TOKEN, token_name, UNKNOWN, false }
+#define TYPE_KEYWORD(word, type_name) \
+    { word, SA_KEYWORD_DATATYPE, DATATYPES, type_name, false }
+#define BOOL_KEYWORD(word, value) \
+    { word, SA_KEYWORD_BOOL_LITERAL, BOOL_LITERAL, UNKNOWN, value }
+
+static const SA_Keyword SA_keywords[] = {
+    TOKEN_KEYWORD("#import", IMPORT),
+    TOKEN_KEYWORD("else", ELSE),
+    TOKEN_KEYWORD("if", IF),
+    TOKEN_KEYWORD("for", FOR),
+    TOKEN_KEYWORD("var", VAR),
+    TYPE_KEYWORD("i8", I8),
+    TYPE_KEYWORD("i16", I16),
+    TYPE_KEYWORD("i32", I32),
+    TYPE_KEYWORD("i64", I64),
+    TYPE_KEYWORD("i128", I128),
+    TYPE_KEYWORD("u8", U8),
+    TYPE_KEYWORD("u16", U16),
+    TYPE_KEYWORD("u32", U32),
+    TYPE_KEYWORD("u64", U64),
+    TYPE_KEYWORD("u128", U128),
+    TYPE_KEYWORD("f32", F32),
+    TYPE_KEYWORD("f64", F64),
+    TYPE_KEYWORD("f128", F128),
+    TYPE_KEYWORD("uf32", UF32),
+    TYPE_KEYWORD("uf64", UF64),
+    TYPE_KEYWORD("uf128", UF128),
+    TYPE_KEYWORD("str", STRINGS),
+    TYPE_KEYWORD("char", CHARACTER),
+    TYPE_KEYWORD("bool", BOOL),
+    TYPE_KEYWORD("void", VOID),
+    TOKEN_KEYWORD("while", WHILE),
+    TOKEN_KEYWORD("in", IN),
+    TOKEN_KEYWORD("break", BREAK),
+    TOKEN_KEYWORD("continue", CONTINUE),
+    BOOL_KEYWORD("true", true),
+    BOOL_KEYWORD("false", false),
+    TOKEN_KEYWORD("mut", MUT),
+    TOKEN_KEYWORD("fn", FN),
+    TOKEN_KEYWORD("ret", RETURN),
+    TOKEN_KEYWORD("return", RETURN),
+};
+
+const SA_Keyword *SA_find_keyword(const char *text, size_t len)
+{
+    if (!text) return NULL;
+
+    for (size_t i = 0; i < sizeof(SA_keywords) / sizeof(SA_keywords[0]); ++i) {
+        const SA_Keyword *keyword = &SA_keywords[i];
+        if (strlen(keyword->text) == len && memcmp(keyword->text, text, len) == 0)
+            return keyword;
+    }
+    return NULL;
+}
+
+bool SA_is_keyword(const char *text, size_t len)
+{
+    return SA_find_keyword(text, len) != NULL;
+}

@@ -22,14 +22,14 @@ extern bool isWarning;
 extern bool error_fatal;
 
 /* Extended source location that includes absolute byte offsets. */
-typedef struct SV_Location {
+typedef struct SA_Location {
   size_t first_line;
   size_t first_column;
   size_t first_pos; /* 0-based byte offset */
   size_t last_line;
   size_t last_column;
   size_t last_pos;  /* 0-based byte offset */
-} SV_Location;
+} SA_Location;
 
 typedef struct idx_expr{
     struct ASTNode* expr_node; // for expr like [i[0] + 1] ect
@@ -38,16 +38,16 @@ typedef struct idx_expr{
     struct idx_expr* next; // next of i[]of i[][]... <- this one
 } idx_expr_t;
 
-typedef struct SV_Ptr {
+typedef struct SA_Ptr {
     size_t frame_id;
     char *name;
-} SV_Ptr;
+} SA_Ptr;
 
-typedef struct SV_Range {
+typedef struct SA_Range {
     int64_t start;
     int64_t end;
     int64_t step;
-} SV_Range;
+} SA_Range;
 
 typedef union {
     /* signed numeric type */
@@ -68,14 +68,14 @@ typedef union {
     uint64_t u64;
     unsigned __int128 u128;
 
-    SV_Ptr ptr;
-    SV_Range range;
+    SA_Ptr ptr;
+    SA_Range range;
 
     bool bval;
     char* chars;
 
     void* raw;
-} SV_Value;
+} SA_Value;
 
 
 typedef struct Types{
@@ -87,12 +87,24 @@ typedef struct Types{
 
 typedef struct {
     Type_t* type;
-    SV_Value val;
+    SA_Value val;
 } TypedValue;
 typedef struct Param {
     char *name;
     Type_t* type;
     bool is_variadic;
+#ifdef __cplusplus
+    // Default constructor: safely zero out everything
+    Param() : name(nullptr), type(nullptr), is_variadic(false) {}
+
+    // Type constructor: ensure non-pointer fields aren't filled with junk data
+    Param(Type_t *type) : name(nullptr), type(type), is_variadic(false) {}
+    
+    // Variadic helper constructor (useful for built-ins like printf)
+    Param(bool variadic) : name(nullptr), type(nullptr), is_variadic(variadic) {}
+    
+    Param(bool variadic, Type_t* types) : name(nullptr), type(types), is_variadic(variadic) {}
+#endif
 } Param_t;
 
 #include "nodes.h"

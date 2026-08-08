@@ -5,33 +5,45 @@
 /* Bison %locations: Flex does not maintain columns for you.
    Track (line, column) ourselves and update it for every match,
    including skipped whitespace/comments. Columns/pos are byte-based. */
-static int SV_lex_line = 1;
-static int SV_lex_col = 1;
-static int SV_lex_pos = 0; /* 0-based byte offset */
+static int SA_lex_line = 1;
+static int SA_lex_col = 1;
+static int SA_lex_pos = 0; /* 0-based byte offset */
+static bool SA_lex_error_pending = false;
 
-static int SV_hex_val(unsigned char c) {
+static int SA_hex_val(unsigned char c) {
     if (c >= '0' && c <= '9') return (int)(c - '0');
     if (c >= 'a' && c <= 'f') return 10 + (int)(c - 'a');
     if (c >= 'A' && c <= 'F') return 10 + (int)(c - 'A');
     return -1;
 }
 
-void SV_lexer_reset_loc(void) {
-    SV_lex_line = 1;
-    SV_lex_col = 1;
-    SV_lex_pos = 0;
+void SA_lexer_reset_loc(void) {
+    SA_lex_line = 1;
+    SA_lex_col = 1;
+    SA_lex_pos = 0;
+    SA_lex_error_pending = false;
 }
 
-void SV_lexer_update_loc(YYLTYPE *loc, const char *text, int len) {
+void SA_lexer_mark_error(void) {
+    SA_lex_error_pending = true;
+}
+
+bool SA_lexer_take_error(void) {
+    bool pending = SA_lex_error_pending;
+    SA_lex_error_pending = false;
+    return pending;
+}
+
+void SA_lexer_update_loc(YYLTYPE *loc, const char *text, int len) {
     if (!loc) return;
 
-    loc->first_line = SV_lex_line;
-    loc->first_column = SV_lex_col;
-    loc->first_pos = SV_lex_pos;
+    loc->first_line = SA_lex_line;
+    loc->first_column = SA_lex_col;
+    loc->first_pos = SA_lex_pos;
 
-    int line = SV_lex_line;
-    int col = SV_lex_col;
-    int pos = SV_lex_pos;
+    int line = SA_lex_line;
+    int col = SA_lex_col;
+    int pos = SA_lex_pos;
 
     for (int i = 0; i < len; i++) {
         if (text[i] == '\n') {
@@ -47,16 +59,16 @@ void SV_lexer_update_loc(YYLTYPE *loc, const char *text, int len) {
     loc->last_column = (col > 1) ? (col - 1) : 1;
     loc->last_pos = (pos > 0) ? (pos - 1) : 0;
 
-    SV_lex_line = line;
-    SV_lex_col = col;
-    SV_lex_pos = pos;
+    SA_lex_line = line;
+    SA_lex_col = col;
+    SA_lex_pos = pos;
 }
 
-void SV_lexer_get_cursor(SV_Location *loc) {
-    if (loc) *loc = (SV_Location){SV_lex_line, SV_lex_col, SV_lex_pos,0,0,0};
+void SA_lexer_get_cursor(SA_Location *loc) {
+    if (loc) *loc = (SA_Location){SA_lex_line, SA_lex_col, SA_lex_pos,0,0,0};
 }
 
-bool SV_utf8_single(const char *bytes, size_t len)
+bool SA_utf8_single(const char *bytes, size_t len)
 {
     if (!bytes || len == 0) return false;
     const unsigned char *s = (const unsigned char *)bytes;
@@ -84,7 +96,7 @@ bool SV_utf8_single(const char *bytes, size_t len)
     return i == len;
 }
 
-char *  SV_unescape_string(const char *in, size_t in_len, size_t *out_len, int *err_index, const char **err_msg) {
+char *  SA_unescape_string(const char *in, size_t in_len, size_t *out_len, int *err_index, const char **err_msg) {
     if (err_index) *err_index = -1;
     if (err_msg) *err_msg = "invalid escape sequence";
     if (out_len) *out_len = 0;
@@ -120,11 +132,7 @@ char *  SV_unescape_string(const char *in, size_t in_len, size_t *out_len, int *
             case 'n': out[j++] = '\n'; break;
             case 't': out[j++] = '\t'; break;
             case 'r': out[j++] = '\r'; break;
-            case '0':
-                if (err_index) *err_index = (int)(i - 1);
-                if (err_msg) *err_msg = "NUL in string is not supported";
-                free(out);
-                return NULL;
+            case '0': out[j++] = '\0'; break;
             case '\\': out[j++] = '\\'; break;
             case '"': out[j++] = '"'; break;
             case '\'': out[j++] = '\''; break;
@@ -140,7 +148,7 @@ char *  SV_unescape_string(const char *in, size_t in_len, size_t *out_len, int *
                     free(out);
                     return NULL;
                 }
-                int h1 = SV_hex_val((unsigned char)in[i + 1]);
+                int h1 = SA_hex_val((unsigned char)in[i + 1]);
                 if (h1 < 0) {
                     if (err_index) *err_index = (int)(i - 1);
                     if (err_msg) *err_msg = "expected hex digits after \\x";
@@ -150,7 +158,7 @@ char *  SV_unescape_string(const char *in, size_t in_len, size_t *out_len, int *
                 int v = h1;
                 i += 1;
                 if (i + 1 < in_len) {
-                    int h2 = SV_hex_val((unsigned char)in[i + 1]);
+                    int h2 = SA_hex_val((unsigned char)in[i + 1]);
                     if (h2 >= 0) {
                         v = (v << 4) | h2;
                         i += 1;

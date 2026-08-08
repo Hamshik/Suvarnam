@@ -11,9 +11,9 @@ extern file_t* file;
 /* If ll_path is non-NULL, writes IR there. If ir_out is non-NULL, allocates a
  * NUL-terminated copy of the textual IR (caller free). Returns 0 on success. */
 
- unsigned __int128  SV_parse_u128(const char *s, int *ok);
- __int128  SV_parse_i128(const char *s, int *ok);
- void panic( SV_Location loc, errc_t code, const char *detail);
+ unsigned __int128  SA_parse_u128(const char *s, int *ok);
+ __int128  SA_parse_i128(const char *s, int *ok);
+ void panic( SA_Location loc, errc_t code, const char *detail);
  void syserr(const char *context);
  
  #ifdef __cplusplus
@@ -41,7 +41,7 @@ enum class Utf8Error {
 
 
 using namespace llvm;
-using namespace SV;
+using namespace SA;
 
 using argvec = std::vector<llvm::Value *>;
 struct RangeScalars { llvm::Value *start, *end, *step; };
@@ -75,7 +75,7 @@ uint32_t decode_utf8(const char *, size_t, size_t *, Utf8Error *);
 llvm::Value *generateList(HIRNode *, LLVMContext &, IRBuilder<> &, IRBuilder<> &, Codegen::Scope &);
 Value *generateListAccess(HIRNode *, LLVMContext &, IRBuilder<> &, IRBuilder<> &, Codegen::Scope &);
 Value *generateListElementPtr(HIRNode *, LLVMContext &, IRBuilder<> &, IRBuilder<> &, Codegen::Scope &);
-char *SV_concat(const char *, const char *);
+char *SA_concat(const char *, const char *);
 Value *to_i8_ptr(Value *, IRBuilder<> &);
 Value *emit_char_to_string(Value *, LLVMContext &, IRBuilder<> &);
 Value *emit_char(HIRNode *, LLVMContext &, IRBuilder<> &);

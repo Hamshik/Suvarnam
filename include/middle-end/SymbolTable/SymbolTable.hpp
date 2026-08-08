@@ -47,8 +47,8 @@ typedef struct fn_Scope {
 } Scope_t;
 
 
-#ifndef TACA_MODULE_TYPES_DEFINED
-#define TACA_MODULE_TYPES_DEFINED
+#ifndef SA_MODULE_TYPES_DEFINED
+#define SA_MODULE_TYPES_DEFINED
 typedef enum {
     MOD_NEW,
     MOD_LOADING,
@@ -65,39 +65,39 @@ typedef struct module {
 } Module_t;
 #endif
 
-void SV_runtime_env_push(void);
-void SV_runtime_env_pop(void);
-void SV_runtime_env_clear_all(void);
-void SV_runtime_env_set(const char *, SV_Value *, Type_t *);
-void SV_runtime_env_set_current(const char *, SV_Value *, Type_t *);
-SV_Value SV_runtime_env_get(const char *, Type_t *, SV_Location);
-TypedValue *SV_runtime_env_get_ref(const char *, SV_Location);
-int SV_runtime_env_frame_id_of(const char *, SV_Location);
-TypedValue *SV_runtime_env_get_ref_at(int, const char *, SV_Location);
-void SV_runtime_env_set_at(int, const char *, SV_Value *, Type_t *, SV_Location);
+void SA_runtime_env_push(void);
+void SA_runtime_env_pop(void);
+void SA_runtime_env_clear_all(void);
+void SA_runtime_env_set(const char *, SA_Value *, Type_t *);
+void SA_runtime_env_set_current(const char *, SA_Value *, Type_t *);
+SA_Value SA_runtime_env_get(const char *, Type_t *, SA_Location);
+TypedValue *SA_runtime_env_get_ref(const char *, SA_Location);
+int SA_runtime_env_frame_id_of(const char *, SA_Location);
+TypedValue *SA_runtime_env_get_ref_at(int, const char *, SA_Location);
+void SA_runtime_env_set_at(int, const char *, SA_Value *, Type_t *, SA_Location);
 
-bool SV_runtime_fn_register(ASTNode_t *);
-ASTNode_t *SV_runtime_fn_lookup(const char *);
-void SV_runtime_fn_clear(void);
+bool SA_runtime_fn_register(ASTNode_t *);
+ASTNode_t *SA_runtime_fn_lookup(const char *);
+void SA_runtime_fn_clear(void);
 
-Type_t *SV_semantic_lookup(const char *);
+Type_t *SA_semantic_lookup(const char *);
 
 #ifdef __cplusplus
-bool SV_semantic_declare(const char *, bool *, Type_t *, ASTNode_t *, bool);
+bool SA_semantic_declare(const char *, bool *, Type_t *, ASTNode_t *, bool);
 #endif
 
-exitcode_t SV_semantic_exists(const char *, Type_t *);
-exitcode_t SV_semantic_assign_check(const char *, bool, DataTypes_t, DataTypes_t);
-bool SV_semantic_is_mutable(const char *);
-void SV_semantic_scope_push(void);
-void SV_semantic_scope_pop(void);
-void SV_semantic_clear_symbols(void);
-bool SV_semantic_fn_declare(ASTNode_t *);
-FnSymbol_t *SV_semantic_fn_lookup(const char *);
-void SV_semantic_clear_fns(void);
-DataTypes_t SV_semantic_update_datatype(const char *, DataTypes_t);
-Module_t *SV_semantic_get_module(const char *);
-Module_t *SV_semantic_load_module(const char *, bool *);
+exitcode_t SA_semantic_exists(const char *, Type_t *);
+exitcode_t SA_semantic_assign_check(const char *, bool, DataTypes_t, DataTypes_t);
+bool SA_semantic_is_mutable(const char *);
+void SA_semantic_scope_push(void);
+void SA_semantic_scope_pop(void);
+void SA_semantic_clear_symbols(void);
+bool SA_semantic_fn_declare(ASTNode_t *);
+FnSymbol_t *SA_semantic_fn_lookup(const char *);
+void SA_semantic_clear_fns(void);
+DataTypes_t SA_semantic_update_datatype(const char *, DataTypes_t);
+Module_t *SA_semantic_get_module(const char *);
+Module_t *SA_semantic_load_module(const char *, bool *);
 
 #ifdef __cplusplus
 }

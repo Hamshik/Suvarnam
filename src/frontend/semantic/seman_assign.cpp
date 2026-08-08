@@ -75,7 +75,7 @@ static void process_declaration(ASTNode_t *n, Type_t *&lhs_t, Type_t *rhs_t) {
   
   resolve_nested_numerics(rhs, lhs_t);
 
-  bool isreloved = SV_semantic_declare(var_name, &n->isglobal, lhs_t, n, n->ismut);
+  bool isreloved = SA_semantic_declare(var_name, &n->isglobal, lhs_t, n, n->ismut);
 
   if (!isreloved && !n->isglobal)
     panic(n->loc, SEM_VAR_REDECL, var_name);
@@ -88,7 +88,7 @@ bool verify_expression_path_is_mutable(ASTNode_t *n) {
     if (n->kind == AST_VAR) {
         // Look up the symbol definition record from the Symbol Table
         // (Replace 'semantic_find_global_symbol' or your local scope lookup as needed)
-        SemanticSymbolRecord *sym = n->isglobal ? semantic_find_global_symbol(n->var) : SV::semantic_symbol_table::semantic_find_symbol(n->var);
+        SemanticSymbolRecord *sym = n->isglobal ? semantic_find_global_symbol(n->var) : SA::semantic_symbol_table::semantic_find_symbol(n->var);
         if (sym) {
             return sym->is_mutable;
         }
@@ -174,8 +174,8 @@ static void resolve_target_type(ASTNode_t *n, Type_t *&type) {
       if(!n->type) n->type = make_type(UNKNOWN, NULL);
       type = n->type;
     } else {
-      type = SV_semantic_lookup(name);
-      lhs->ismut = SV_semantic_is_mutable(name);
+      type = SA_semantic_lookup(name);
+      lhs->ismut = SA_semantic_is_mutable(name);
     }
   }
 
@@ -235,7 +235,7 @@ Type_t *assign(ASTNode_t *n, Type_t *type) {
 
     // Path A: Standard Variable modification
     // if (n->assign.lhs->kind == AST_VAR) {
-    //   exitcode_t ac = SV_semantic_assign_check(target_name, n->assign.lhs->isglobal,
+    //   exitcode_t ac = SA_semantic_assign_check(target_name, n->assign.lhs->isglobal,
     //                                           rhs_t->base,
     //                                           n->assign.rhs->type->base);
     //   if (ac != SUCCESS) {
@@ -253,7 +253,7 @@ Type_t *assign(ASTNode_t *n, Type_t *type) {
       const char *base_var_name = (base && base->var) ? base->var : target_name;
       
       // 1. Verify mutability of the root variable holding the pointer chain
-      if (!SV_semantic_is_mutable(base_var_name)) {
+      if (!SA_semantic_is_mutable(base_var_name)) {
           panic(n->loc, SEM_ASSIGN_IMMUTABLE, base_var_name);
       }
 

@@ -15,7 +15,7 @@ extern "C" {
 
 /*------------external fn declaration -----------------------------------*/
 void syserr(const char *);
-void panic(SV_Location, errc_t, const char *);
+void panic(SA_Location, errc_t, const char *);
 char *logf_msg(const char *, ...);
 
 /* Program options structure */

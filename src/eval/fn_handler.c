@@ -2,7 +2,7 @@
 
 
 TypedValue eval_call(ASTNode_t *node, bool g_returning, TypedValue g_return_value) {
-  ASTNode_t *fn = SV_runtime_fn_lookup(node->call.name);
+  ASTNode_t *fn = SA_runtime_fn_lookup(node->call.name);
 
   // Evaluate args left-to-right into a small array.
   int argc = 0;
@@ -32,7 +32,7 @@ TypedValue eval_call(ASTNode_t *node, bool g_returning, TypedValue g_return_valu
 
   // if (!fn) {
   //   bool ok = 0;
-  //   TypedValue out = SV_std_call(node->call.name, argv, argc, node->loc, &ok);
+  //   TypedValue out = SA_std_call(node->call.name, argv, argc, node->loc, &ok);
   //   free(argv);
   //   if (!ok)
   //     panic( node->loc, RT_CALL_UNDEF_FN, node->call.name);
@@ -46,11 +46,11 @@ TypedValue eval_call(ASTNode_t *node, bool g_returning, TypedValue g_return_valu
   }
 
   // New call frame.
-  SV_runtime_env_push();
+  SA_runtime_env_push();
   for (int i = 0; i < fn->fn_def.param_count; i++) {
-    TypedValue casted = SV_cast_typed(argv[i], fn->fn_def.params[i].type);
-    SV_Value vv = casted.val;
-    SV_runtime_env_set_current(fn->fn_def.params[i].name, &vv, fn->fn_def.params[i].type);
+    TypedValue casted = SA_cast_typed(argv[i], fn->fn_def.params[i].type);
+    SA_Value vv = casted.val;
+    SA_runtime_env_set_current(fn->fn_def.params[i].name, &vv, fn->fn_def.params[i].type);
   }
 
   int saved_returning = g_returning;
@@ -66,7 +66,7 @@ TypedValue eval_call(ASTNode_t *node, bool g_returning, TypedValue g_return_valu
   g_returning = saved_returning;
   g_return_value = saved_return_value;
 
-  SV_runtime_env_pop();
+  SA_runtime_env_pop();
   free(argv);
 
   return ret;

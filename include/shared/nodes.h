@@ -9,7 +9,7 @@ typedef struct ASTNode {
     bool is_variadic;
     
     bool ismut;
-    SV_Location loc; /* 0-based byte offset (start) */ /* 0-based byte offset (end) */ 
+    SA_Location loc; /* 0-based byte offset (start) */ /* 0-based byte offset (end) */ 
 
     union {
         // variables

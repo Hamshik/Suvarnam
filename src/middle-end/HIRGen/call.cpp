@@ -5,9 +5,9 @@
 #include "SymbolTable/BuiltinRegistry.hpp"
 
 extern "C" {
-void panic(SV_Location loc, errc_t code, const char *detail);
-unsigned __int128 SV_parse_u128(const char *str, int *ok);
-__int128 SV_parse_i128(const char *str, int *ok);
+void panic(SA_Location loc, errc_t code, const char *detail);
+unsigned __int128 SA_parse_u128(const char *str, int *ok);
+__int128 SA_parse_i128(const char *str, int *ok);
 Type_t *make_type(DataTypes_t base, Type_t *inner);
 }
 
@@ -22,7 +22,7 @@ static bool is_variadic_builtin(const char *name) {
   }
 
   for (auto *param_type : builtin->param_types) {
-    if (param_type && param_type->base == UNKNOWN) {
+    if (param_type && param_type->type->base == UNKNOWN) {
       return true;
     }
   }
@@ -42,7 +42,7 @@ static size_t count_fixed_builtin_params(const char *name) {
 
   size_t fixed_params = 0;
   for (auto *param_type : builtin->param_types) {
-    if (!param_type || param_type->base == UNKNOWN) {
+    if (!param_type || param_type->type->base == UNKNOWN) {
       break;
     }
     ++fixed_params;
@@ -136,7 +136,7 @@ static void emit_varargs_to_call(HIRNode *call_node,
       vararg_list->type->size = elems->size();
       call_node->call.args->push_back(vararg_list);
 
-      SV_Value raw_count = {0};
+      SA_Value raw_count = {0};
       raw_count.i64 = static_cast<int64_t>(elems->size());
       HIRNode *hidden_count_arg = HIRGenerator::create_literal(raw_count, count_type);
       call_node->call.args->push_back(hidden_count_arg);
@@ -157,7 +157,7 @@ static void emit_varargs_to_call(HIRNode *call_node,
     vararg_list->type->size = packed_varargs->size();
     call_node->call.args->push_back(vararg_list);
 
-    SV_Value raw_count = {0};
+    SA_Value raw_count = {0};
     raw_count.i64 = static_cast<int64_t>(packed_varargs->size());
     Type_t *count_type = make_type(I64, nullptr);
     HIRNode *hidden_count_arg = HIRGenerator::create_literal(raw_count, count_type);
@@ -177,7 +177,7 @@ HIRNode *HIRGenerator::emit_call(ASTNode_t *node) {
 
   bool has_variadic_user_param = false;
   size_t fixed_user_param_count = 0;
-  FnSymbol_t *fn_symbol = SV_semantic_fn_lookup(node->call.name);
+  FnSymbol_t *fn_symbol = SA_semantic_fn_lookup(node->call.name);
   if (fn_symbol && fn_symbol->params) {
     for (int i = 0; i < fn_symbol->param_count; ++i) {
       if (fn_symbol->params[i].is_variadic) {

@@ -6,13 +6,13 @@
 #include <cstring>
 
 extern "C" {
-void panic(SV_Location loc, errc_t code, const char *detail);
-unsigned __int128 SV_parse_u128(const char *str, int *ok);
-__int128 SV_parse_i128(const char *str, int *ok);
+void panic(SA_Location loc, errc_t code, const char *detail);
+unsigned __int128 SA_parse_u128(const char *str, int *ok);
+__int128 SA_parse_i128(const char *str, int *ok);
 Type_t *make_type(DataTypes_t base, Type_t *inner);
 }
 
-SV_Value handle_num(ASTNode_t *node);
+SA_Value handle_num(ASTNode_t *node);
 
 // Flattens front-end binary sequence trees into a flat vector of Mid-AST
 // nodes
@@ -54,8 +54,30 @@ void HIRGenerator::flatten_sequence(ASTNode_t *node,
 
 
 HIRNode *HIRGenerator::emit_idx(ASTNode_t *node) {
+  HIRNode *target_node = generate(node->index.target);
+  
+  if (target_node && target_node->type && target_node->type->base == STRINGS) {
+    std::vector<HIRNode *> *call_args = new std::vector<HIRNode *>();
+    call_args->push_back(target_node);
+
+    idx_expr_t *curr_idx = node->index.idx;
+    while (curr_idx) {
+      if (HIRNode *lowered_idx = generate(curr_idx->expr_node)) {
+        call_args->push_back(lowered_idx);
+      }
+      curr_idx = curr_idx->next;
+    }
+
+    HIRNode *call_node = create_call(
+        "_SA_getCharAt", call_args,
+        node->type ? node->type : make_type(CHARACTER, nullptr));
+      
+    call_node->loc = node->loc;
+    return call_node;
+  }
+
   HIRNode *index_node = new HIRNode(ASTKind::AST_INDEX);
-  index_node->index.target = generate(node->index.target);
+  index_node->index.target = target_node;
   index_node->type = node->type;
   index_node->loc = node->loc;
 
@@ -79,11 +101,11 @@ HIRNode *HIRGenerator::emit_idx(ASTNode_t *node) {
   return index_node;
 }
 
-SV_Value handle_num(ASTNode_t *node) {
+SA_Value handle_num(ASTNode_t *node) {
   if (!node || !node->literal.raw) {
-    panic(node ? node->loc : (SV_Location){0}, RT_NUM_LITERAL_UNSUPPORTED,
+    panic(node ? node->loc : (SA_Location){0}, RT_NUM_LITERAL_UNSUPPORTED,
           "Numeric literal missing raw string value");
-    return (SV_Value){0};
+    return (SA_Value){0};
   }
 
   DataTypes_t base =
@@ -132,14 +154,14 @@ SV_Value handle_num(ASTNode_t *node) {
   case U128: {
     int ok = 0;
     if (base == I128)
-      v.val.i128 = SV_parse_i128(raw, &ok);
+      v.val.i128 = SA_parse_i128(raw, &ok);
     else
-      v.val.u128 = SV_parse_u128(raw, &ok);
+      v.val.u128 = SA_parse_u128(raw, &ok);
 
     if (!ok) {
       panic(node->loc, RT_NUM_LITERAL_UNSUPPORTED,
             "Failed to parse 128-bit literal");
-      return (SV_Value){0};
+      return (SA_Value){0};
     }
     break;
   }
@@ -162,7 +184,7 @@ SV_Value handle_num(ASTNode_t *node) {
   default:
     panic(node->loc, RT_NUM_LITERAL_UNSUPPORTED,
           "Unsupported numeric base type");
-    return (SV_Value){0};
+    return (SA_Value){0};
   }
 
   return v.val;

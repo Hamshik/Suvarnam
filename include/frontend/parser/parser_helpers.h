@@ -36,23 +36,41 @@ static const char *g_last_parse_err_msg = NULL;
   } while (0)
 #endif
 
-#define SV_SET_NODE_LOC(node, loc)                                              \
+#define SA_SET_NODE_LOC(node, loc)                                              \
   do {                                                                         \
     if ((node) != NULL)                                                        \
       (node)->loc = (loc);                                                     \
   } while (0)
 
-#define SV_error_LOC(loc, code, detail) panic((loc), (code), (detail))
+#define SA_error_LOC(loc, code, detail) panic((loc), (code), (detail))
+
+static inline SA_Location SA_loc_start(SA_Location loc) {
+    loc.last_line = loc.first_line;
+    loc.last_column = loc.first_column;
+    loc.last_pos = loc.first_pos;
+    return loc;
+}
+
+/* Point at the position immediately following a parsed construct. */
+static inline SA_Location SA_loc_after(SA_Location loc) {
+    loc.first_line = loc.last_line;
+    loc.first_column = loc.last_column + 1;
+    loc.first_pos = loc.last_pos + 1;
+    loc.last_line = loc.first_line;
+    loc.last_column = loc.first_column;
+    loc.last_pos = loc.first_pos;
+    return loc;
+}
 
 extern file_t* file;
 
-void SV_annotate_decl_list(ASTNode_t *, DataTypes_t, DataTypes_t, bool);
+void SA_annotate_decl_list(ASTNode_t *, DataTypes_t, DataTypes_t, bool);
 
 /* ----------------- external function declaration --------------------------*/
 
-void panic(SV_Location, errc_t, const char *);
-void warn(file_t *, SV_Location, warnc_t, const char *);
-unsigned __int128 SV_parse_u128(const char *, int *);
+void panic(SA_Location, errc_t, const char *);
+void warn(file_t *, SA_Location, warnc_t, const char *);
+unsigned __int128 SA_parse_u128(const char *, int *);
 
 #ifdef __cplusplus
 }

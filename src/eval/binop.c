@@ -17,7 +17,7 @@ TypedValue eval_binop(ASTNode_t *node, TypedValue v) {
       TypedValue str_v = (l.type->base == STRINGS) ? l : r;
       TypedValue num_v = (l.type->base == STRINGS) ? r : l;
       
-      int count = (int)SV_as_i128(num_v.val, num_v.type->base);
+      int count = (int)SA_as_i128(num_v.val, num_v.type->base);
       
       size_t len = strlen(str_v.val.chars);
       char *res = calloc(1, len * count + 1);
@@ -33,118 +33,118 @@ TypedValue eval_binop(ASTNode_t *node, TypedValue v) {
   }
 
   if (node->bin.op == OP_AND || node->bin.op == OP_OR) {
-    TypedValue lb = SV_cast_typed(l, node->bin.left->type);
-    TypedValue rb = SV_cast_typed(r, node->bin.right->type);
+    TypedValue lb = SA_cast_typed(l, node->bin.left->type);
+    TypedValue rb = SA_cast_typed(r, node->bin.right->type);
     v.type = make_type(BOOL, NULL);
     v.val = eval_bool(node->bin.op, BOOL, lb.val, rb.val);
     return v;
   }
 
   if (isBoolOP(node->bin.op) || node->type->base == BOOL) {
-    DataTypes_t cmp_t = SV_promote_runtime(l.type->base, r.type->base);
-    TypedValue lc = SV_cast_typed(l, l.type);
-    TypedValue rc = SV_cast_typed(r, r.type);
+    DataTypes_t cmp_t = SA_promote_runtime(l.type->base, r.type->base);
+    TypedValue lc = SA_cast_typed(l, l.type);
+    TypedValue rc = SA_cast_typed(r, r.type);
     v.type = make_type(BOOL, NULL);
     v.val = eval_bool(node->bin.op, cmp_t, lc.val, rc.val);
     return v;
   }
 
   DataTypes_t op_t = node->type->base;
-  TypedValue lc = SV_cast_typed(l, node->type);
-  TypedValue rc = SV_cast_typed(r, node->type);
+  TypedValue lc = SA_cast_typed(l, node->type);
+  TypedValue rc = SA_cast_typed(r, node->type);
   v.type = make_type(op_t, NULL);
-  v.val = SV_eval_binop_numeric(node->bin.op, op_t, lc.val, rc.val);
+  v.val = SA_eval_binop_numeric(node->bin.op, op_t, lc.val, rc.val);
   return v;
 }
 
-SV_Value SV_eval_binop_numeric(OP_kind_t op, DataTypes_t type, SV_Value a,
-                             SV_Value b) {
-  type = SV_norm(type);
+SA_Value SA_eval_binop_numeric(OP_kind_t op, DataTypes_t type, SA_Value a,
+                             SA_Value b) {
+  type = SA_norm(type);
 
-  if (SV_is_float(type)) {
-    long double x = SV_as_f128(a, type);
-    long double y = SV_as_f128(b, type);
+  if (SA_is_float(type)) {
+    long double x = SA_as_f128(a, type);
+    long double y = SA_as_f128(b, type);
     if (op == OP_DIV && fabsl(y) < 1e-18L)
       DIE("division by zero");
     switch (op) {
     case OP_ADD:
-      return SV_from_f128(x + y, type);
+      return SA_from_f128(x + y, type);
     case OP_SUB:
-      return SV_from_f128(x - y, type);
+      return SA_from_f128(x - y, type);
     case OP_MUL:
-      return SV_from_f128(x * y, type);
+      return SA_from_f128(x * y, type);
     case OP_DIV:
-      return SV_from_f128(x / y, type);
+      return SA_from_f128(x / y, type);
     case OP_POW:
-      return SV_from_f128(powl(x, y), type);
+      return SA_from_f128(powl(x, y), type);
     case OP_MOD:
-      return SV_from_f128(fmodl(x, y), type);
+      return SA_from_f128(fmodl(x, y), type);
     default:
       DIE("Invalid float binary op");
     }
   }
 
-  if (SV_is_unsigned_int(type)) {
-    unsigned __int128 x = SV_as_u128(a, type);
-    unsigned __int128 y = SV_as_u128(b, type);
+  if (SA_is_unsigned_int(type)) {
+    unsigned __int128 x = SA_as_u128(a, type);
+    unsigned __int128 y = SA_as_u128(b, type);
     if ((op == OP_DIV || op == OP_MOD) && y == 0)
       DIE("division/mod by zero");
     switch (op) {
     case OP_ADD:
-      return SV_from_u128(x + y, type);
+      return SA_from_u128(x + y, type);
     case OP_SUB:
-      return SV_from_u128(x - y, type);
+      return SA_from_u128(x - y, type);
     case OP_MUL:
-      return SV_from_u128(x * y, type);
+      return SA_from_u128(x * y, type);
     case OP_DIV:
-      return SV_from_u128(x / y, type);
+      return SA_from_u128(x / y, type);
     case OP_MOD:
-      return SV_from_u128(x % y, type);
+      return SA_from_u128(x % y, type);
     case OP_POW:
-      return SV_from_u128(SV_pow_u128(x, y).u128, type);
+      return SA_from_u128(SA_pow_u128(x, y).u128, type);
     case OP_LSHIFT:
-      return SV_from_u128(x << (unsigned int)y, type);
+      return SA_from_u128(x << (unsigned int)y, type);
     case OP_RSHIFT:
-      return SV_from_u128(x >> (unsigned int)y, type);
+      return SA_from_u128(x >> (unsigned int)y, type);
     case OP_BITAND:
-      return SV_from_u128(x & y, type);
+      return SA_from_u128(x & y, type);
     case OP_BITOR:
-      return SV_from_u128(x | y, type);
+      return SA_from_u128(x | y, type);
     case OP_BITXOR:
-      return SV_from_u128(x ^ y, type);
+      return SA_from_u128(x ^ y, type);
     default:
       DIE("Invalid unsigned integer binary op");
     }
   }
 
-  if (SV_is_signed_int(type)) {
-    __int128 x = SV_as_i128(a, type);
-    __int128 y = SV_as_i128(b, type);
+  if (SA_is_signed_int(type)) {
+    __int128 x = SA_as_i128(a, type);
+    __int128 y = SA_as_i128(b, type);
     if ((op == OP_DIV || op == OP_MOD) && y == 0)
       DIE("division/mod by zero");
     switch (op) {
     case OP_ADD:
-      return SV_from_i128(x + y, type);
+      return SA_from_i128(x + y, type);
     case OP_SUB:
-      return SV_from_i128(x - y, type);
+      return SA_from_i128(x - y, type);
     case OP_MUL:
-      return SV_from_i128(x * y, type);
+      return SA_from_i128(x * y, type);
     case OP_DIV:
-      return SV_from_i128(x / y, type);
+      return SA_from_i128(x / y, type);
     case OP_MOD:
-      return SV_from_i128(x % y, type);
+      return SA_from_i128(x % y, type);
     case OP_POW:
-      return SV_from_i128(SV_pow_i128(x, y).i128, type);
+      return SA_from_i128(SA_pow_i128(x, y).i128, type);
     case OP_LSHIFT:
-      return SV_from_i128(x << (unsigned int)y, type);
+      return SA_from_i128(x << (unsigned int)y, type);
     case OP_RSHIFT:
-      return SV_from_i128(x >> (unsigned int)y, type);
+      return SA_from_i128(x >> (unsigned int)y, type);
     case OP_BITAND:
-      return SV_from_i128(x & y, type);
+      return SA_from_i128(x & y, type);
     case OP_BITOR:
-      return SV_from_i128(x | y, type);
+      return SA_from_i128(x | y, type);
     case OP_BITXOR:
-      return SV_from_i128(x ^ y, type);
+      return SA_from_i128(x ^ y, type);
     default:
       DIE("Invalid signed integer binary op");
     }
@@ -153,81 +153,81 @@ SV_Value SV_eval_binop_numeric(OP_kind_t op, DataTypes_t type, SV_Value a,
   DIE("Invalid datatype for numeric operation");
 }
 
-SV_Value eval_bool(OP_kind_t op, DataTypes_t type, SV_Value a, SV_Value b) {
-  type = SV_norm(type);
+SA_Value eval_bool(OP_kind_t op, DataTypes_t type, SA_Value a, SA_Value b) {
+  type = SA_norm(type);
   if (type == BOOL) {
     switch (op) {
     case OP_AND:
-      return (SV_Value){.bval = a.bval && b.bval};
+      return (SA_Value){.bval = a.bval && b.bval};
     case OP_OR:
-      return (SV_Value){.bval = a.bval || b.bval};
+      return (SA_Value){.bval = a.bval || b.bval};
     case OP_EQ:
-      return (SV_Value){.bval = a.bval == b.bval};
+      return (SA_Value){.bval = a.bval == b.bval};
     case OP_NEQ:
-      return (SV_Value){.bval = a.bval != b.bval};
+      return (SA_Value){.bval = a.bval != b.bval};
     default:
       DIE("Invalid boolean operator");
     }
   }
 
-  if (SV_is_float(type)) {
-    long double x = SV_as_f128(a, type);
-    long double y = SV_as_f128(b, type);
+  if (SA_is_float(type)) {
+    long double x = SA_as_f128(a, type);
+    long double y = SA_as_f128(b, type);
     switch (op) {
     case OP_EQ:
-      return (SV_Value){.bval = x == y};
+      return (SA_Value){.bval = x == y};
     case OP_NEQ:
-      return (SV_Value){.bval = x != y};
+      return (SA_Value){.bval = x != y};
     case OP_GT:
-      return (SV_Value){.bval = x > y};
+      return (SA_Value){.bval = x > y};
     case OP_LT:
-      return (SV_Value){.bval = x < y};
+      return (SA_Value){.bval = x < y};
     case OP_GE:
-      return (SV_Value){.bval = x >= y};
+      return (SA_Value){.bval = x >= y};
     case OP_LE:
-      return (SV_Value){.bval = x <= y};
+      return (SA_Value){.bval = x <= y};
     default:
       DIE("Invalid float comparison operator");
     }
   }
 
-  if (SV_is_unsigned_int(type)) {
-    unsigned __int128 x = SV_as_u128(a, type);
-    unsigned __int128 y = SV_as_u128(b, type);
+  if (SA_is_unsigned_int(type)) {
+    unsigned __int128 x = SA_as_u128(a, type);
+    unsigned __int128 y = SA_as_u128(b, type);
     switch (op) {
     case OP_EQ:
-      return (SV_Value){.bval = x == y};
+      return (SA_Value){.bval = x == y};
     case OP_NEQ:
-      return (SV_Value){.bval = x != y};
+      return (SA_Value){.bval = x != y};
     case OP_GT:
-      return (SV_Value){.bval = x > y};
+      return (SA_Value){.bval = x > y};
     case OP_LT:
-      return (SV_Value){.bval = x < y};
+      return (SA_Value){.bval = x < y};
     case OP_GE:
-      return (SV_Value){.bval = x >= y};
+      return (SA_Value){.bval = x >= y};
     case OP_LE:
-      return (SV_Value){.bval = x <= y};
+      return (SA_Value){.bval = x <= y};
     default:
       DIE("Invalid integer comparison operator");
     }
   }
 
-  if (SV_is_signed_int(type)) {
-    __int128 x = SV_as_i128(a, type);
-    __int128 y = SV_as_i128(b, type);
+  if (SA_is_signed_int(type)) {
+    __int128 x = SA_as_i128(a, type);
+    __int128 y = SA_as_i128(b, type);
     switch (op) {
     case OP_EQ:
-      return (SV_Value){.bval = x == y};
+      return (SA_Value){.bval = x == y};
     case OP_NEQ:
-      return (SV_Value){.bval = x != y};
+      return (SA_Value){.bval = x != y};
     case OP_GT:
-      return (SV_Value){.bval = x > y};
+      return (SA_Value){.bval = x > y};
     case OP_LT:
-      return (SV_Value){.bval = x < y};
+      return (SA_Value){.bval = x < y};
     case OP_GE:
-      return (SV_Value){.bval = x >= y};
+      return (SA_Value){.bval = x >= y};
     case OP_LE:
-      return (SV_Value){.bval = x <= y};
+      return (SA_Value){.bval = x <= y};
     default:
       DIE("Invalid integer comparison operator");
     }
@@ -236,7 +236,7 @@ SV_Value eval_bool(OP_kind_t op, DataTypes_t type, SV_Value a, SV_Value b) {
   DIE("Invalid datatype for boolean operation");
 }
 
-SV_Value eval_binop_int(OP_kind_t op, bool isShort, int a, int b) {
+SA_Value eval_binop_int(OP_kind_t op, bool isShort, int a, int b) {
   if (isShort) {
     CHECK_INT_ZERO(op, b);
     if (op == OP_POW) {
@@ -252,7 +252,7 @@ SV_Value eval_binop_int(OP_kind_t op, bool isShort, int a, int b) {
         if (exp)
           base = (short)(base * base);
       }
-      return (SV_Value){.i16 = result};
+      return (SA_Value){.i16 = result};
     }
     switch (op) {
       INT_CASES(i16, (short)a, (short)b);
@@ -274,7 +274,7 @@ SV_Value eval_binop_int(OP_kind_t op, bool isShort, int a, int b) {
       if (exp)
         base = base * base;
     }
-    return (SV_Value){.i32 = result};
+    return (SA_Value){.i32 = result};
   }
   switch (op) {
     INT_CASES(i32, a, b);
@@ -283,7 +283,7 @@ SV_Value eval_binop_int(OP_kind_t op, bool isShort, int a, int b) {
   }
 }
 
-SV_Value eval_binop_float(OP_kind_t op, float a, float b) {
+SA_Value eval_binop_float(OP_kind_t op, float a, float b) {
   if (op == OP_DIV && fabsf(b) < 1e-12f)
     DIE("division by zero");
   switch (op) {
@@ -293,7 +293,7 @@ SV_Value eval_binop_float(OP_kind_t op, float a, float b) {
   }
 }
 
-SV_Value eval_binop_double(OP_kind_t op, double a, double b) {
+SA_Value eval_binop_double(OP_kind_t op, double a, double b) {
   if (op == OP_DIV && fabs(b) < 1e-12)
     DIE("division by zero");
   switch (op) {

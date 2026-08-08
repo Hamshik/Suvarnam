@@ -26,8 +26,8 @@ static ResolvedSig get_call_sig(const char* name) {
   ResolvedSig sig = {nullptr, nullptr, 0, false};
   if (!name) return sig;
   
-  // 1. Check the Symbol Table (includes both User functions and SV_lib prototypes)
-  if (FnSymbol_t *f = SV_semantic_fn_lookup(name)) {
+  // 1. Check the Symbol Table (includes both User functions and SA_lib prototypes)
+  if (FnSymbol_t *f = SA_semantic_fn_lookup(name)) {
     sig.ret = f->ret;
     sig.param_count = f->param_count;
     sig.exists = true;
@@ -49,7 +49,7 @@ static void update_ret_type(const char *fn_name, Type_t *rt) {
   if (!fn_name || !rt)
     return;
 
-  FnSymbol_t *fn = SV_semantic_fn_lookup(fn_name);
+  FnSymbol_t *fn = SA_semantic_fn_lookup(fn_name);
   if (!fn)
     return;
 
@@ -65,11 +65,11 @@ Type_t* handle_fn(ASTNode_t *n) {
   
   fn_name = n->fn_def.name;
 
-  SV_semantic_scope_push();
+  SA_semantic_scope_push();
   for (int i = 0; i < n->fn_def.param_count; i++) {
     if (!n->fn_def.params[i].type) n->fn_def.params[i].type = make_type(UNKNOWN, NULL);
     
-    if (!SV_semantic_declare(n->fn_def.params[i].name, &n->isglobal,
+    if (!SA_semantic_declare(n->fn_def.params[i].name, &n->isglobal,
        n->fn_def.params[i].type, nullptr, true))
       panic( n->loc, SEM_DUP_PARAM,
             n->fn_def.params[i].name);
@@ -101,7 +101,7 @@ Type_t* handle_fn(ASTNode_t *n) {
   g_current_fn_ret_type = saved_current_fn_ret_type; // Restore old g_current_fn_ret_type
   g_in_fn = saved_in_fn;
 
-  SV_semantic_scope_pop();
+  SA_semantic_scope_pop();
   return nullptr;
 }
 
@@ -137,7 +137,7 @@ Type_t* call(ASTNode_t *n) {
       it = NULL;
   }
 
-  FnSymbol_t *f = SV_semantic_fn_lookup(n->call.name);
+  FnSymbol_t *f = SA_semantic_fn_lookup(n->call.name);
   BuiltinFunction* b = BuiltinRegistry::instance().lookup(n->call.name);
 
   bool is_variadic_builtin = false;
@@ -145,7 +145,7 @@ Type_t* call(ASTNode_t *n) {
   size_t fixed_user_param_count = 0;
   if (b) {
     for (auto *param_type : b->param_types) {
-      if (param_type && param_type->base == UNKNOWN) {
+      if (param_type && param_type->type->base == UNKNOWN) {
         is_variadic_builtin = true;
         break;
       }
@@ -180,7 +180,7 @@ Type_t* call(ASTNode_t *n) {
       if (f && i < f->param_count) {
         want = f->params[i].type;
       } else if (b && i < (int)b->param_types.size()) {
-        want = b->param_types[i];
+        want = b->param_types[i]->type;
       }
 
       if (want && want->base != UNKNOWN && is_numeric(want->base))
@@ -203,7 +203,7 @@ Type_t* call(ASTNode_t *n) {
     int fixed_param_count = 0;
     if (b) {
       for (auto *pt : b->param_types) {
-        if (!pt || pt->base == UNKNOWN) break;
+        if (!pt || pt->type->base == UNKNOWN) break;
         ++fixed_param_count;
       }
     }
@@ -212,7 +212,7 @@ Type_t* call(ASTNode_t *n) {
     ASTNode_t *arg = n->call.args;
     for (int i = 0; i < fixed_param_count; ++i) {
       ASTNode_t *cur = arg ? (arg->kind == AST_SEQ ? arg->seq.a : arg) : NULL;
-      Type_t *want = (b && i < (int)b->param_types.size()) ? b->param_types[i] : nullptr;
+      Type_t *want = (b && i < (int)b->param_types.size()) ? b->param_types[i]->type : nullptr;
       if (want && want->base != UNKNOWN && is_numeric(want->base))
         force_numeric_type(cur, want->base);
       Type_t *at = nullptr;
@@ -230,7 +230,7 @@ Type_t* call(ASTNode_t *n) {
     }
 
     // Remaining args: check against last builtin param type if present
-    Type_t *last_want = b && !b->param_types.empty() ? b->param_types.back() : nullptr;
+    Type_t *last_want = b && !b->param_types.empty() ? b->param_types.back()->type : nullptr;
     while (arg) {
       ASTNode_t *cur = (arg->kind == AST_SEQ ? arg->seq.a : arg);
       if (last_want && last_want->base != UNKNOWN && is_numeric(last_want->base))

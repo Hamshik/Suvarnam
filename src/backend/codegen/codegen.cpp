@@ -5,7 +5,7 @@
 #include <unordered_set>
 
 using namespace llvm;
-using namespace SV;
+using namespace SA;
 /* ===================== TARGET SETUP ===================== */
 
 static TargetMachine* setup_target(Module &mod) {
@@ -165,7 +165,7 @@ static bool emit_ir(Module &mod, const char *path, char **out) {
 
 int codegen(HIRNode *root, const char *ll_path, char **ir_out) {
     LLVMContext ctx;
-    Module mod(" SV_Module", ctx);
+    Module mod(" SA_Module", ctx);
 
     if (!setup_target(mod))
         return 1;
@@ -183,17 +183,17 @@ int codegen(HIRNode *root, const char *ll_path, char **ir_out) {
     std::string err;
     raw_string_ostream errOS(err);
     if (verifyModule(mod, &errOS)) {
-        std::cerr << TACA_BOLD TACA_RED
+        std::cerr << SA_BOLD SA_RED
                   << "LLVM verify error: "
-                  << TACA_RESET << errOS.str() << "\n";
+                  << SA_RESET << errOS.str() << "\n";
     }
 
     if (!emit_ir(mod, ll_path, ir_out))
         return 1;
 
-    std::cout << (TACA_BOLD TACA_GREEN
+    printf(SA_BOLD SA_GREEN
            "SUCCESS: Compilation succeeded with no errors or warnings\n"
-           TACA_RESET);
+           SA_RESET);
 
     return 0;
 }

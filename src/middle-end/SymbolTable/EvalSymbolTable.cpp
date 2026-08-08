@@ -20,12 +20,12 @@ void reset_runtime_value(TypedValue &value) {
   }
 
   value.type = nullptr;
-  value.val =  SV_Value{};
+  value.val =  SA_Value{};
 }
 
-void store_runtime_value(TypedValue &slot, Type_t* type, const SV_Value &value) {
+void store_runtime_value(TypedValue &slot, Type_t* type, const SA_Value &value) {
   reset_runtime_value(slot);
-  SV_Value fresh{};
+  SA_Value fresh{};
   assign_value(type->base, &fresh, value);
   slot.type = type;
   slot.val = fresh;
@@ -36,7 +36,7 @@ struct RuntimeBinding {
 
   RuntimeBinding() {
     typed_value.type = nullptr;
-    typed_value.val =  SV_Value{};
+    typed_value.val =  SA_Value{};
   }
 
   ~RuntimeBinding() { reset_runtime_value(typed_value); }
@@ -46,7 +46,7 @@ struct RuntimeBinding {
 
   RuntimeBinding(RuntimeBinding &&other) noexcept : typed_value(other.typed_value) {
     other.typed_value.type = nullptr;
-    other.typed_value.val =  SV_Value{};
+    other.typed_value.val =  SA_Value{};
   }
 
   RuntimeBinding &operator=(RuntimeBinding &&other) noexcept {
@@ -54,7 +54,7 @@ struct RuntimeBinding {
       reset_runtime_value(typed_value);
       typed_value = other.typed_value;
       other.typed_value.type = nullptr;
-      other.typed_value.val =  SV_Value{};
+      other.typed_value.val =  SA_Value{};
     }
     return *this;
   }
@@ -98,7 +98,7 @@ RuntimeBinding *runtime_find_binding(RuntimeFrame *start, const char *name) {
 
 } // namespace
 
-namespace  SV::runtime_symbol_table {
+namespace  SA::runtime_symbol_table {
 
 void env_push() {
   RuntimeFrame *frame = new RuntimeFrame();
@@ -132,7 +132,7 @@ void env_clear_all() {
   fn_clear();
 }
 
-void env_set(const char *name,  SV_Value *val, Type_t* type) {
+void env_set(const char *name,  SA_Value *val, Type_t* type) {
   RuntimeBinding *binding = runtime_find_binding(runtime_env_top(), name);
   if (binding) {
     store_runtime_value(binding->typed_value, type, *val);
@@ -142,30 +142,30 @@ void env_set(const char *name,  SV_Value *val, Type_t* type) {
   env_set_current(name, val, type);
 }
 
-void env_set_current(const char *name,  SV_Value *val, Type_t* type) {
+void env_set_current(const char *name,  SA_Value *val, Type_t* type) {
   RuntimeFrame *frame = runtime_env_top();
   auto [it, inserted] = frame->vars.try_emplace(name);
   (void)inserted;
   store_runtime_value(it->second.typed_value, type, *val);
 }
 
- SV_Value env_get(const char *name, Type_t* datatype, SV_Location loc) {
+ SA_Value env_get(const char *name, Type_t* datatype, SA_Location loc) {
   RuntimeBinding *binding = runtime_find_binding(runtime_env_top(), name);
   if (!binding) {
     panic( loc, RT_VAR_NOT_DEFINED, name);
-    return  SV_Value{};
+    return  SA_Value{};
   }
 
   if (binding->typed_value.type != datatype &&
       !is_numeric(binding->typed_value.type->base) && !is_numeric(datatype->base)) {
     panic( loc, RT_VAR_TYPE_MISMATCH, name);
-    return  SV_Value{};
+    return  SA_Value{};
   }
 
   return binding->typed_value.val;
 }
 
-TypedValue *env_get_ref(const char *name, SV_Location loc) {
+TypedValue *env_get_ref(const char *name, SA_Location loc) {
   RuntimeBinding *binding = runtime_find_binding(runtime_env_top(), name);
   if (binding) {
     return &binding->typed_value;
@@ -175,7 +175,7 @@ TypedValue *env_get_ref(const char *name, SV_Location loc) {
   return nullptr;
 }
 
-int env_frame_id_of(const char *name, SV_Location loc) {
+int env_frame_id_of(const char *name, SA_Location loc) {
   for (RuntimeFrame *it = runtime_env_top(); it; it = it->parent) {
     if (it->vars.find(name) != it->vars.end()) {
       return it->id;
@@ -186,7 +186,7 @@ int env_frame_id_of(const char *name, SV_Location loc) {
   return -1;
 }
 
-TypedValue *env_get_ref_at(int frame_id, const char *name, SV_Location loc) {
+TypedValue *env_get_ref_at(int frame_id, const char *name, SA_Location loc) {
   RuntimeFrame *frame = runtime_find_frame(frame_id);
   if (!frame) {
     panic( loc, RT_DANGLING_PTR, name);
@@ -202,8 +202,8 @@ TypedValue *env_get_ref_at(int frame_id, const char *name, SV_Location loc) {
   return &found->second.typed_value;
 }
 
-void env_set_at(int frame_id, const char *name,  SV_Value *val,
-                Type_t* type, SV_Location loc) {
+void env_set_at(int frame_id, const char *name,  SA_Value *val,
+                Type_t* type, SA_Location loc) {
   TypedValue *target = env_get_ref_at(frame_id, name, loc);
   if (!target) {
     return;
@@ -234,4 +234,4 @@ ASTNode_t *fn_lookup(const char *name) {
 
 void fn_clear() { g_runtime_functions.clear(); }
 
-} // namespace  SV::runtime_symbol_table
+} // namespace  SA::runtime_symbol_table

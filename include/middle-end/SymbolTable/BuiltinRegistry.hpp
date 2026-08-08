@@ -22,7 +22,7 @@ struct CStringLess {
 struct BuiltinFunction {
     const char* name;
     Type_t* return_type;
-    std::vector<Type_t*> param_types;
+    std::vector<Param_t*> param_types;
     
     // Interpreter implementation
     InterpreterCallback interpreter_impl;
@@ -38,7 +38,7 @@ public:
     static BuiltinRegistry& instance();
 
     // Maps a name to an implementation. Metadata is populated during bootstrap.
-    void register_builtin(const char*, Type_t*, std::vector<Type_t*>, InterpreterCallback);
+    void register_builtin(const char*, Type_t*, std::vector<Param_t*>, InterpreterCallback);
     BuiltinFunction* lookup(const char*);
     
     void bootstrap();

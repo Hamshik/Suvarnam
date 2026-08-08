@@ -8,7 +8,7 @@ Suvarnam is a strictly-typed, high-performance programming language built on top
 
 *   **LLVM Backend**: Compiles directly to efficient machine code via LLVM IR.
 *   **Advanced Type Inference**: Supports auto-inference for variables (`var mut x = [[10, 10]]`) while maintaining strict fixed-size constraints.
-*   **Recursive List Handling**: 
+*   **Recursive List Handling**:
     *   Multi-dimensional nested lists (e.g., `[[i32; 2]; 1]`).
     *   **Size Locking**: Unsized list declarations lock to their specific dimensions and sizes upon initialization to prevent buffer overflows.
 *   **String Repetition & Concatenation**: Native support for multiplying strings by integers (`"Hello" * 3`) and concatenating strings (`"a" + "b"`).
@@ -18,12 +18,14 @@ Suvarnam is a strictly-typed, high-performance programming language built on top
 ## Getting Started
 
 ### Prerequisites
+
 *   LLVM 14+ 
 *   CMake 3.10+
 *   Flex & Bison
 *   GCC/G++
 
 ### Building the Compiler
+
 Use the provided build script to compile the project:
 
 ```bash
@@ -37,13 +39,13 @@ cmake -S . -B build
 ```
 
 ### Compiling and Running Programs
-To compile a `.sv` source file:
+To compile a `.sa` source file:
 
 ```bash
-./build/suvarnam source/test.sv
+./build/suvarnam source/test.sa
 ```
 
-This will generate an executable in the `SV.bin` file or **you can do this instead**.
+This will generate an executable in the `SA.bin` file or **you can do this instead**.
 
 ```bash
 ./build/suvarnam path/to/source_file.sv -o path/to/output_file.bin

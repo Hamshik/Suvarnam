@@ -6,10 +6,10 @@
 #include <cstdlib>
 #include <cstring>
 
-extern "C" void panic(SV_Location loc, errc_t code, const char *detail);
-extern "C" unsigned __int128 SV_parse_u128(const char *str, int *ok);
-extern "C" __int128 SV_parse_i128(const char *str, int *ok);
-SV_Value handle_num(ASTNode_t *node);
+extern "C" void panic(SA_Location loc, errc_t code, const char *detail);
+extern "C" unsigned __int128 SA_parse_u128(const char *str, int *ok);
+extern "C" __int128 SA_parse_i128(const char *str, int *ok);
+SA_Value handle_num(ASTNode_t *node);
 
 // Main entry point: Lower a generic front-end node to MAST
 HIRNode *HIRGenerator::generate(ASTNode_t *node) {
@@ -18,7 +18,7 @@ HIRNode *HIRGenerator::generate(ASTNode_t *node) {
 
   switch (node->kind) {
   case AST_NUM: {
-    SV_Value val = handle_num(node);
+    SA_Value val = handle_num(node);
     HIRNode *m_node = create_literal(val, node->type);
     if (m_node)
       m_node->loc = node->loc;
@@ -40,7 +40,7 @@ HIRNode *HIRGenerator::generate(ASTNode_t *node) {
 
   case AST_STR: {
     HIRNode *m_node =
-        create_literal((SV_Value){.chars = node->literal.raw}, node->type);
+        create_literal((SA_Value){.chars = node->literal.raw}, node->type);
     if (m_node)
       m_node->loc = node->loc;
     return m_node;
@@ -48,7 +48,7 @@ HIRNode *HIRGenerator::generate(ASTNode_t *node) {
 
   case AST_CHAR: {
     HIRNode *m_node =
-        create_literal((SV_Value){.chars = node->literal.raw}, node->type);
+        create_literal((SA_Value){.chars = node->literal.raw}, node->type);
     if (m_node)
       m_node->loc = node->loc;
     return m_node;
@@ -56,7 +56,7 @@ HIRNode *HIRGenerator::generate(ASTNode_t *node) {
 
   case AST_BOOL: {
     HIRNode *m_node = create_literal(
-        (SV_Value){.bval = node->literal.raw[0] == 't' ? true : false},
+        (SA_Value){.bval = node->literal.raw[0] == 't' ? true : false},
         node->type);
     if (m_node)
       m_node->loc = node->loc;

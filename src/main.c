@@ -1,4 +1,5 @@
 #include "cmd-exec/cmd-exec.hpp"
+#include "semantic/semantic.hpp"
 #include "shared/enums.h"
 #include "shared/structs.h"
 #include <stdlib.h>
@@ -9,6 +10,7 @@ file_t *file;
 
 int yyparse();
 Type_t* make_type(DataTypes_t , Type_t*);
+void check_err();
 
 int main(int argc, char **argv) {
 
@@ -22,20 +24,20 @@ int main(int argc, char **argv) {
     if (!setup_input_file(&opts, file)) {
         return EXIT_FAILURE;
     }
+    error_fatal = false;
 
     yyin = file->source;
     yyrestart(yyin);
 
     yyparse();
-    if (root) {
-        int result = compile_and_execute(root, &opts);
+    if (root && !isError) {
+        short result = compile_and_execute(root, &opts);
         if (result != 0) {
             return result;
         }
-    } else {
-        fprintf(stderr, "Parsing failed with errors.\n");
-        return EXIT_FAILURE;
     }
+    check_err();
+
 
     if (file->source != stdin)
         fclose(file->source);

@@ -12,7 +12,7 @@ extern file_t* file;
 void type_error(ASTNode_t *n, const char *msg) {
   if (n && n->type)
     n->type = make_type(UNKNOWN, NULL);
-  panic(n ? n->loc : (SV_Location){0},
+  panic(n ? n->loc : (SA_Location){0},
         SEM_BINOP_INVALID, msg ? msg : NULL);
   return;
 }
@@ -272,25 +272,25 @@ void force_numeric_type(ASTNode_t *n, DataTypes_t t) {
   }
 }
 
-void check_err() {
+extern "C" void check_err() {
   if (isError && isWarning) {
-    fprintf(stderr, TACA_BOLD TACA_RED "ERROR: " TACA_RESET);
+    fprintf(stderr, SA_BOLD SA_RED "ERROR: " SA_RESET);
     fprintf(stderr,
-            TACA_UNDERLINE TACA_MAGENTA
-            "Compilation failed with %zu error(s) and %zu warning(s)\n" TACA_RESET,
+            SA_UNDERLINE SA_MAGENTA
+            "Compilation failed with %zu error(s) and %zu warning(s)\n" SA_RESET,
             err_no, warn_no);
     exit(EXIT_FAILURE);
   } else if (isError) {
-    fprintf(stderr, TACA_BOLD TACA_RED "ERROR: " TACA_RESET);
+    fprintf(stderr, SA_BOLD SA_RED "ERROR: " SA_RESET);
     fprintf(stderr,
-            TACA_UNDERLINE TACA_MAGENTA "Compilation failed with %zu error(s)\n" TACA_RESET,
+            SA_UNDERLINE SA_MAGENTA "Compilation failed with %zu error(s)\n" SA_RESET,
             err_no);
     exit(EXIT_FAILURE);
   } else if (isWarning) {
-    fprintf(stderr, TACA_BOLD TACA_YELLOW "WARNING: " TACA_RESET);
+    fprintf(stderr, SA_BOLD SA_YELLOW "WARNING: " SA_RESET);
     fprintf(stderr,
-            TACA_UNDERLINE TACA_MAGENTA
-            "Compilation succeeded with %zu warning(s)\n" TACA_RESET,
+            SA_UNDERLINE SA_MAGENTA
+            "Compilation succeeded with %zu warning(s)\n" SA_RESET,
             warn_no);
   } 
 }

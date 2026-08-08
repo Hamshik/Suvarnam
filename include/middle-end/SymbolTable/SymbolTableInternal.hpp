@@ -1,5 +1,5 @@
-#ifndef TACA_SYMBOL_TABLE_INTERNAL_HPP
-#define TACA_SYMBOL_TABLE_INTERNAL_HPP
+#ifndef SA_SYMBOL_TABLE_INTERNAL_HPP
+#define SA_SYMBOL_TABLE_INTERNAL_HPP
 
 #include "SymbolTable.hpp"
 #include "shared/nodes.h"
@@ -25,27 +25,27 @@ struct SemanticScopeRecord {
   SemanticScopeRecord *parent = nullptr;
 };
 
-namespace  SV::runtime_symbol_table {
+namespace  SA::runtime_symbol_table {
 
 void env_push();
 void env_pop();
 void env_clear_all();
-void env_set(const char *, SV_Value *, Type_t *);
-void env_set_current(const char *, SV_Value *, Type_t *);
-SV_Value env_get(const char *, Type_t *, SV_Location);
-TypedValue *env_get_ref(const char *, SV_Location);
-int env_frame_id_of(const char *, SV_Location);
-TypedValue *env_get_ref_at(int, const char *, SV_Location);
-void env_set_at(int, const char *, SV_Value *, Type_t *, SV_Location);
+void env_set(const char *, SA_Value *, Type_t *);
+void env_set_current(const char *, SA_Value *, Type_t *);
+SA_Value env_get(const char *, Type_t *, SA_Location);
+TypedValue *env_get_ref(const char *, SA_Location);
+int env_frame_id_of(const char *, SA_Location);
+TypedValue *env_get_ref_at(int, const char *, SA_Location);
+void env_set_at(int, const char *, SA_Value *, Type_t *, SA_Location);
 
 bool fn_register(ASTNode_t *);
 ASTNode_t *fn_lookup(const char *);
 void fn_clear();
 
-} // namespace  SV::runtime_symbol_table
+} // namespace  SA::runtime_symbol_table
 
 
-namespace  SV::semantic_symbol_table {
+namespace  SA::semantic_symbol_table {
 
 Type_t *lookup(const char *);
 bool declare(const char *, bool *, Type_t *, ASTNode_t *, bool);
@@ -64,9 +64,9 @@ Module_t *load_module(const char *, bool &);
 extern "C" SemanticSymbolRecord *semantic_find_symbol(const char *);
 extern "C" SemanticSymbolRecord *semantic_find_global_symbol(const char *);
 
-} // namespace  SV::semantic_symbol_table
+} // namespace  SA::semantic_symbol_table
 
-namespace SV::Codegen{
+namespace SA::Codegen{
 class Scope {
 public:
     std::unordered_map<std::string, llvm::Value*> symbols;

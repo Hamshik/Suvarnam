@@ -27,16 +27,16 @@ bool isVarArg = false;
 
 for (auto* pt : builtin->param_types) {
   // Check for the start of variadic arguments
-  if (pt->base == UNKNOWN) {
+  if (pt->type->base == UNKNOWN) {
     isVarArg = true;
     break; // Stop processing fixed arguments. Everything from here is vararg.
   }
 
   // Map LIST to generic Pointer for external C calls
-  if (pt->base == LIST) {
+  if (pt->type->base == LIST) {
     argTys.push_back(PointerType::getUnqual(ctx));
   } else {
-    argTys.push_back(ir_type(pt->base, ctx));
+    argTys.push_back(ir_type(pt->type->base, ctx));
   }
 }
 
@@ -51,7 +51,7 @@ void emit_list_print_call(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b, IRBuilde
     Module *m = b.GetInsertBlock()->getModule();
     
     // 1. Get the function reference from the registry
-    FunctionCallee printFn = get_builtin_llvm_fn("SV_print_list", *m, ctx);
+    FunctionCallee printFn = get_builtin_llvm_fn("SA_print_list", *m, ctx);
 
     if (!printFn.getCallee()) {
         return; // Handle error
@@ -63,7 +63,7 @@ void emit_list_print_call(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b, IRBuilde
     // 3. Get the size (from your AST metadata)
     Value *listSize = b.getInt32(n->type->size);
 
-    // 4. Generate the call: SV_print_list(listPtr, listSize)
+    // 4. Generate the call: SA_print_list(listPtr, listSize)
     b.CreateCall(printFn, {listPtr, listSize});
 }
 

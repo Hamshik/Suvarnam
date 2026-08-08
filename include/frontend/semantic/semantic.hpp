@@ -36,7 +36,7 @@ extern ASTNode_t *root;
 
 void type_error(ASTNode_t *, const char *);
 bool is_integer(DataTypes_t);
-void check_err();
+extern "C" void check_err();
 
 Type_t* unop(ASTNode_t*, Type_t* type = nullptr);
 Type_t* binop(ASTNode_t*, Type_t* type = nullptr);

@@ -1,7 +1,7 @@
 %define api.pure full
 %define parse.error verbose
 
-%define api.location.type { SV_Location }
+%define api.location.type { SA_Location }
 %locations
 
 
@@ -36,6 +36,7 @@
 }
 
 %code {
+    #include "lexer/lexer.h"
     int yylex(YYSTYPE *yylval, YYLTYPE *yylloc);
     void yyerror(YYLTYPE *loc, const char *s);
     int yyparse(void);
@@ -43,13 +44,13 @@
 
 %token PLUS MINUS STAR SLASH MOD POWER
 %token INC DEC
-%token LSHIFT RSHIFT
+%token LSHIFT RSHIFT Eof
 %token AMP PIPE BITXOR BITNOT
 %token LPAREN RPAREN LBRACE RBRACE SEMICOLON LSQUARE RSQUARE COLON
 %token ASSIGN PLUS_ASSIGN MINUS_ASSIGN STAR_ASSIGN SLASH_ASSIGN MOD_ASSIGN POWER_ASSIGN
 %token LSHIFT_ASSIGN RSHIFT_ASSIGN IN COMMA DOT_DOT ELLIPSIS
 %token AND OR NOT EQ NEQ LT LE GT GE AT
-%token IF ELSE FOR WHILE MUT VAR FN RETURN IMPORT CONTINUE BREAK
+%token IF ELSE FOR WHILE MUT VAR FN RETURN IMPORT CONTINUE BREAK LEX_ERROR
 
 %token <datatype> DATATYPES
 %token <node> IDENTIFIER NUMBER STRING_LITERAL BOOL_LITERAL CHAR_LITERAL
@@ -93,6 +94,9 @@ program:
         else if (! $stmts) root = $impl;
         else root = new_seq($impl, $stmts);
     }
+    | Eof {
+        return -1;
+    }
 ;
 
 top_level_stmt:
@@ -111,22 +115,23 @@ top_level_stmts: /* empty */    { $$ = NULL; }
 
 expr_stmt:
     assignment SEMICOLON        { $$ = $1; }
-    | assignment error          { SV_error_LOC(@2, PARSE_MISSING_SEMI, g_last_parse_err_msg); yyerrok; $$ = $1; }
+    | assignment error SEMICOLON { if (!SA_lexer_take_error()) SA_error_LOC(SA_loc_after(@1), PARSE_MISSING_SEMI, NULL); yyerrok; $$ = NULL; }
     | expr SEMICOLON            { $$ = $1; }
-    | expr error                { SV_error_LOC(@2, PARSE_MISSING_SEMI, g_last_parse_err_msg); yyerrok; $$ = $1; }
+    | expr error SEMICOLON      { if (!SA_lexer_take_error()) SA_error_LOC(SA_loc_after(@1), PARSE_MISSING_SEMI, NULL); yyerrok; $$ = NULL; }
     | block                     { $$ = $1; }
     | return_stmt SEMICOLON     { $$ = $1; }
-    | return_stmt error         { SV_error_LOC(@2, PARSE_MISSING_SEMI, g_last_parse_err_msg); yyerrok; $$ = $1; }
-    | error SEMICOLON           { panic( @1, PARSE_SYNTAX, g_last_parse_err_msg); yyerrok; $$ = NULL; }
+    | return_stmt error SEMICOLON { if (!SA_lexer_take_error()) SA_error_LOC(SA_loc_after(@1), PARSE_MISSING_SEMI, NULL); yyerrok; $$ = NULL; }
+    | LEX_ERROR SEMICOLON       { SA_lexer_take_error(); yyerrok; $$ = NULL; }
+    | LEX_ERROR                 { SA_lexer_take_error(); $$ = NULL; }
+    | error SEMICOLON           { if (!SA_lexer_take_error()) panic(@1, PARSE_SYNTAX, g_last_parse_err_msg); yyerrok; $$ = NULL; }
     | if_stmt                   { $$ = $1; }
     | for_stmt                  { $$ = $1; }
     | while_stmt                { $$ = $1; }
     | CONTINUE SEMICOLON        { $$ = new_continue(@$); }
     | BREAK SEMICOLON           { $$ = new_break(@$); }
     | error {
-        panic( @$, PARSE_SYNTAX, g_last_parse_err_msg);
-        yyerrok;
-        $$ = NULL; 
+        if (!SA_lexer_take_error()) panic(@$, PARSE_SYNTAX, g_last_parse_err_msg);
+        YYABORT;
     }
 ;
 
@@ -190,7 +195,7 @@ for_stmt:
     }
     | FOR LPAREN range[iter] RPAREN expr_stmt[body]
     {
-        $$ = new_for("__SV temp idx__", $iter, $body, @$, false);
+        $$ = new_for("__SA temp idx__", $iter, $body, @$, false);
     }
 ;
 
@@ -259,7 +264,7 @@ params:
 
 opt_list_size:
     SEMICOLON          { $$ = 0; } 
-    | SEMICOLON NUMBER[num] { $$ = (size_t)SV_parse_u128($num->literal.raw, NULL); }
+    | SEMICOLON NUMBER[num] { $$ = (size_t)SA_parse_u128($num->literal.raw, NULL); }
 ;
 
 recursive_type:
@@ -434,7 +439,7 @@ assignment:
         $$->assign.is_declaration = 1;
         $$->isglobal = $lval->isglobal;
         if($lval->kind == AST_UNOP && $lval->unop.op == OP_DEREF)
-            SV_error_LOC(@3, PARSE_SYNTAX, "unexpected dereferance operator");
+            SA_error_LOC(@3, PARSE_SYNTAX, "unexpected dereferance operator");
     }
 
     | VAR MUT recursive_type[t] lvalue[lval] ASSIGN expr[e] {
@@ -442,7 +447,7 @@ assignment:
         $$->assign.is_declaration = 1;
         $$->isglobal = $lval->isglobal;
         if($lval->kind == AST_UNOP && $lval->unop.op == OP_DEREF)
-            SV_error_LOC(@4, PARSE_SYNTAX, "unexpected dereferance operator");
+            SA_error_LOC(@4, PARSE_SYNTAX, "unexpected dereferance operator");
     }
 
     | VAR lvalue[lval] ASSIGN expr[e] {
@@ -450,7 +455,7 @@ assignment:
         $$->assign.is_declaration = 1;
         $$->isglobal = $lval->isglobal;
         if($lval->kind == AST_UNOP && $lval->unop.op == OP_DEREF)
-            SV_error_LOC(@3, PARSE_SYNTAX, "unexpected dereferance operator");
+            SA_error_LOC(@3, PARSE_SYNTAX, "unexpected dereferance operator");
     }
 
     | VAR MUT lvalue[lval] ASSIGN expr[e] {
@@ -458,7 +463,7 @@ assignment:
         $$->assign.is_declaration = 1;
         $$->isglobal = $lval->isglobal;
         if($lval->kind == AST_UNOP && $lval->unop.op == OP_DEREF)
-            SV_error_LOC(@4, PARSE_SYNTAX, "unexpected dereferance operator");
+            SA_error_LOC(@4, PARSE_SYNTAX, "unexpected dereferance operator");
     }
 
     | lvalue[lval] ASSIGN expr[e]

@@ -50,7 +50,7 @@ FILE *open_file(const char *filename, char **resolved_path_out) {
 extern "C" bool parse_arguments(int argc, char **argv, Options *opts) {
     // Set defaults
     opts->input_filename = NULL;
-    opts->bin_output_path =(char*)"SV.bin";
+    opts->bin_output_path =(char*)"SA.bin";
     opts->emit_ir = false;
     opts->ir_output_path =(char*)"out.ll";
 
@@ -68,7 +68,7 @@ extern "C" bool parse_arguments(int argc, char **argv, Options *opts) {
                 opts->bin_output_path = argv[i + 1];
                 i += 2;
             } else {
-                syserr("Missing argument for -o\nUsage:  SV [source] [-o bin_path] [--emit-ir ir_path]");
+                syserr("Missing argument for -o\nUsage:  SA [source] [-o bin_path] [--emit-ir ir_path]");
                 return false;
             }
         } else if (strcmp(argv[i], "--emit-ir") == 0) {
@@ -77,11 +77,11 @@ extern "C" bool parse_arguments(int argc, char **argv, Options *opts) {
                 opts->ir_output_path = argv[i + 1];
                 i += 2;
             } else {
-                syserr("Missing argument for --emit-ir\nUsage:  SV [source] [-o bin_path] [--emit-ir ir_path]");
+                syserr("Missing argument for --emit-ir\nUsage:  SA [source] [-o bin_path] [--emit-ir ir_path]");
                 return false;
             }
         } else {
-            syserr(logf_msg("Unknown argument: %s\nUsage:  SV [source] [-o bin_path] [--emit-ir ir_path]", argv[i]));
+            syserr(logf_msg("Unknown argument: %s\nUsage:  SA [source] [-o bin_path] [--emit-ir ir_path]", argv[i]));
             return false;
         }
     }
@@ -147,8 +147,8 @@ extern "C" int compile_and_execute(ASTNode_t *root, const Options *opts) {
     }
 
     char *clang_argv[] = {
-       (char*)"clang",
-       (char*)"SV_lib/helper/SV_strcmp.c",
+       (char*)"clang++",
+       (char*)"lib/helper/StrHelper.cpp",
        (char*)opts->ir_output_path,   // your .ll file
        (char*)"-Wl,-e,entrypoint",
        (char*)"-no-pie",

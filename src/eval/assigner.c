@@ -10,9 +10,9 @@
 extern file_t* file;
 
 /* Prototype for semantic mutability check */
-bool SV_semantic_is_mutable(const char *name);
+bool SA_semantic_is_mutable(const char *name);
 
-void assign_value(DataTypes_t dt, SV_Value *dst, SV_Value src) {
+void assign_value(DataTypes_t dt, SA_Value *dst, SA_Value src) {
   switch (dt) {
   case I8:
     dst->i8 = src.i8;
@@ -98,10 +98,10 @@ void assign_value(DataTypes_t dt, SV_Value *dst, SV_Value src) {
 // leading to segfaults when handle_num() tries to dereference it.
 // Instead, we update the string representation so handle_num can re-parse it.
 
-static void update_val(SV_Value r, ASTNode_t *dst) {
+static void update_val(SA_Value r, ASTNode_t *dst) {
   if (!dst)
     return;
-  SV_Location loc = dst->loc;
+  SA_Location loc = dst->loc;
   DataTypes_t datatypes = dst->type->base;
   char buf[128];
   char *new_raw = NULL;
@@ -161,16 +161,16 @@ static void update_val(SV_Value r, ASTNode_t *dst) {
   dst->literal.raw = new_raw;
 }
 
-SV_Value eval_assign(ASTNode_t *lhs, ASTNode_t *rhs, OP_kind_t op, Type_t *type,
-                    SV_Location loc) {
+SA_Value eval_assign(ASTNode_t *lhs, ASTNode_t *rhs, OP_kind_t op, Type_t *type,
+                    SA_Location loc) {
   TypedValue rt0 = ast_eval(rhs);
-  TypedValue rt = SV_cast_typed(rt0, type);
-  SV_Value r = rt.val;
-  SV_Value v = {0};
+  TypedValue rt = SA_cast_typed(rt0, type);
+  SA_Value r = rt.val;
+  SA_Value v = {0};
 
   if (!lhs) {
     panic( loc, RT_ASSIGN_TARGET_NOT_VAR, NULL);
-    return (SV_Value){0};
+    return (SA_Value){0};
   }
 
   /* Assignment to variable */
@@ -179,18 +179,18 @@ SV_Value eval_assign(ASTNode_t *lhs, ASTNode_t *rhs, OP_kind_t op, Type_t *type,
       if (!lhs->ismut) {
         panic( loc, RT_ASSIGN_UNSUPPORTED,
               "Cannot assign to immutable variable");
-        return (SV_Value){0};
+        return (SA_Value){0};
       }
       set_var(lhs->var, &r, type);
       return r;
     }
 
-    SV_Value cur = getvar(lhs->var, type, loc);
+    SA_Value cur = getvar(lhs->var, type, loc);
     OP_kind_t operation = get_assign_op(op);
     if (!lhs->ismut) {
       panic( loc, RT_ASSIGN_UNSUPPORTED,
             "Cannot update immutable variable");
-      return (SV_Value){0};
+      return (SA_Value){0};
     }
 
     switch (type->base) {
@@ -209,13 +209,13 @@ SV_Value eval_assign(ASTNode_t *lhs, ASTNode_t *rhs, OP_kind_t op, Type_t *type,
     case UF32:
     case UF64:
     case UF128:
-      v = SV_eval_binop_numeric(operation, type->base, cur, r);
+      v = SA_eval_binop_numeric(operation, type->base, cur, r);
       break;
     case BOOL:
       v = eval_bool(operation, BOOL, cur, r);
       break;
     case STRINGS:
-      v = (SV_Value){.chars = do_operation_str(cur.chars, r.chars, operation)};
+      v = (SA_Value){.chars = do_operation_str(cur.chars, r.chars, operation)};
       break;
     case CHARACTER:
       v.chars = r.chars;
@@ -223,10 +223,10 @@ SV_Value eval_assign(ASTNode_t *lhs, ASTNode_t *rhs, OP_kind_t op, Type_t *type,
     case PTR:
       panic( loc, RT_ASSIGN_UNSUPPORTED,
             "pointer compound assignment not supported");
-      return (SV_Value){0};
+      return (SA_Value){0};
     default:
       panic( loc, RT_ASSIGN_UNSUPPORTED, NULL);
-      return (SV_Value){0};
+      return (SA_Value){0};
     }
     set_var(lhs->var, &v, type);
     return v;
@@ -239,15 +239,15 @@ SV_Value eval_assign(ASTNode_t *lhs, ASTNode_t *rhs, OP_kind_t op, Type_t *type,
     TypedValue pv = ast_eval(lhs->unop.operand);
     if (pv.type->base != PTR || pv.val.ptr.name == NULL) {
       panic( loc, RT_DANGLING_PTR, NULL);
-      return (SV_Value){0};
+      return (SA_Value){0};
     }
     TypedValue *target =
         getvar_ref_at(pv.val.ptr.frame_id, pv.val.ptr.name, loc);
     if (!target)
-      return (SV_Value){0};
+      return (SA_Value){0};
     if (target->type != type) {
       panic( loc, RT_VAR_TYPE_MISMATCH, pv.val.ptr.name);
-      return (SV_Value){0};
+      return (SA_Value){0};
     }
 
     if (op == OP_ASSIGN) {
@@ -255,7 +255,7 @@ SV_Value eval_assign(ASTNode_t *lhs, ASTNode_t *rhs, OP_kind_t op, Type_t *type,
       return r;
     }
 
-    SV_Value cur = target->val;
+    SA_Value cur = target->val;
     OP_kind_t operation = get_assign_op(op);
     switch (type->base) {
     case I8:
@@ -273,12 +273,12 @@ SV_Value eval_assign(ASTNode_t *lhs, ASTNode_t *rhs, OP_kind_t op, Type_t *type,
     case UF32:
     case UF64:
     case UF128:
-      v = SV_eval_binop_numeric(operation, type->base, cur, r);
+      v = SA_eval_binop_numeric(operation, type->base, cur, r);
       break;
     default:
       panic( loc, RT_ASSIGN_UNSUPPORTED,
             "unsupported deref assignment type");
-      return (SV_Value){0};
+      return (SA_Value){0};
     }
     assign_value(type->base, &target->val, v);
     return v;
@@ -294,7 +294,7 @@ SV_Value eval_assign(ASTNode_t *lhs, ASTNode_t *rhs, OP_kind_t op, Type_t *type,
     if (base_var && base_var->kind == AST_VAR && !base_var->ismut) {
       panic( loc, RT_ASSIGN_UNSUPPORTED,
             "Cannot assign to immutable variable");
-      return (SV_Value){0};
+      return (SA_Value){0};
     }
 
     // 2. Traverse down to the final container
@@ -310,7 +310,7 @@ SV_Value eval_assign(ASTNode_t *lhs, ASTNode_t *rhs, OP_kind_t op, Type_t *type,
           !current_container.val.raw) {
         panic( curr_idx_node->expr_node->loc, SEM_INDEX_NOT_ARRAY,
               "Target is not a list");
-        return (SV_Value){0};
+        return (SA_Value){0};
       }
 
       // 2. Bounds Check (CRITICAL)
@@ -318,7 +318,7 @@ SV_Value eval_assign(ASTNode_t *lhs, ASTNode_t *rhs, OP_kind_t op, Type_t *type,
       if (idx < 0 || (size_t)idx >= current_container.type->size) {
         panic( curr_idx_node->expr_node->loc, RT_INDEX_OUT_OF_BOUNDS,
               logf_msg("Index %d out of bounds for list of size %zu", idx, current_container.type->size));
-        return (SV_Value){0};
+        return (SA_Value){0};
       }
 
       TypedValue *elements = (TypedValue *)current_container.val.raw;
@@ -336,5 +336,5 @@ SV_Value eval_assign(ASTNode_t *lhs, ASTNode_t *rhs, OP_kind_t op, Type_t *type,
   }
 
   panic( loc, RT_ASSIGN_TARGET_NOT_VAR, NULL);
-  return (SV_Value){0};
+  return (SA_Value){0};
 }
