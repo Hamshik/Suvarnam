@@ -68,6 +68,8 @@ static const char *errc_msg_english(errc_t code) {
         case SEM_BREAK_OUTSIDE_LOOP: return "break statement outside of loop";
         case SEM_CONTINUE_OUTSIDE_LOOP: return "continue statement outside of loop";
         case SEM_RANGE_STEP_ERROR: return "Loop contradiction";
+        case SEM_AT_SYM_IS_NOT_ALLOWED: return "'@' symbol is not allowed in local scopes";
+        case SEM_VAR_UNDECL_AT_GLOB: return "variable is not declared at global scopes";
 
         case INVAILD_UTF8_CHAR: return "a character literal must contain exactly one Unicode code point";
         case RET_NOT_DECLARED: return "return value is not declared in a function";

@@ -1,7 +1,7 @@
 #include "eval/eval.h"
 #include "shared/enums.h"
 #include "shared/structs.h"
-#include "utils/uhash.h"
+#include <string.h>
 
 TypedValue eval_binop(ASTNode_t *node, TypedValue v) {
   TypedValue l = ast_eval(node->bin.left);

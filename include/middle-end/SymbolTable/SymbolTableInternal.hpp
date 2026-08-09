@@ -49,7 +49,7 @@ namespace  SA::semantic_symbol_table {
 
 Type_t *lookup(const char *);
 bool declare(const char *, bool *, Type_t *, ASTNode_t *, bool);
-exitcode_t exists(const char *, Type_t *);
+exitcode_t exists(ASTNode_t*);
 exitcode_t assign_check(const char *, bool, DataTypes_t, DataTypes_t);
 bool is_mutable(const char *);
 void scope_push();
@@ -59,8 +59,8 @@ bool fn_declare(ASTNode_t *);
 FnSymbol_t *fn_lookup(const char *);
 void clear_fns();
 DataTypes_t update_datatype(const char *, DataTypes_t);
-Module_t *get_module(const char *);
-Module_t *load_module(const char *, bool &);
+ASTModule_t *get_module(const char *);
+ASTModule_t *load_module(const char *, bool &);
 extern "C" SemanticSymbolRecord *semantic_find_symbol(const char *);
 extern "C" SemanticSymbolRecord *semantic_find_global_symbol(const char *);
 

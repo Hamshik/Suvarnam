@@ -49,7 +49,7 @@
 %token LPAREN RPAREN LBRACE RBRACE SEMICOLON LSQUARE RSQUARE COLON
 %token ASSIGN PLUS_ASSIGN MINUS_ASSIGN STAR_ASSIGN SLASH_ASSIGN MOD_ASSIGN POWER_ASSIGN
 %token LSHIFT_ASSIGN RSHIFT_ASSIGN IN COMMA DOT_DOT ELLIPSIS
-%token AND OR NOT EQ NEQ LT LE GT GE AT
+%token AND OR NOT EQ NEQ LT LE GT GE
 %token IF ELSE FOR WHILE MUT VAR FN RETURN IMPORT CONTINUE BREAK LEX_ERROR
 
 %token <datatype> DATATYPES
@@ -263,7 +263,7 @@ params:
 ;
 
 opt_list_size:
-    SEMICOLON          { $$ = 0; } 
+     /* emty */   { $$ = 0; } 
     | SEMICOLON NUMBER[num] { $$ = (size_t)SA_parse_u128($num->literal.raw, NULL); }
 ;
 
@@ -271,7 +271,7 @@ recursive_type:
     DATATYPES[d] {
         $$ = make_type($d, NULL); 
     }
-    | LSQUARE recursive_type[inner] opt_list_size[sz] RSQUARE {
+    | recursive_type[inner] LSQUARE opt_list_size[sz] RSQUARE {
         $$ = make_type(LIST, $inner);
         $$->size = $sz; 
     }

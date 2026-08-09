@@ -1,3 +1,4 @@
+#include "SymbolTable/SymbolTable.hpp"
 #include "ast/ast.h"
 #include "semantic/semantic.hpp"
 #include "SymbolTable/BuiltinRegistry.hpp"
@@ -17,6 +18,7 @@ int yyparse();
 }
 
 extern ASTNode_t *root;
+bool is_glob_var_allowed = false;
 
 typedef struct {
   bool always_return;
@@ -88,7 +90,7 @@ ASTNode_t* parse_file(FILE *f) {
     return new_root;
 }
 
-void ensure_semantic(Module_t *m) {
+void ensure_semantic(ASTModule_t *m) {
   if (!m || m->semantic_done)
     return;
 
@@ -174,6 +176,7 @@ extern "C" void semantic_check(ASTNode_t *root) {
   if (!root)
     return;
   BuiltinRegistry::instance().bootstrap();
+  is_glob_var_allowed = true;
   register_global_var_and_fn(root);
   SA_semantic_scope_push();
 
@@ -228,7 +231,8 @@ extern "C" Type_t *check_expr(ASTNode_t *n, Type_t *&type) {
     if (n->type->base == UNKNOWN)
       n->type = SA_semantic_lookup(n->var);
 
-    exitcode_t exit_code = SA_semantic_exists(n->var, n->type);
+    exitcode_t exit_code = SA_semantic_exists(n);
+
     switch (exit_code) {
     case NOT_DECLARED:
       panic(n->loc, SEM_VAR_UNDECL, n->var);
@@ -237,7 +241,9 @@ extern "C" Type_t *check_expr(ASTNode_t *n, Type_t *&type) {
     case TYPE_MISMATCH:
       panic(n->loc, SEM_VAR_TYPE_MISMATCH, n->var);
       return nullptr;
-
+    
+    case NOT_DEC_AT_GLOB_SCOPE:
+      panic(n->loc, SEM_VAR_UNDECL_AT_GLOB, n->var);
     case SUCCESS:
     default:
       break;
@@ -284,6 +290,7 @@ extern "C" Type_t *check_expr(ASTNode_t *n, Type_t *&type) {
     return check_unconditional_branches(n, type);
 
   case AST_FN:
+    is_glob_var_allowed = false;
     return handle_fn(n);
 
   case AST_CALL:
@@ -296,7 +303,7 @@ extern "C" Type_t *check_expr(ASTNode_t *n, Type_t *&type) {
   case AST_IMPORT: {
     char *path = n->importNode.path;
     bool already_imported = false;
-    Module_t *mod = SA_semantic_load_module(path, &already_imported);
+    ASTModule_t *mod = SA_semantic_load_module(path, &already_imported);
     if (!mod)
       panic(n->loc, SEM_IMPORT_FILE_NOT_FOUND, path);
 

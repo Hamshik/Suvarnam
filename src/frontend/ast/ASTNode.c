@@ -53,11 +53,11 @@ ASTNode_t* new_bool(bool val, SA_Location loc) {
 ASTNode_t* new_var(const char *name, DataTypes_t datatype, SA_Location loc) {
     ASTNode_t *node = ast_alloc();
     node->kind = AST_VAR;
-    node->var = strdup(name);
+    node->isglobal = name[0] == '@';
+    node->var = strdup(node->isglobal ? name+1 : name);
     node->type = make_type(datatype, NULL);
     if (node->type) node->type->size = 0;
     node->loc = loc;
-    node->isglobal = name[0] == '@';
     return node;
 }
 

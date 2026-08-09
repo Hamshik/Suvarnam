@@ -9,7 +9,7 @@
 #include <cstdlib>
 #include <string.h>
 
-
+extern bool is_glob_var_allowed;
 
 static bool is_f32(const char *s) { return s && strchr(s, '.') != NULL; }
 extern "C" SemanticSymbolRecord *semantic_find_global_symbol(const char *name);
@@ -208,6 +208,9 @@ static void resolve_target_type(ASTNode_t *n, Type_t *&type) {
 Type_t *assign(ASTNode_t *n, Type_t *type) {
   Type_t *lhs_t = nullptr;
 
+  if(n->isglobal && !is_glob_var_allowed)
+    panic(n->assign.lhs->loc, SEM_AT_SYM_IS_NOT_ALLOWED, safe_get_target_name(n->assign.lhs));
+
   // Resolve target memory space type (Now correctly extracts STRINGS for *i1)
   resolve_target_type(n, lhs_t);
 
@@ -235,19 +238,6 @@ Type_t *assign(ASTNode_t *n, Type_t *type) {
     if (!lhs_t || lhs_t->base == UNKNOWN) {
       panic(n->loc, SEM_VAR_UNDECL, target_name);
     }
-
-    // Path A: Standard Variable modification
-    // if (n->assign.lhs->kind == AST_VAR) {
-    //   exitcode_t ac = SA_semantic_assign_check(target_name, n->assign.lhs->isglobal,
-    //                                           rhs_t->base,
-    //                                           n->assign.rhs->type->base);
-    //   if (ac != SUCCESS) {
-    //     errc err = (ac == NOT_DECLARED)    ? SEM_VAR_UNDECL
-    //                : (ac == TYPE_MISMATCH) ? SEM_ASSIGN_TYPE_MISMATCH
-    //                                        : SEM_ASSIGN_IMMUTABLE;
-    //     panic(n->loc, err, target_name);
-    //   }
-    // }
     
     // Path B: Pointer Dereference modification (handles *, **, ***)
     else if (n->assign.lhs->kind == AST_UNOP && n->assign.lhs->unop.op == OP_DEREF) {

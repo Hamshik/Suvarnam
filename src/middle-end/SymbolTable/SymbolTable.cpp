@@ -56,8 +56,8 @@ bool SA_semantic_declare(const char *name, bool* isglobal, Type_t* type, ASTNode
   return  SA::semantic_symbol_table::declare(name, isglobal, type, node, is_mutable);
 }
 
-exitcode_t SA_semantic_exists(const char *name, Type_t* type) {
-  return  SA::semantic_symbol_table::exists(name, type);
+exitcode_t SA_semantic_exists(ASTNode *n) {
+  return  SA::semantic_symbol_table::exists(n);
 }
 
 exitcode_t SA_semantic_assign_check(const char *name, bool isglobal, DataTypes_t rhs_type,
@@ -91,11 +91,11 @@ DataTypes_t SA_semantic_update_datatype(const char *name, DataTypes_t want) {
   return  SA::semantic_symbol_table::update_datatype(name, want);
 }
 
-Module_t *  SA_semantic_get_module(const char *path) {
+ASTModule_t *  SA_semantic_get_module(const char *path) {
   return  SA::semantic_symbol_table::get_module(path);
 }
 
-Module_t * SA_semantic_load_module(const char *path, bool *already_imported) {
+ASTModule_t * SA_semantic_load_module(const char *path, bool *already_imported) {
   return  SA::semantic_symbol_table::load_module(path, *already_imported);
 }
 

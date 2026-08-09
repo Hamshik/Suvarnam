@@ -1,4 +1,6 @@
 #include "HIRGen/HIRGen.hpp"
+#include "SymbolTable/SymbolTable.hpp"
+#include "SymbolTable/HIR_SymbolTable.hpp"
 #include "shared/HIRNode.hpp"
 #include "shared/enums.h"
 #include "shared/structs.h"
@@ -79,6 +81,11 @@ HIRNode *HIRGenerator::generate(ASTNode_t *node) {
     m_node->name = strdup(node->importNode.path);
     m_node->type = node->type;
     m_node->loc = node->loc;
+    auto module = SA_semantic_get_module(node->importNode.path);
+    
+    HIRNode *imported_node = generate(module->ast);
+    SA::HIR_SymbolTable::loadOrCreateMod(m_node->name, imported_node);
+    
     return m_node;
   }
 

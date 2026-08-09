@@ -1,7 +1,7 @@
 #include "eval/eval.h"
 #include "shared/structs.h"
 #include "utils/error_handler/error.h"
-#include "utils/uhash.h"
+
 #include <stdio.h>
 
 extern file_t* file;
@@ -140,7 +140,7 @@ TypedValue ast_eval(ASTNode_t *node) {
 
   case AST_IMPORT: {
     bool already_imported = false;
-    Module_t *module =
+    ASTModule_t *module =
         SA_semantic_load_module(node->importNode.path, &already_imported);
     if (module && module->ast && !already_imported) {
       ast_eval(module->ast);

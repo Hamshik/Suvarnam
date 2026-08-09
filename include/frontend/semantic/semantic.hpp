@@ -61,6 +61,6 @@ int numeric_bits(DataTypes_t);
 bool types_are_equal(Type_t*, Type_t*);
 extern "C" Type_t* make_type(DataTypes_t, Type_t*);
 
-void ensure_semantic(Module_t *);
+void ensure_semantic(ASTModule_t *);
 
 #endif

@@ -1,0 +1,4 @@
+
+fn hello(){
+    printf("hello!")
+}

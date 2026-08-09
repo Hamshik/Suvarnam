@@ -1,5 +1,6 @@
 #include "eval/eval.h"
 #include "shared/enums.h"
+#include <string.h>
 
 TypedValue handle_num(ASTNode_t *node, TypedValue v) {
   if (!node || !node->literal.raw) {

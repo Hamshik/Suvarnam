@@ -1,3 +1,4 @@
+#include "SymbolTable/SymbolTable.hpp"
 #include "SymbolTable/SymbolTableInternal.hpp"
 #include "semantic/semantic.hpp"
 #include "shared/nodes.h"
@@ -17,7 +18,7 @@ void die_allocation(const char *what) {
 
 SemanticScopeRecord *g_semantic_scope = nullptr;
 std::unordered_map<std::string, std::unique_ptr<FnSymbol_t>> g_semantic_functions;
-std::unordered_map<std::string, std::unique_ptr<Module_t>> g_modules;
+std::unordered_map<std::string, std::unique_ptr<ASTModule_t>> g_modules;
 
 SemanticScopeRecord *semantic_scope_top() {
   if (!g_semantic_scope) {
@@ -89,18 +90,23 @@ bool declare(const char *name, bool* isglobal, Type_t* type, ASTNode_t* node,boo
   return true;
 }
 
-exitcode_t exists(const char *name, Type_t* type) {
-  SemanticSymbolRecord *symbol = semantic_find_symbol(name);
+exitcode_t exists(ASTNode_t *n) {
+  if(n->kind != AST_VAR) return NOT_DECLARED;
+
+  SemanticSymbolRecord *symbol = semantic_find_symbol(n->var);
   if (!symbol) {
     return NOT_DECLARED;
   }
 
-  if (symbol->type != type && !is_numeric(symbol->type->base) && !is_numeric(type->base)) {
+  if(symbol->node_ptr->isglobal != n->isglobal)
+    return NOT_DEC_AT_GLOB_SCOPE;
+
+  if (symbol->type != n->type && !(is_numeric(symbol->type->base) && is_numeric(n->type->base))) {
     return TYPE_MISMATCH;
   }
 
-  if (type->base == PTR && symbol->type->inner != type->inner && 
-    !is_numeric(symbol->type->base) && !is_numeric(type->base)) {
+  if (n->type->base == PTR && symbol->type->inner != n->type->inner && 
+    !(is_numeric(symbol->type->base) && is_numeric(n->type->base))) {
     return TYPE_MISMATCH;
   }
 
@@ -198,13 +204,13 @@ DataTypes_t update_datatype(const char *name, DataTypes_t want) {
   return symbol->type->base;
 }
 
-Module_t *get_module(const char *path) {
+ASTModule_t *get_module(const char *path) {
   auto found = g_modules.find(path);
   return found == g_modules.end() ? nullptr : found->second.get();
 }
 
-Module_t *load_module(const char *path, bool &already_imported) {
-  Module_t *existing = get_module(path);
+ASTModule_t *load_module(const char *path, bool &already_imported) {
+  ASTModule_t *existing = get_module(path);
   if (existing) {
     if (existing->state == MOD_LOADING) {
       return nullptr;
@@ -215,7 +221,7 @@ Module_t *load_module(const char *path, bool &already_imported) {
     return existing;
   }
 
-  std::unique_ptr<Module_t> module(new (std::nothrow) Module_t{});
+  std::unique_ptr<ASTModule_t> module(new (std::nothrow) ASTModule_t{});
   if (!module) {
     die_allocation("new");
   }
@@ -226,7 +232,7 @@ Module_t *load_module(const char *path, bool &already_imported) {
   }
   module->state = MOD_LOADING;
 
-  Module_t *raw = module.get();
+  ASTModule_t *raw = module.get();
   g_modules.emplace(path, std::move(module));
 
   FILE *source = fopen(path, "r");
