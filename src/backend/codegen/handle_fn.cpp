@@ -9,6 +9,33 @@
 
 FunctionCallee get_builtin_llvm_fn(const char* name, Module &m, LLVMContext &ctx);
 
+// A module compiled independently does not contain the LLVM definition for a
+// function supplied by an import.  The semantic symbol table is the shared
+// source of truth for those signatures, so use it to materialize an external
+// declaration in this module when necessary.
+static Function *get_or_create_symbol_prototype(const char *name, Module &mod,
+                                                LLVMContext &ctx) {
+  FnSymbol_t *symbol = SA_semantic_fn_lookup(name);
+  if (!symbol)
+    return nullptr;
+
+  std::vector<Type *> params;
+  params.reserve(symbol->param_count);
+  for (int i = 0; i < symbol->param_count; ++i) {
+    if (!symbol->params || !symbol->params[i].type)
+      return nullptr;
+    params.push_back(ir_type(symbol->params[i].type->base, ctx));
+  }
+
+  Type *return_type = symbol->ret ? ir_type(symbol->ret->base, ctx)
+                                  : Type::getInt32Ty(ctx);
+  if (symbol->ret && return_type->isVoidTy() && symbol->ret->base == UNKNOWN)
+    return_type = Type::getInt32Ty(ctx);
+
+  FunctionType *type = FunctionType::get(return_type, params, false);
+  return Function::Create(type, Function::ExternalLinkage, name, mod);
+}
+
 Function *get_or_create_prototype(HIRNode *fn_ast, Module &mod,
                                   LLVMContext &ctx) {
   std::vector<Type *> params;
@@ -136,6 +163,8 @@ llvm::Value *emit_call(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
     callee = get_builtin_llvm_fn(fname, *m, ctx);
   } else {
     callee = m->getFunction(fname);
+    if (!callee.getCallee())
+      callee = get_or_create_symbol_prototype(fname, *m, ctx);
   }
 
   if (!callee.getCallee()) {

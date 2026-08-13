@@ -1,4 +1,4 @@
-#import "test/hello"
+#import "test/fn";
 
 fn i32 main() {
     var globe = 1000;

@@ -1,4 +1,4 @@
 
 fn hello(){
-    printf("hello!")
+    printf("hello!\n");
 }

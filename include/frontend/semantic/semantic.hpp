@@ -12,6 +12,7 @@ extern "C" {
 #endif
 
 void semantic_check(ASTNode_t *);
+ASTNode_t *parse_file(FILE *);
 bool is_numeric(DataTypes_t);
 
 #ifdef __cplusplus
@@ -24,7 +25,6 @@ extern "C" {
     Type_t* list_handle(ASTNode_t *, Type_t* type = nullptr);
     bool islist(ASTNode_t *);
 }
-ASTNode_t* parse_file(FILE *);
 Type_t* check_expr(ASTNode_t *);
 bool fn_always_returns(ASTNode_t *);
 

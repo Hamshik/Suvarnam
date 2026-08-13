@@ -19,7 +19,7 @@ extern file_t* file;
  #ifdef __cplusplus
 }
 
-int codegen(HIRNode *, const char *, char **);
+int codegen(HIRNode *, const char *, char **, bool is_main_module = true);
 enum class Utf8Error {
   None = 0,
   Empty,         // ''

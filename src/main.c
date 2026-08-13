@@ -26,12 +26,10 @@ int main(int argc, char **argv) {
     }
     error_fatal = false;
 
-    yyin = file->source;
-    yyrestart(yyin);
-
-    yyparse();
+    int status = 0;
+    root = parse_file(file->source);
     if (root && !isError) 
-        compile_and_execute(root, &opts);
+        status = compile_and_execute(root, &opts);
     
     check_err();
 
@@ -40,5 +38,5 @@ int main(int argc, char **argv) {
         fclose(file->source);
     if (opts.input_filename && file->filename && file->filename != opts.input_filename)
         free(file->filename);
-    return 0;
+    return status;
 }

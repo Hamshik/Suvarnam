@@ -8,6 +8,7 @@
 #include <vector>
 
 extern std::vector<std::string> ir_out;
+int codegen(HIRNode *, const char *, char **, bool);
 
 static std::string make_object_path(const std::string &input_path) {
   std::string obj_path = input_path;
@@ -19,9 +20,9 @@ static std::string make_object_path(const std::string &input_path) {
 }
 
 static bool compile_ir_to_object(const std::string &ir_path,
-                                const std::string &obj_path) {
-  std::vector<std::string> args = {"clang++", "-c", "-x", "ir", ir_path,
-                                   "-o", obj_path};
+                                 const std::string &obj_path) {
+  std::vector<std::string> args = {"clang++", "-c", "-x",    "ir",
+                                   ir_path,   "-o", obj_path};
   std::vector<char *> argv;
   argv.reserve(args.size());
   for (auto &arg : args) {
@@ -161,33 +162,46 @@ extern "C" int compile_and_execute(ASTNode_t *root, const Options *opts) {
 
   if (isError)
     return -1;
-  // ast_eval_main(root);
-  if (codegen(mast_root, opts->emit_ir ? opts->ir_output_path : NULL,
-              &ir_text) == EXIT_FAILURE)
+
+  ir_out.clear();
+
+  const char *main_ir_path = (opts->emit_ir && opts->ir_output_path)
+                                 ? opts->ir_output_path
+                                 : "/tmp/temp_suvarnam_main.ll";
+
+  if (codegen(mast_root, main_ir_path, &ir_text, true) == EXIT_FAILURE)
     return 1;
 
   ast_free(root);
 
-  FILE *irf = fopen(opts->ir_output_path, "w");
-  if (!irf) {
-    perror("fopen ll");
-    free(ir_text);
-    return 1;
+  if (opts->emit_ir && opts->ir_output_path) {
+    FILE *irf = fopen(opts->ir_output_path, "w");
+    if (irf) {
+      fputs(ir_text ? ir_text : "", irf);
+      fclose(irf);
+    }
   }
-  fputs(ir_text ? ir_text : "", irf);
-  fclose(irf);
   free(ir_text);
 
-  if (access(opts->ir_output_path, F_OK) != 0) {
+  if (access(main_ir_path, F_OK) != 0) {
     perror("IR file missing before llc");
     return 1;
   }
 
+  // Ensure output directory exists if bin_output_path contains a directory separator
+  std::string bin_path(opts->bin_output_path);
+  size_t last_slash = bin_path.find_last_of("/\\");
+  if (last_slash != std::string::npos) {
+    std::string dir_path = bin_path.substr(0, last_slash);
+    std::string mkdir_cmd = "mkdir -p " + dir_path;
+    system(mkdir_cmd.c_str());
+  }
+
   std::vector<std::string> object_paths;
-  std::string main_obj_path = make_object_path(opts->ir_output_path);
-  if (!compile_ir_to_object(opts->ir_output_path, main_obj_path)) {
+  std::string main_obj_path = make_object_path(main_ir_path);
+  if (!compile_ir_to_object(main_ir_path, main_obj_path)) {
     if (!opts->emit_ir)
-      unlink(opts->ir_output_path);
+      unlink(main_ir_path);
     return 1;
   }
   object_paths.push_back(main_obj_path);
@@ -196,7 +210,7 @@ extern "C" int compile_and_execute(ASTNode_t *root, const Options *opts) {
     std::string import_obj_path = make_object_path(import_ir);
     if (!compile_ir_to_object(import_ir, import_obj_path)) {
       if (!opts->emit_ir)
-        unlink(opts->ir_output_path);
+        unlink(main_ir_path);
       return 1;
     }
     object_paths.push_back(import_obj_path);
@@ -220,14 +234,23 @@ extern "C" int compile_and_execute(ASTNode_t *root, const Options *opts) {
   }
   link_argv.push_back(nullptr);
 
-  if (run_exec(link_argv[0], link_argv.data()) != 0) {
-    if (!opts->emit_ir)
-      unlink(opts->ir_output_path);
-    return 1;
+  for (const auto &arg : link_args) {
   }
+  fprintf(stderr, "\n");
+
+  int link_res = run_exec(link_argv[0], link_argv.data());
 
   if (!opts->emit_ir)
-    unlink(opts->ir_output_path);
+    unlink(main_ir_path);
+
+  // Clean up object files
+  for (const auto &obj_path : object_paths) {
+    unlink(obj_path.c_str());
+  }
+
+  if (link_res != 0) {
+    return 1;
+  }
 
   env_clear_all();
   return 0;

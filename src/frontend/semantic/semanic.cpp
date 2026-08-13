@@ -5,7 +5,9 @@
 #include "shared/enums.h"
 #include "shared/structs.h"
 #include "utils/error_handler/error.h"
+#include <cctype>
 #include <cstddef>
+#include <string>
 #include <string.h>
 
 Type_t* check_unconditional_branches(ASTNode_t* n, Type_t* type);
@@ -13,12 +15,16 @@ Type_t* check_while_loop(ASTNode_t* n, Type_t* type);
 Type_t* check_range(ASTNode_t* n, Type_t* type);
 Type_t* check_for_loop(ASTNode_t* n, Type_t* type);
 extern "C" {
+extern const char* g_last_parse_err_msg;
 void yyrestart(FILE *f);
 int yyparse();
+void SA_lexer_get_cursor(SA_Location *);
 }
 
 extern ASTNode_t *root;
 bool is_glob_var_allowed = false;
+static bool import_parse_failed = false;
+static size_t semantic_check_depth = 0;
 
 typedef struct {
   bool always_return;
@@ -77,17 +83,24 @@ bool fn_always_returns(ASTNode_t *body) {
   return analyze_returns(body).always_return;
 }
 
-ASTNode_t* parse_file(FILE *f) {
+extern "C" ASTNode_t* parse_file(FILE *f) {
     ASTNode_t *old_root = root;   // save current AST
 
     root = NULL;                  // reset for new parse
     yyrestart(f);
-    yyparse();
+    size_t errors_before_parse = err_no;
+    int parse_status = yyparse();
+
+    if (parse_status != 0 && err_no == errors_before_parse) {
+      SA_Location loc;
+      SA_lexer_get_cursor(&loc);
+      panic(loc, PARSE_SYNTAX, g_last_parse_err_msg);
+    }
 
     ASTNode_t *new_root = root;   // get parsed AST
     root = old_root;              // restore old AST
 
-    return new_root;
+    return parse_status == 0 ? new_root : nullptr;
 }
 
 void ensure_semantic(ASTModule_t *m) {
@@ -175,6 +188,11 @@ void register_global_var_and_fn(ASTNode_t *n) {
 extern "C" void semantic_check(ASTNode_t *root) {
   if (!root)
     return;
+
+  const bool outermost_check = semantic_check_depth++ == 0;
+  if (outermost_check)
+    import_parse_failed = false;
+
   BuiltinRegistry::instance().bootstrap();
   is_glob_var_allowed = true;
   register_global_var_and_fn(root);
@@ -182,6 +200,7 @@ extern "C" void semantic_check(ASTNode_t *root) {
 
   check_expr(root);
   SA_semantic_scope_pop();
+  --semantic_check_depth;
 }
 
 /* Main recursive checker */
@@ -262,6 +281,8 @@ extern "C" Type_t *check_expr(ASTNode_t *n, Type_t *&type) {
 
   case AST_SEQ:
     check_expr(n->seq.a, type);
+    if (import_parse_failed)
+      return nullptr;
     return check_expr(n->seq.b, type);
 
   case AST_IF: {
@@ -304,16 +325,24 @@ extern "C" Type_t *check_expr(ASTNode_t *n, Type_t *&type) {
     char *path = n->importNode.path;
     bool already_imported = false;
     ASTModule_t *mod = SA_semantic_load_module(path, &already_imported);
-    if (!mod)
+    if (!mod) {
       panic(n->loc, SEM_IMPORT_FILE_NOT_FOUND, path);
+      import_parse_failed = true;
+      return nullptr;
+    }
+
+    if (!mod->parsed) {
+      /* The parser already emitted the useful diagnostic.  Do not continue
+       * analyzing the importer and report secondary errors such as an
+       * undefined function from the malformed module. */
+      import_parse_failed = true;
+      return nullptr;
+    }
 
     if (already_imported)
       return nullptr;
 
     ensure_semantic(mod);
-
-    // merge AST
-    root = new_seq(mod->ast, root);
 
     check_expr(mod->ast);
 

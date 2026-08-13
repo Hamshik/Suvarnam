@@ -11,10 +11,10 @@ extern "C" {
 
 extern ASTNode_t *root;
 
-static int g_last_parse_err_line = 1;
-static int g_last_parse_err_col = 1;
-static int g_last_parse_err_pos = 0;
-static const char *g_last_parse_err_msg = NULL;
+extern int g_last_parse_err_line;
+extern int g_last_parse_err_col;
+extern int g_last_parse_err_pos;
+extern const char *g_last_parse_err_msg;
 
 /* Tell Bison how to propagate our extra location fields. */
 #ifndef YYLLOC_DEFAULT
@@ -69,7 +69,6 @@ void SA_annotate_decl_list(ASTNode_t *, DataTypes_t, DataTypes_t, bool);
 /* ----------------- external function declaration --------------------------*/
 
 void panic(SA_Location, errc_t, const char *);
-void warn(file_t *, SA_Location, warnc_t, const char *);
 unsigned __int128 SA_parse_u128(const char *, int *);
 
 #ifdef __cplusplus

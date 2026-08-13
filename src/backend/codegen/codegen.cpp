@@ -43,15 +43,18 @@ static TargetMachine *setup_target(Module &mod) {
 
 void pre_declare_all_user_functions(HIRNode *n, llvm::Module &mod,
                                     llvm::LLVMContext &ctx) {
-  if (!n)
+  if (!n || !n->block_stmts)
     return;
 
   for (auto stmt : *n->block_stmts) {
     // Capture user function definitions and build empty declarations
     if (stmt->kind == AST_FN) {
-      // Your existing function in handle_fn.cpp that checks parameters and
-      // builds the type signature:
       get_or_create_prototype(stmt, mod, ctx);
+    } else if (stmt->kind == AST_IMPORT) {
+      auto imported_mod = SA::HIR_SymbolTable::getMod(stmt->name);
+      if (imported_mod && imported_mod->hirNode) {
+        pre_declare_all_user_functions(imported_mod->hirNode, mod, ctx);
+      }
     }
   }
 }
@@ -175,20 +178,30 @@ static bool emit_ir(Module &mod, const char *path, char **out) {
 }
 
 void pre_declare_import_stmts(HIRNode *root, Module &mod, LLVMContext &ctx) {
+  if (!root || !root->block_stmts)
+    return;
+
   for (auto stmt : *root->block_stmts) {
     if (stmt->kind != AST_IMPORT)
-      return;
-    auto name = "/tmp/" + std::string(stmt->name);
+      continue;
 
-    codegen(SA::HIR_SymbolTable::loadOrCreateMod(stmt->name, stmt)->hirNode,
-            name.c_str(), nullptr);
-    ir_out.push_back(name);
+    std::string safe_name = stmt->name;
+    for (char &c : safe_name) {
+      if (c == '/' || c == '\\') c = '_';
+    }
+    auto name = "/tmp/suvarnam_" + safe_name + ".ll";
+
+    auto imported_mod = SA::HIR_SymbolTable::getMod(stmt->name);
+    if (imported_mod && imported_mod->hirNode) {
+      codegen(imported_mod->hirNode, name.c_str(), nullptr, false /* is_main_module */);
+      ir_out.push_back(name);
+    }
   }
 }
 
 /* ===================== MAIN CODEGEN ===================== */
 
-int codegen(HIRNode *root, const char *ll_path, char **ir_out) {
+int codegen(HIRNode *root, const char *ll_path, char **out_ir_str, bool is_main_module) {
   LLVMContext ctx;
   Module mod("SA_Module", ctx);
 
@@ -202,8 +215,10 @@ int codegen(HIRNode *root, const char *ll_path, char **ir_out) {
 
   Function *initFn = emit_init(root, mod, ctx);
 
-  if (!emit_entry(mod, ctx, initFn))
-    return 1;
+  if (is_main_module) {
+    if (!emit_entry(mod, ctx, initFn))
+      return 1;
+  }
 
   // verify
   std::string err;
@@ -213,12 +228,14 @@ int codegen(HIRNode *root, const char *ll_path, char **ir_out) {
               << errOS.str() << "\n";
   }
 
-  if (!emit_ir(mod, ll_path, ir_out))
+  if (!emit_ir(mod, ll_path, out_ir_str))
     return 1;
 
-  printf(
-      SA_BOLD SA_GREEN
-      "SUCCESS: Compilation succeeded with no errors or warnings\n" SA_RESET);
+  if (is_main_module) {
+    printf(
+        SA_BOLD SA_GREEN
+        "SUCCESS: Compilation succeeded with no errors or warnings\n" SA_RESET);
+  }
 
   return 0;
 }

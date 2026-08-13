@@ -1,5 +1,10 @@
 #include "parser/parser_helpers.h"
 
+int g_last_parse_err_line = 1;
+int g_last_parse_err_col = 1;
+int g_last_parse_err_pos = 0;
+const char *g_last_parse_err_msg = NULL;
+
 void SA_annotate_decl_list(ASTNode_t *n, DataTypes_t default_t, DataTypes_t default_sub_type, bool is_mutable) {
     if (!n) return;
     if (n->kind == AST_SEQ) {

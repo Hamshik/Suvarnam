@@ -237,15 +237,35 @@ ASTModule_t *load_module(const char *path, bool &already_imported) {
 
   FILE *source = fopen(path, "r");
   if (!source) {
+    std::string sa_path = std::string(path) + ".sa";
+    source = fopen(sa_path.c_str(), "r");
+  }
+  if (!source) {
     panic( (SA_Location){0}, SEM_IMPORT_FILE_NOT_FOUND, path);
     return nullptr;
   }
 
+  /* Parser diagnostics use the global file context.  Temporarily point it at
+   * the imported source so syntax errors identify the imported file, not the
+   * module that requested the import. */
+  FILE *previous_source = file ? file->source : nullptr;
+  char *previous_filename = file ? file->filename : nullptr;
+  if (file) {
+    file->source = source;
+    file->filename = raw->path;
+  }
+
+  size_t errors_before_parse = err_no;
   raw->ast = parse_file(source);
+  raw->parsed = raw->ast != nullptr && err_no == errors_before_parse;
+
+  if (file) {
+    file->source = previous_source;
+    file->filename = previous_filename;
+  }
   fclose(source);
 
   raw->state = MOD_LOADED;
-  raw->parsed = true;
   return raw;
 }
 
