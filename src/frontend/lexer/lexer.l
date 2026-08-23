@@ -18,6 +18,13 @@
     static int SA_comment_start_col = 1;
     static int SA_comment_start_pos = 0;
 
+    void reset_parser_location(YYLTYPE yylloc) {
+        yylloc.first_line = 1;
+        yylloc.first_column = 1;
+        yylloc.last_line = 1;
+        yylloc.last_column = 1;
+    }
+
 %}
 
 %x COMMENT3

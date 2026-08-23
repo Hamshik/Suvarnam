@@ -19,6 +19,8 @@
     #include <stdbool.h>
 
     char *logf_msg(const char *fmt, ...);
+    #define parser_panic(loc)\
+        panic((loc), PARSE_SYNTAX, g_last_parse_err_msg);
 }
 
 %union{
@@ -75,14 +77,13 @@
 %left PLUS MINUS
 %left STAR SLASH MOD
 %right POWER
-%right UPLUS UMINUS UADDR UDEREF NOT BITNOT
+%right UPLUS UMINUS UADDR NOT BITNOT
 %left INC DEC
 %left LSQUARE RSQUARE
 %left LPAREN RPAREN
 %precedence POSTFIX
 %nonassoc LOWER_THAN_ELSE
 %nonassoc ELSE
-%nonassoc FOR_PREC 
 
 %start program
 %%
@@ -95,7 +96,7 @@ program:
         else root = new_seq($impl, $stmts);
     }
     | Eof {
-        return -1;
+        return 0;
     }
 ;
 
@@ -115,24 +116,17 @@ top_level_stmts: /* empty */    { $$ = NULL; }
 
 expr_stmt:
     assignment SEMICOLON        { $$ = $1; }
-    | assignment error SEMICOLON { if (!SA_lexer_take_error()) SA_error_LOC(SA_loc_after(@1), PARSE_MISSING_SEMI, NULL); yyerrok; $$ = NULL; }
     | expr SEMICOLON            { $$ = $1; }
-    | expr error SEMICOLON      { if (!SA_lexer_take_error()) SA_error_LOC(SA_loc_after(@1), PARSE_MISSING_SEMI, NULL); yyerrok; $$ = NULL; }
     | block                     { $$ = $1; }
     | return_stmt SEMICOLON     { $$ = $1; }
-    | return_stmt error SEMICOLON { if (!SA_lexer_take_error()) SA_error_LOC(SA_loc_after(@1), PARSE_MISSING_SEMI, NULL); yyerrok; $$ = NULL; }
-    | LEX_ERROR SEMICOLON       { SA_lexer_take_error(); yyerrok; $$ = NULL; }
-    | LEX_ERROR                 { SA_lexer_take_error(); $$ = NULL; }
-    | error SEMICOLON           { if (!SA_lexer_take_error()) panic(@1, PARSE_SYNTAX, g_last_parse_err_msg); yyerrok; $$ = NULL; }
     | if_stmt                   { $$ = $1; }
     | for_stmt                  { $$ = $1; }
     | while_stmt                { $$ = $1; }
     | CONTINUE SEMICOLON        { $$ = new_continue(@$); }
     | BREAK SEMICOLON           { $$ = new_break(@$); }
-    | error {
-        if (!SA_lexer_take_error()) panic(@$, PARSE_SYNTAX, g_last_parse_err_msg);
-        YYABORT;
-    }
+    | expr error                { parser_panic(@1); $$ = NULL; }
+    | error SEMICOLON           { parser_panic(@$); $$ = NULL; }
+    | error                     { parser_panic(@$); $$ = NULL; }
 ;
 
 import_list:
@@ -431,6 +425,7 @@ lvalue:
       IDENTIFIER                            { $$ = $1; }
     | index_stmt[idx]                       { $$ = $idx; $$->index.islhs = 1; $$->isglobal = $idx->isglobal; }
     | STAR expr                             { $$ = new_unop($2, @$, OP_DEREF); $$->isglobal = $2->isglobal; }
+    
 ;
 
 assignment:
@@ -439,7 +434,7 @@ assignment:
         $$->assign.is_declaration = 1;
         $$->isglobal = $lval->isglobal;
         if($lval->kind == AST_UNOP && $lval->unop.op == OP_DEREF)
-            SA_error_LOC(@3, PARSE_SYNTAX, "unexpected dereferance operator");
+            panic(@3, PARSE_SYNTAX, "unexpected dereferance operator");
     }
 
     | VAR MUT recursive_type[t] lvalue[lval] ASSIGN expr[e] {
@@ -447,7 +442,7 @@ assignment:
         $$->assign.is_declaration = 1;
         $$->isglobal = $lval->isglobal;
         if($lval->kind == AST_UNOP && $lval->unop.op == OP_DEREF)
-            SA_error_LOC(@4, PARSE_SYNTAX, "unexpected dereferance operator");
+            panic(@4, PARSE_SYNTAX, "unexpected dereferance operator");
     }
 
     | VAR lvalue[lval] ASSIGN expr[e] {
@@ -455,7 +450,7 @@ assignment:
         $$->assign.is_declaration = 1;
         $$->isglobal = $lval->isglobal;
         if($lval->kind == AST_UNOP && $lval->unop.op == OP_DEREF)
-            SA_error_LOC(@3, PARSE_SYNTAX, "unexpected dereferance operator");
+            panic(@3, PARSE_SYNTAX, "unexpected dereferance operator");
     }
 
     | VAR MUT lvalue[lval] ASSIGN expr[e] {
@@ -463,7 +458,7 @@ assignment:
         $$->assign.is_declaration = 1;
         $$->isglobal = $lval->isglobal;
         if($lval->kind == AST_UNOP && $lval->unop.op == OP_DEREF)
-            SA_error_LOC(@4, PARSE_SYNTAX, "unexpected dereferance operator");
+            panic(@4, PARSE_SYNTAX, "unexpected dereferance operator");
     }
 
     | lvalue[lval] ASSIGN expr[e]
@@ -500,11 +495,6 @@ assignment:
 
 %%
 
-void yyerror(YYLTYPE *loc, const char *s) {
-    if (loc) {
-        g_last_parse_err_line = loc->first_line;
-        g_last_parse_err_col = loc->first_column;
-        g_last_parse_err_pos = loc->first_pos;
-    }
-    g_last_parse_err_msg = s;
+void yyerror(YYLTYPE *loc, const char *s){
+    panic(*loc, PARSE_SYNTAX, s);
 }

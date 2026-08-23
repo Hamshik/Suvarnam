@@ -1,4 +1,5 @@
 
 fn hello(){
-    printf("hello!\n");
+    printf("hello!\n")
+    var x =;
 }

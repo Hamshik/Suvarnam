@@ -7,100 +7,31 @@
 #include "utils/error_handler/error.h"
 #include <cctype>
 #include <cstddef>
-#include <string>
 #include <string.h>
-
-Type_t* check_unconditional_branches(ASTNode_t* n, Type_t* type);
-Type_t* check_while_loop(ASTNode_t* n, Type_t* type);
-Type_t* check_range(ASTNode_t* n, Type_t* type);
-Type_t* check_for_loop(ASTNode_t* n, Type_t* type);
-extern "C" {
-extern const char* g_last_parse_err_msg;
-void yyrestart(FILE *f);
-int yyparse();
-void SA_lexer_get_cursor(SA_Location *);
-}
 
 extern ASTNode_t *root;
 bool is_glob_var_allowed = false;
 static bool import_parse_failed = false;
 static size_t semantic_check_depth = 0;
-
-typedef struct {
-  bool always_return;
-  bool always_fallthrough;
-} ReturnInfo;
-
-static ReturnInfo analyze_returns(ASTNode_t *n) {
-  if (!n) return (ReturnInfo){false, true};
-
-  switch (n->kind) {
-  case AST_RETURN:
-    return (ReturnInfo){true, false};
-
-  case AST_SEQ: {
-    ReturnInfo left = analyze_returns(n->seq.a);
-    if (left.always_return)
-      return (ReturnInfo){true, false};
-    ReturnInfo right = analyze_returns(n->seq.b);
-    return (ReturnInfo){
-      left.always_fallthrough && right.always_return,
-      left.always_fallthrough && right.always_fallthrough
-    };
-  }
-
-  case AST_IF: {
-    ReturnInfo then_info = analyze_returns(n->ifnode.then_branch);
-    if(*n->ifnode.cond->literal.raw == 't')
-      return (ReturnInfo){true, true};
-    if (!n->ifnode.else_branch)
-      return (ReturnInfo){false, true};
-    ReturnInfo else_info = analyze_returns(n->ifnode.else_branch);
-    return (ReturnInfo){
-      *n->ifnode.cond->literal.raw == 'f' ?
-      else_info.always_return : then_info.always_return && else_info.always_return,
-      then_info.always_fallthrough && else_info.always_fallthrough
-    };
-  }
-
-  case AST_WHILE:
-  case AST_FOR:
-    return (ReturnInfo){false, true};
-
-  case AST_BREAK:
-  case AST_CONTINUE:
-    return (ReturnInfo){false, false};
-
-  case AST_BLOCK:
-    return analyze_returns(n->block.block);
-
-  default:
-    return (ReturnInfo){false, true};
-  }
-}
-
-bool fn_always_returns(ASTNode_t *body) {
-  return analyze_returns(body).always_return;
-}
+extern bool shouldrestart;
 
 extern "C" ASTNode_t* parse_file(FILE *f) {
     ASTNode_t *old_root = root;   // save current AST
 
     root = NULL;                  // reset for new parse
+    shouldrestart = true;
     yyrestart(f);
+
     size_t errors_before_parse = err_no;
-    int parse_status = yyparse();
-
-    if (parse_status != 0 && err_no == errors_before_parse) {
-      SA_Location loc;
-      SA_lexer_get_cursor(&loc);
-      panic(loc, PARSE_SYNTAX, g_last_parse_err_msg);
+    if(yyparse() == 0){
+      ASTNode_t *new_root = root;   // get parsed AST
+      root = old_root;              // restore old AST
+      return new_root;
     }
-
-    ASTNode_t *new_root = root;   // get parsed AST
-    root = old_root;              // restore old AST
-
-    return parse_status == 0 ? new_root : nullptr;
+    else {
+      root = old_root;              // make sure to restore root on failure too!
+      return nullptr;
+    }
 }
 
 void ensure_semantic(ASTModule_t *m) {

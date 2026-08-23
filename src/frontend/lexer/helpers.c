@@ -9,6 +9,7 @@ static int SA_lex_line = 1;
 static int SA_lex_col = 1;
 static int SA_lex_pos = 0; /* 0-based byte offset */
 static bool SA_lex_error_pending = false;
+bool shouldrestart = false;
 
 static int SA_hex_val(unsigned char c) {
     if (c >= '0' && c <= '9') return (int)(c - '0');
@@ -36,6 +37,10 @@ bool SA_lexer_take_error(void) {
 
 void SA_lexer_update_loc(YYLTYPE *loc, const char *text, int len) {
     if (!loc) return;
+    if(shouldrestart){
+        SA_lexer_reset_loc();
+        shouldrestart = false;
+    }
 
     loc->first_line = SA_lex_line;
     loc->first_column = SA_lex_col;
