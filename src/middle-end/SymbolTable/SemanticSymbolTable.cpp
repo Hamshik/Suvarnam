@@ -1,6 +1,9 @@
 #include "SymbolTable/SymbolTable.hpp"
 #include "SymbolTable/SymbolTableInternal.hpp"
+#include "cmd-exec/cmd-exec.hpp"
+#include "semantic/import.hpp"
 #include "semantic/semantic.hpp"
+#include "shared/enums.h"
 #include "shared/nodes.h"
 #include "shared/structs.h"
 #include "utils/error_handler/error.h"
@@ -8,7 +11,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <memory>
+extern std::vector<char*> I_src;
 namespace {
 
 void die_allocation(const char *what) {
@@ -17,7 +22,8 @@ void die_allocation(const char *what) {
 }
 
 SemanticScopeRecord *g_semantic_scope = nullptr;
-std::unordered_map<std::string, std::unique_ptr<FnSymbol_t>> g_semantic_functions;
+std::unordered_map<std::string, std::unique_ptr<FnSymbol_t>>
+    g_semantic_functions;
 std::unordered_map<std::string, std::unique_ptr<ASTModule_t>> g_modules;
 
 SemanticScopeRecord *semantic_scope_top() {
@@ -28,22 +34,22 @@ SemanticScopeRecord *semantic_scope_top() {
 }
 
 extern "C" SemanticSymbolRecord *semantic_find_global_symbol(const char *name) {
-    SemanticScopeRecord *global_scope = semantic_scope_top();
-    
-    // 1. Follow the parent links down to the absolute root frame
-    while (global_scope && global_scope->parent != nullptr) {
-        global_scope = global_scope->parent;
+  SemanticScopeRecord *global_scope = semantic_scope_top();
+
+  // 1. Follow the parent links down to the absolute root frame
+  while (global_scope && global_scope->parent != nullptr) {
+    global_scope = global_scope->parent;
+  }
+
+  // 2. Search exclusively inside this global scope map
+  if (global_scope) {
+    auto found = global_scope->symbols.find(name);
+    if (found != global_scope->symbols.end()) {
+      return &found->second;
     }
-    
-    // 2. Search exclusively inside this global scope map
-    if (global_scope) {
-        auto found = global_scope->symbols.find(name);
-        if (found != global_scope->symbols.end()) {
-            return &found->second;
-        }
-    }
-    
-    return nullptr; // Symbol not declared in global scope
+  }
+
+  return nullptr; // Symbol not declared in global scope
 }
 
 extern "C" SemanticSymbolRecord *semantic_find_symbol(const char *name) {
@@ -58,9 +64,9 @@ extern "C" SemanticSymbolRecord *semantic_find_symbol(const char *name) {
 
 } // namespace
 
-namespace  SA::semantic_symbol_table {
+namespace SA::semantic_symbol_table {
 
-Type_t* lookup(const char *name) {
+Type_t *lookup(const char *name) {
   SemanticSymbolRecord *symbol = semantic_find_symbol(name);
   return symbol ? symbol->type : nullptr;
 }
@@ -73,10 +79,12 @@ SemanticScopeRecord *get_global_scope() {
   return scope;
 }
 
-bool declare(const char *name, bool* isglobal, Type_t* type, ASTNode_t* node,bool is_mutable) {
-  SemanticScopeRecord *scope = *isglobal ? get_global_scope() : semantic_scope_top();
+bool declare(const char *name, bool *isglobal, Type_t *type, ASTNode_t *node,
+             bool is_mutable) {
+  SemanticScopeRecord *scope =
+      *isglobal ? get_global_scope() : semantic_scope_top();
   auto [it, inserted] = scope->symbols.try_emplace(name);
-  
+
   if (!inserted) {
     return false;
   }
@@ -91,43 +99,46 @@ bool declare(const char *name, bool* isglobal, Type_t* type, ASTNode_t* node,boo
 }
 
 exitcode_t exists(ASTNode_t *n) {
-  if(n->kind != AST_VAR) return NOT_DECLARED;
+  if (n->kind != AST_VAR)
+    return NOT_DECLARED;
 
   SemanticSymbolRecord *symbol = semantic_find_symbol(n->var);
   if (!symbol) {
     return NOT_DECLARED;
   }
 
-  if(symbol->node_ptr->isglobal != n->isglobal)
+  if (symbol->node_ptr->isglobal != n->isglobal)
     return NOT_DEC_AT_GLOB_SCOPE;
 
-  if (symbol->type != n->type && !(is_numeric(symbol->type->base) && is_numeric(n->type->base))) {
+  if (symbol->type != n->type &&
+      !(is_numeric(symbol->type->base) && is_numeric(n->type->base))) {
     return TYPE_MISMATCH;
   }
 
-  if (n->type->base == PTR && symbol->type->inner != n->type->inner && 
-    !(is_numeric(symbol->type->base) && is_numeric(n->type->base))) {
+  if (n->type->base == PTR && symbol->type->inner != n->type->inner &&
+      !(is_numeric(symbol->type->base) && is_numeric(n->type->base))) {
     return TYPE_MISMATCH;
   }
 
   return SUCCESS;
 }
 
-exitcode_t assign_check(const char *name, bool isglobal, DataTypes_t rhs_type, DataTypes_t rhs_sub_type) {
-  SemanticSymbolRecord *symbol = isglobal ? semantic_find_global_symbol(name) : semantic_find_symbol(name);
+exitcode_t assign_check(const char *name, bool isglobal, DataTypes_t rhs_type,
+                        DataTypes_t rhs_sub_type) {
+  SemanticSymbolRecord *symbol =
+      isglobal ? semantic_find_global_symbol(name) : semantic_find_symbol(name);
   if (!symbol) {
     return NOT_DECLARED;
   }
 
-  if (rhs_type != UNKNOWN && 
-      symbol->type->base != rhs_type &&
+  if (rhs_type != UNKNOWN && symbol->type->base != rhs_type &&
       !is_numeric(rhs_type) && !is_numeric(symbol->type->base))
     return TYPE_MISMATCH;
 
   if (rhs_type == PTR && (symbol->type->base != rhs_sub_type))
     return TYPE_MISMATCH;
 
-  if (!symbol->is_mutable) 
+  if (!symbol->is_mutable)
     return IMMUTABLE_TYPING;
 
   return SUCCESS;
@@ -157,8 +168,8 @@ void scope_pop() {
 
 void clear_symbols() { semantic_scope_top()->symbols.clear(); }
 
-bool fn_declare(ASTNode_t* node_ptr) {
-  char* name = node_ptr->fn_def.name;
+bool fn_declare(ASTNode_t *node_ptr) {
+  char *name = node_ptr->fn_def.name;
   if (g_semantic_functions.find(name) != g_semantic_functions.end()) {
     return false;
   }
@@ -209,50 +220,80 @@ ASTModule_t *get_module(const char *path) {
   return found == g_modules.end() ? nullptr : found->second.get();
 }
 
-ASTModule_t *load_module(const char *path, bool &already_imported) {
-  ASTModule_t *existing = get_module(path);
+ASTModule_t *load_module(char *requested_path,
+                         const char *importer_file_path,
+                         bool &already_imported) {
+  already_imported = false;
+  std::vector<fs::path>* import_vec = new std::vector<fs::path>
+    {fs::path(requested_path), fs::path(importer_file_path)};
+
+  for(auto i : I_src){
+    import_vec->push_back(fs::path(i));
+  }
+  
+  ImportResolver g_resolver(import_vec);
+  // 1. Resolve relative path to absolute canonical path
+  fs::path parent_path =
+      importer_file_path ? fs::path(importer_file_path) : fs::current_path();
+
+  // Try resolving exact name or appending .sa
+  auto resolved_opt = g_resolver.resolve(requested_path, parent_path);
+  if (!resolved_opt &&
+      std::string(requested_path).substr(strlen(requested_path) - 2) != ".sa") {
+    resolved_opt =
+        g_resolver.resolve(std::string(requested_path) + ".sa", parent_path);
+  }
+
+  if (!resolved_opt) {
+    panic((SA_Location){0}, SEM_IMPORT_FILE_NOT_FOUND, requested_path);
+    return nullptr;
+  }
+
+  // Always use canonical string path for lookup to avoid duplicate imports
+  std::string canonical_path = resolved_opt->string();
+
+  // 2. Check Cache
+  ASTModule_t *existing = get_module(canonical_path.c_str());
   if (existing) {
     if (existing->state == MOD_LOADING) {
+      // Circular Import detected!
+      panic((SA_Location){0}, SEM_IMPORT_FILE_NOT_FOUND,
+            canonical_path.c_str());
       return nullptr;
     }
-    if (already_imported) {
-      already_imported = true;
-    }
+    already_imported = true;
     return existing;
   }
 
+  // 3. Create module entry
   std::unique_ptr<ASTModule_t> module(new (std::nothrow) ASTModule_t{});
   if (!module) {
     die_allocation("new");
   }
 
-  module->path = strdup(path);
+  module->path = strdup(canonical_path.c_str());
   if (!module->path) {
     die_allocation("strdup");
   }
   module->state = MOD_LOADING;
 
   ASTModule_t *raw = module.get();
-  g_modules.emplace(path, std::move(module));
+  g_modules.emplace(canonical_path, std::move(module));
 
-  FILE *source = fopen(path, "r");
+  // 4. Open File using resolved canonical path
+  FILE *source = fopen(canonical_path.c_str(), "r");
   if (!source) {
-    std::string sa_path = std::string(path) + ".sa";
-    source = fopen(sa_path.c_str(), "r");
-  }
-  if (!source) {
-    panic( (SA_Location){0}, SEM_IMPORT_FILE_NOT_FOUND, path);
+    panic((SA_Location){0}, SEM_IMPORT_FILE_NOT_FOUND, canonical_path.c_str());
     return nullptr;
   }
 
-  /* Parser diagnostics use the global file context.  Temporarily point it at
-   * the imported source so syntax errors identify the imported file, not the
-   * module that requested the import. */
+  // 5. Parse
   FILE *previous_source = file ? file->source : nullptr;
   char *previous_filename = file ? file->filename : nullptr;
   if (file) {
     file->source = source;
-    file->filename = raw->path;
+    file->filename =
+        raw->path; // Points to absolute path for accurate diagnostic traces
   }
 
   size_t errors_before_parse = err_no;
@@ -266,6 +307,7 @@ ASTModule_t *load_module(const char *path, bool &already_imported) {
   fclose(source);
 
   raw->state = MOD_LOADED;
+
   return raw;
 }
 

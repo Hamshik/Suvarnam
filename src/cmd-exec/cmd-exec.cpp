@@ -1,13 +1,16 @@
 #include "cmd-exec/cmd-exec.hpp"
 #include "HIRGen/HIRGen.hpp"
 #include "shared/structs.h"
+#include "utils/error_handler/error.h"
 #include <cstdlib>
+#include <filesystem>
 #include <stdlib.h>
 #include <string.h>
 #include <string>
 #include <vector>
 
 extern std::vector<std::string> ir_out;
+std::vector<char*> I_src{};
 int codegen(HIRNode *, const char *, char **, bool);
 
 static std::string make_object_path(const std::string &input_path) {
@@ -109,10 +112,24 @@ extern "C" bool parse_arguments(int argc, char **argv, Options *opts) {
         opts->ir_output_path = argv[i + 1];
         i += 2;
       } else {
-        syserr("Missing argument for --emit-ir\nUsage:  SA [source] [-o "
+        syserr("Missing argument for --emit-ir\nUsage:  SA [source] [-o"
                "bin_path] [--emit-ir ir_path]");
         return false;
       }
+    } else if(argv[i][0] == '-' && argv[i][1]=='I'){
+      char* path = argv[i] + 2;
+      if(*path == '\0'){
+        i++;
+        path = argv[i];
+      }
+      if(std::filesystem::is_directory(path)){
+        I_src.push_back(path);
+        i++;
+        continue;
+      }
+      syserr(("Missing directory:" + std::string(path)).c_str());
+      return false;
+
     } else {
       syserr(logf_msg("Unknown argument: %s\nUsage:  SA [source] [-o bin_path] "
                       "[--emit-ir ir_path]",

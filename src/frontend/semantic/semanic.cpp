@@ -331,6 +331,8 @@ extern "C" Type_t *check_expr(ASTNode_t *n, Type_t *&type) {
       return nullptr;
     }
 
+    n->importNode.path = mod->path; //path is already resloved in load_module fn
+
     if (!mod->parsed) {
       /* The parser already emitted the useful diagnostic.  Do not continue
        * analyzing the importer and report secondary errors such as an

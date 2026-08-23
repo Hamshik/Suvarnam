@@ -95,8 +95,8 @@ ASTModule_t *  SA_semantic_get_module(const char *path) {
   return  SA::semantic_symbol_table::get_module(path);
 }
 
-ASTModule_t * SA_semantic_load_module(const char *path, bool *already_imported) {
-  return  SA::semantic_symbol_table::load_module(path, *already_imported);
+ASTModule_t * SA_semantic_load_module(char *path, bool *already_imported) {
+  return  SA::semantic_symbol_table::load_module(path, file->filename, *already_imported);
 }
 
 } // extern "C"

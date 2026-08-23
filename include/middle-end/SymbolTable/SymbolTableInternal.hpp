@@ -60,7 +60,7 @@ FnSymbol_t *fn_lookup(const char *);
 void clear_fns();
 DataTypes_t update_datatype(const char *, DataTypes_t);
 ASTModule_t *get_module(const char *);
-ASTModule_t *load_module(const char *, bool &);
+ASTModule_t *load_module(char *, const char *,bool &);
 extern "C" SemanticSymbolRecord *semantic_find_symbol(const char *);
 extern "C" SemanticSymbolRecord *semantic_find_global_symbol(const char *);
 

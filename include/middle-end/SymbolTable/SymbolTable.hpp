@@ -101,7 +101,7 @@ FnSymbol_t *SA_semantic_fn_lookup(const char *);
 void SA_semantic_clear_fns(void);
 DataTypes_t SA_semantic_update_datatype(const char *, DataTypes_t);
 ASTModule_t *SA_semantic_get_module(const char *);
-ASTModule_t *SA_semantic_load_module(const char *, bool *);
+ASTModule_t *SA_semantic_load_module(char *, bool *);
 
 #ifdef __cplusplus
 }

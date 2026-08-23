@@ -15,7 +15,8 @@
                 "-o",
                 "${workspaceFolder}/output/test",
                 "--emit-ir",
-                "${workspaceFolder}/output/test.ll"
+                "${workspaceFolder}/output/test.ll",
+                "-Itest/tests"
             ],
             "cwd": "${workspaceFolder}",
             "stopOnEntry": false,
