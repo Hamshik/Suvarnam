@@ -14,6 +14,7 @@ bool is_glob_var_allowed = false;
 static bool import_parse_failed = false;
 static size_t semantic_check_depth = 0;
 extern bool shouldrestart;
+extern "C" void SA_lexer_reset_loc();
 
 extern "C" ASTNode_t* parse_file(FILE *f) {
     ASTNode_t *old_root = root;   // save current AST
@@ -21,6 +22,7 @@ extern "C" ASTNode_t* parse_file(FILE *f) {
     root = NULL;                  // reset for new parse
     shouldrestart = true;
     yyrestart(f);
+    SA_lexer_reset_loc();
 
     size_t errors_before_parse = err_no;
     if(yyparse() == 0){

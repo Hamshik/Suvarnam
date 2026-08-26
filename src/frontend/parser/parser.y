@@ -116,17 +116,24 @@ top_level_stmts: /* empty */    { $$ = NULL; }
 
 expr_stmt:
     assignment SEMICOLON        { $$ = $1; }
+    | assignment error SEMICOLON { SA_error_LOC(SA_loc_after(@1), PARSE_MISSING_SEMI, NULL); yyerrok; $$ = NULL; }
     | expr SEMICOLON            { $$ = $1; }
+    | expr error SEMICOLON      { SA_error_LOC(SA_loc_after(@1), PARSE_MISSING_SEMI, NULL); yyerrok; $$ = NULL; }
     | block                     { $$ = $1; }
     | return_stmt SEMICOLON     { $$ = $1; }
+    | return_stmt error SEMICOLON { SA_error_LOC(SA_loc_after(@1), PARSE_MISSING_SEMI, NULL); yyerrok; $$ = NULL; }
+    | LEX_ERROR SEMICOLON       { SA_lexer_take_error(); yyerrok; $$ = NULL; }
+    | LEX_ERROR                 { SA_lexer_take_error(); $$ = NULL; }
+    | error SEMICOLON           { parser_panic(@1); yyerrok; $$ = NULL; }
     | if_stmt                   { $$ = $1; }
     | for_stmt                  { $$ = $1; }
     | while_stmt                { $$ = $1; }
     | CONTINUE SEMICOLON        { $$ = new_continue(@$); }
     | BREAK SEMICOLON           { $$ = new_break(@$); }
-    | expr error                { parser_panic(@1); $$ = NULL; }
-    | error SEMICOLON           { parser_panic(@$); $$ = NULL; }
-    | error                     { parser_panic(@$); $$ = NULL; }
+    | error {
+        if (!SA_lexer_take_error()) panic(@$, PARSE_SYNTAX, g_last_parse_err_msg);
+        YYABORT;
+    }
 ;
 
 import_list:

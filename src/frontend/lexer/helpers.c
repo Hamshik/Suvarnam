@@ -37,10 +37,6 @@ bool SA_lexer_take_error(void) {
 
 void SA_lexer_update_loc(YYLTYPE *loc, const char *text, int len) {
     if (!loc) return;
-    if(shouldrestart){
-        SA_lexer_reset_loc();
-        shouldrestart = false;
-    }
 
     loc->first_line = SA_lex_line;
     loc->first_column = SA_lex_col;

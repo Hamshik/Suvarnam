@@ -200,11 +200,6 @@ extern "C" int compile_and_execute(ASTNode_t *root, const Options *opts) {
   }
   free(ir_text);
 
-  if (access(main_ir_path, F_OK) != 0) {
-    perror("IR file missing before llc");
-    return 1;
-  }
-
   // Ensure output directory exists if bin_output_path contains a directory separator
   std::string bin_path(opts->bin_output_path);
   size_t last_slash = bin_path.find_last_of("/\\");
