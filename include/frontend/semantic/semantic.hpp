@@ -8,17 +8,19 @@
 
 #include <llvm-22/llvm/IR/DerivedTypes.h>
 #include <stdbool.h>
-extern "C" {
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 void semantic_check(ASTNode_t *);
 ASTNode_t *parse_file(FILE *);
+#ifdef __cplusplus
+}
+#endif
 bool is_numeric(DataTypes_t);
 
 #ifdef __cplusplus
-}
-
-
 extern "C" {
     Type_t* check_expr(ASTNode_t *, Type_t*&);
     Type_t* semantic_index_handle(ASTNode_t *);

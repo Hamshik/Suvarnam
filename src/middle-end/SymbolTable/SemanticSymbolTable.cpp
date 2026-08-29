@@ -298,7 +298,7 @@ ASTModule_t *load_module(char *requested_path,
 
   size_t errors_before_parse = err_no;
   raw->ast = parse_file(source);
-  raw->parsed = raw->ast != nullptr && err_no == errors_before_parse;
+  raw->parsed = !isError;
 
   if (file) {
     file->source = previous_source;

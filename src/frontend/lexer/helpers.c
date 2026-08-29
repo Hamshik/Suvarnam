@@ -10,6 +10,7 @@ static int SA_lex_col = 1;
 static int SA_lex_pos = 0; /* 0-based byte offset */
 static bool SA_lex_error_pending = false;
 bool shouldrestart = false;
+extern bool isError;
 
 static int SA_hex_val(unsigned char c) {
     if (c >= '0' && c <= '9') return (int)(c - '0');
@@ -23,6 +24,7 @@ void SA_lexer_reset_loc(void) {
     SA_lex_col = 1;
     SA_lex_pos = 0;
     SA_lex_error_pending = false;
+    isError = false;
 }
 
 void SA_lexer_mark_error(void) {
