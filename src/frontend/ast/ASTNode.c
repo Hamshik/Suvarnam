@@ -19,7 +19,7 @@ ASTNode_t *new_str(char *rawval, SA_Location loc) {
     ASTNode_t *node = ast_alloc();
     node->kind = AST_STR;
     node->type = make_type(STRINGS, NULL);
-    if (node->type) node->type->size = 0;
+    if (node->type) node->type->size = strlen(rawval);
     node->loc = loc;
     node->literal.raw = strdup(rawval);
     return node;
@@ -29,7 +29,6 @@ ASTNode_t *new_char_bytes(const char *bytes, size_t len, SA_Location loc) {
     ASTNode_t *node = ast_alloc();
     node->kind = AST_CHAR;
     node->type = make_type(CHARACTER, NULL);
-    if (node->type) node->type->size = 1; // Characters are typically 1 byte
     node->loc = loc;
     node->literal.len = len;
     node->literal.raw = calloc(1, len + 1);

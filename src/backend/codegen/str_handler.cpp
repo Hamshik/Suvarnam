@@ -107,7 +107,7 @@ Value *emit_char(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b) {
   Utf8Error err = Utf8Error::None;
   // Ensure we pass the actual byte length of the literal to the decoder.
   // `n->type->size` may be 0 or incorrect; fall back to strlen when needed.
-  size_t raw_len = 4;
+  size_t raw_len = n->type->size;
   if (raw_len == 0 && n->literals.val.chars)
     raw_len = std::strlen(n->literals.val.chars);
 
@@ -117,14 +117,15 @@ Value *emit_char(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b) {
   // Error Handling
   if (err != Utf8Error::None) {
     const char *msg = nullptr;
-    if (err == Utf8Error::MultiCharacter)
-      msg = "Character literal must be a single UTF-8 character (e.g., 'a' "
+    switch (err) {
+      case Utf8Error::MultiCharacter:
+        msg = "Character literal must be a single UTF-8 character (e.g., 'a' "
             "or 'π')";
-    else if (err == Utf8Error::Empty)
-      msg = "Character literal cannot be empty";
-
-    else if (err == Utf8Error::InvalidUtf8)
-      msg = n->literals.val.chars;
+        break;
+      case Utf8Error::Empty:       msg = "Character literal cannot be empty"; break;
+      case Utf8Error::InvalidUtf8: msg = n->literals.val.chars; break;
+      default: break;
+    }
 
     panic(n->loc, INVAILD_UTF8_CHAR, msg ? msg : "unknown");
     return nullptr;

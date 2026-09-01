@@ -120,6 +120,7 @@ extern "C" bool parse_arguments(int argc, char **argv, Options *opts) {
       char* path = argv[i] + 2;
       if(*path == '\0'){
         i++;
+        if(!argv[i]) syserr((char*)"Expected directory");
         path = argv[i];
       }
       if(std::filesystem::is_directory(path)){

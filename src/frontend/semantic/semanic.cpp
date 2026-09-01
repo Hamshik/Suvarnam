@@ -68,6 +68,7 @@ extern "C" Type_t *check_expr(ASTNode_t *n, Type_t *&type) {
   case AST_CHAR:
     if (!n->type || n->type->base == UNKNOWN)
       n->type = make_type(CHARACTER, NULL);
+    n->type->size = n->literal.len;
     return n->type;
 
   case AST_VAR: {

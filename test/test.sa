@@ -1,11 +1,7 @@
-#import "fn.sa";
-
 fn i32 main() {
-    var globe = 1000;
+    var globe = '🦀';
 
-    printf("%d\n", globe);
-    
-    hello();
+    printf("%d\n",globe);
 
     ret 0;
 }

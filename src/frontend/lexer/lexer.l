@@ -18,13 +18,6 @@
     static int SA_comment_start_col = 1;
     static int SA_comment_start_pos = 0;
 
-    void reset_parser_location(YYLTYPE yylloc) {
-        yylloc.first_line = 1;
-        yylloc.first_column = 1;
-        yylloc.last_line = 1;
-        yylloc.last_column = 1;
-    }
-
 %}
 
 %x COMMENT3
@@ -110,23 +103,6 @@
         return LEX_ERROR;
     }
 
-    /* enforce exactly one UTF-8 codepoint */
-    if (!SA_utf8_single(s, out_len)) {
-        panic(
-            (SA_Location){
-              yylloc->first_line,
-              yylloc->first_column + 1,
-              yylloc->first_pos + 1,
-              yylloc->first_line,
-              yylloc->first_column + (size_t)yyleng - 2,
-              yylloc->first_pos + (size_t)yyleng - 2
-            },
-              INVAILD_UTF8_CHAR, NULL);
-        free(s);
-        SA_lexer_mark_error();
-        return LEX_ERROR;
-    }
-
     yylval->node = new_char_bytes(s, out_len, *yylloc);
     free(s);
     return CHAR_LITERAL;
@@ -197,6 +173,7 @@
 "}"                 { if (  SA_brace_depth > 0) SA_brace_depth--; return RBRACE; }
 ".."                { return DOT_DOT; }
 "..."               { return ELLIPSIS; }
+
 [@a-zA-Z_][a-zA-Z0-9_]*|[a-zA-Z_] {
     const SA_Keyword *keyword = SA_find_keyword(yytext, (size_t)yyleng);
     if (keyword) {
@@ -245,6 +222,7 @@
         panic( loc, PARSE_UNCLOSED_BRACE, NULL);
         SA_lexer_mark_error();
     }
+    
     return 0;
 }
 %%
