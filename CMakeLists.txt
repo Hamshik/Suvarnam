@@ -1,14 +1,14 @@
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-
 cmake_minimum_required(VERSION 3.15)
 project(suvarnam_compiler LANGUAGES C CXX)
 
-# 1. Standard Settings
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_C_STANDARD 11)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# LLVM's dependies
+# 1. Standard Settings
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_C_STANDARD 17)
+
+# LLVM's dependencies
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(zstd REQUIRED libzstd)
 add_library(zstd::libzstd_shared INTERFACE IMPORTED)
@@ -17,69 +17,126 @@ set_target_properties(zstd::libzstd_shared PROPERTIES
     INTERFACE_LINK_LIBRARIES "${zstd_LIBRARIES}"
 )
 
-# 2. Locate LLVM 22 (Installed via apt)
-# We hint the specific path for the LLVM cmake files
+# 2. Locate LLVM 22
 list(APPEND CMAKE_PREFIX_PATH "/usr/lib/llvm-22/lib/cmake/llvm")
 find_package(LLVM REQUIRED CONFIG)
 
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 message(STATUS "Using LLVMConfig.cmake from: ${LLVM_DIR}")
 
-# 3. Include Directories
-include_directories(include)
-include_directories(src) # For some relative includes
-include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
-add_definitions(${LLVM_DEFINITIONS})
+# 3. Locate Tools (Required to fix empty command invocations)
+find_program(BISONCXX_EXECUTABLE bisonc++ REQUIRED)
+find_program(FLEXCXX_EXECUTABLE flexc++ REQUIRED)
 
-# 4. Find Bison and Flex
-find_package(BISON REQUIRED)
-find_package(FLEX REQUIRED)
+# ==============================================================================
+# 4. Generate BisonC++ Parser
+# ==============================================================================
+set(PARSER_INC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include/frontend/parser")
 
-# 5.1 Tell the compiler to look in the build folder for the generated parser.h
-include_directories(${CMAKE_CURRENT_BINARY_DIR})
-include_directories(
-    include/backend
-    include/middle-end
-    include/frontend
-    include
+set(PARSER_H_INC     "${PARSER_INC_DIR}/Parser.h")
+set(PARSER_IH_INC    "${PARSER_INC_DIR}/Parser.ih")
+
+set(PARSER_CC        "${CMAKE_CURRENT_BINARY_DIR}/parse.cc")
+set(PARSER_BASE      "${CMAKE_CURRENT_BINARY_DIR}/Parserbase.h")
+set(PARSER_H_BUILD   "${CMAKE_CURRENT_BINARY_DIR}/Parser.h")
+set(PARSER_IH_BUILD  "${CMAKE_CURRENT_BINARY_DIR}/Parser.ih")
+
+file(MAKE_DIRECTORY "${PARSER_INC_DIR}")
+
+# Step 1: Generate Parser files in build directory
+add_custom_command(
+    OUTPUT "${PARSER_CC}" "${PARSER_BASE}" "${PARSER_H_BUILD}" "${PARSER_IH_BUILD}"
+    COMMAND ${CMAKE_COMMAND} -E rm -f "${PARSER_CC}" "${PARSER_BASE}" "${PARSER_H_BUILD}" "${PARSER_IH_BUILD}"
+    COMMAND "${BISONCXX_EXECUTABLE}" --debug "${CMAKE_CURRENT_SOURCE_DIR}/src/frontend/parser/parser.yy"
+    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/frontend/parser/parser.yy"
+    COMMENT "Generating Parser via bisonc++"
 )
 
-# 5. Generate Parser and Lexer
-# We generate them in the BUILD directory, not the SOURCE directory
-BISON_TARGET(MyParser src/frontend/parser/parser.y 
-             ${CMAKE_CURRENT_BINARY_DIR}/parser.c
-             DEFINES_FILE ${CMAKE_CURRENT_BINARY_DIR}/parser.h)
+# Step 2: Copy Parser headers to include/frontend/parser/
+add_custom_command(
+    OUTPUT "${PARSER_H_INC}" "${PARSER_IH_INC}"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${PARSER_H_BUILD}"  "${PARSER_H_INC}"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${PARSER_IH_BUILD}" "${PARSER_IH_INC}"
+    DEPENDS "${PARSER_H_BUILD}" "${PARSER_IH_BUILD}"
+    COMMENT "Copying parser headers to include/frontend/parser"
+)
 
-FLEX_TARGET(MyLexer src/frontend/lexer/lexer.l
-            ${CMAKE_CURRENT_BINARY_DIR}/lexer.c)
+# ==============================================================================
+# 5. Generate FlexC++ Lexer
+# ==============================================================================
+set(LEXER_INC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include/frontend/lexer")
 
-ADD_FLEX_BISON_DEPENDENCY(MyLexer MyParser)
+set(SCANNER_H_INC    "${LEXER_INC_DIR}/Scanner.h")
+set(SCANNER_IH_INC   "${LEXER_INC_DIR}/Scanner.ih")
 
-# 6. Collect all Source Files
-# We use file(GLOB_RECURSE) to pick up all nested .c and .cpp files
+set(SCANNER_CC       "${CMAKE_CURRENT_BINARY_DIR}/Scanner.cc")
+set(SCANNER_BASE     "${CMAKE_CURRENT_BINARY_DIR}/Scannerbase.h")
+set(SCANNER_H_BUILD  "${CMAKE_CURRENT_BINARY_DIR}/Scanner.h")
+set(SCANNER_IH_BUILD "${CMAKE_CURRENT_BINARY_DIR}/Scanner.ih")
+
+file(MAKE_DIRECTORY "${LEXER_INC_DIR}")
+
+# Step 1: Generate Lexer files in build directory
+add_custom_command(
+    OUTPUT "${SCANNER_CC}" "${SCANNER_BASE}" "${SCANNER_H_BUILD}" "${SCANNER_IH_BUILD}"
+    COMMAND ${CMAKE_COMMAND} -E rm -f "${SCANNER_CC}" "${SCANNER_BASE}" "${SCANNER_H_BUILD}" "${SCANNER_IH_BUILD}"
+    COMMAND "${FLEXCXX_EXECUTABLE}"
+        --filenames=Scanner
+        --lex-source="Scanner.cc"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/frontend/lexer/lexer.l"
+    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/frontend/lexer/lexer.l"
+    COMMENT "Generating Scanner files via flexc++"
+)
+
+# Step 2: Copy Lexer headers to include/frontend/lexer/
+add_custom_command(
+    OUTPUT "${SCANNER_H_INC}" "${SCANNER_IH_INC}"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${SCANNER_H_BUILD}"  "${SCANNER_H_INC}"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${SCANNER_IH_BUILD}" "${SCANNER_IH_INC}"
+    DEPENDS "${SCANNER_H_BUILD}" "${SCANNER_IH_BUILD}"
+    COMMENT "Copying lexer headers to include/frontend/lexer"
+)
+
+# ==============================================================================
+# 6. Define Executable
+# ==============================================================================
 file(GLOB_RECURSE ALL_SOURCES CONFIGURE_DEPENDS
     "src/*.c" 
     "src/*.cpp" 
-    "TQlib/*.c"
 )
 
-# Remove the original parser.c and lexer.c if they exist in src to avoid double-definition
-# Robust artifact removal engine
-list(REMOVE_ITEM ALL_SOURCES 
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/parser/parser.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/lexer/lexer.c"
-    "${CMAKE_CURRENT_BINARY_DIR}/parser.c"
-    "${CMAKE_CURRENT_BINARY_DIR}/lexer.c"
-)
-
-# 7. Define the Executable
 add_executable(suvarnam 
     ${ALL_SOURCES}
-    ${BISON_MyParser_OUTPUTS}
-    ${FLEX_MyLexer_OUTPUTS}
+    "${PARSER_CC}"
+    "${PARSER_H_INC}"
+    "${PARSER_IH_INC}"
+    "${SCANNER_CC}"
+    "${SCANNER_H_INC}"
+    "${SCANNER_IH_INC}"
 )
 
-# 8. Map LLVM Components to Libraries
+set_source_files_properties(
+    src/frontend/lexer/helpers.c
+    PROPERTIES LANGUAGE CXX
+)
+
+# 8. Include Directories Configuration
+target_include_directories(suvarnam PRIVATE
+    include
+    ${CMAKE_CURRENT_BINARY_DIR}
+    include/backend
+    include/middle-end
+    include/frontend
+    include/frontend/parser
+    include/frontend/lexer
+)
+
+target_include_directories(suvarnam SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
+target_compile_definitions(suvarnam PRIVATE ${LLVM_DEFINITIONS})
+
+# 9. Map LLVM Components
 llvm_map_components_to_libnames(llvm_libs 
     core 
     analysis 
@@ -90,8 +147,8 @@ llvm_map_components_to_libnames(llvm_libs
     irreader
 )
 
-# 9. Linking
-target_link_libraries(suvarnam PRIVATE ${llvm_libs})
+# 10. Linking
+target_link_libraries(suvarnam PRIVATE ${llvm_libs} zstd::libzstd_shared)
 
-# Set output directory to bin/ as per your structure
-set_target_properties(suvarnam PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/build")
+# Set runtime output directory
+set_target_properties(suvarnam PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/bin")

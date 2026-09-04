@@ -2,30 +2,14 @@
 #include "shared/structs.h"
 #include <stdint.h>
 
-/* Bison %locations: Flex does not maintain columns for you.
-   Track (line, column) ourselves and update it for every match,
-   including skipped whitespace/comments. Columns/pos are byte-based. */
-static int SA_lex_line = 1;
-static int SA_lex_col = 1;
-static int SA_lex_pos = 0; /* 0-based byte offset */
-static bool SA_lex_error_pending = false;
-bool shouldrestart = false;
+int SA_brace_depth = 0;
+int SA_comment_start_line = 1;
+int SA_comment_start_col = 1;
+int SA_comment_start_pos = 0;
 extern bool isError;
-
-static int SA_hex_val(unsigned char c) {
-    if (c >= '0' && c <= '9') return (int)(c - '0');
-    if (c >= 'a' && c <= 'f') return 10 + (int)(c - 'a');
-    if (c >= 'A' && c <= 'F') return 10 + (int)(c - 'A');
-    return -1;
-}
-
-void SA_lexer_reset_loc(void) {
-    SA_lex_line = 1;
-    SA_lex_col = 1;
-    SA_lex_pos = 0;
-    SA_lex_error_pending = false;
-    isError = false;
-}
+SA_Location SA_lexer_token_loc = {1, 1, 0, 1, 1, 0};
+SA_LexValue SA_lexer_value = {NULL, UNKNOWN};
+static bool SA_lex_error_pending = false;
 
 void SA_lexer_mark_error(void) {
     SA_lex_error_pending = true;
@@ -37,16 +21,28 @@ bool SA_lexer_take_error(void) {
     return pending;
 }
 
-void SA_lexer_update_loc(YYLTYPE *loc, const char *text, int len) {
-    if (!loc) return;
 
-    loc->first_line = SA_lex_line;
-    loc->first_column = SA_lex_col;
-    loc->first_pos = SA_lex_pos;
+static int SA_hex_val(unsigned char c) {
+    if (c >= '0' && c <= '9') return (int)(c - '0');
+    if (c >= 'a' && c <= 'f') return 10 + (int)(c - 'a');
+    if (c >= 'A' && c <= 'F') return 10 + (int)(c - 'A');
+    return -1;
+}
 
-    int line = SA_lex_line;
-    int col = SA_lex_col;
-    int pos = SA_lex_pos;
+void SA_lexer_reset_loc(void) {
+    lex_loc.first_line = 1;
+    lex_loc.first_column = 1;
+    lex_loc.first_pos = 0;
+    SA_lexer_token_loc = (SA_Location){1, 1, 0, 1, 1, 0};
+    SA_lexer_value = (SA_LexValue){NULL, UNKNOWN};
+    isError = false;
+}
+
+void SA_lexer_update_loc(const char *text, int len) {
+
+    int line = lex_loc.first_line;
+    int col = lex_loc.first_column;
+    int pos = lex_loc.first_pos;
 
     for (int i = 0; i < len; i++) {
         if (text[i] == '\n') {
@@ -58,17 +54,13 @@ void SA_lexer_update_loc(YYLTYPE *loc, const char *text, int len) {
         pos += 1;
     }
 
-    loc->last_line = line;
-    loc->last_column = (col > 1) ? (col - 1) : 1;
-    loc->last_pos = (pos > 0) ? (pos - 1) : 0;
-
-    SA_lex_line = line;
-    SA_lex_col = col;
-    SA_lex_pos = pos;
+    lex_loc.first_line = line;
+    lex_loc.first_column = col;
+    lex_loc.first_pos = pos;
 }
 
-void SA_lexer_get_cursor(SA_Location *loc) {
-    if (loc) *loc = (SA_Location){SA_lex_line, SA_lex_col, SA_lex_pos,0,0,0};
+void SA_lexer_get_cursor(SA_Location *locs) {
+    if (locs) *locs = (SA_Location){lex_loc.first_line, lex_loc.first_column, lex_loc.first_pos,0,0,0};
 }
 
 bool SA_utf8_single(const char *bytes, size_t len)

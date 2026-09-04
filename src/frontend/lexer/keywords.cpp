@@ -3,21 +3,22 @@
 #include <string_view>
 #include <unordered_map>
 
-#include "lexer/lexer.h"
+#include "Parser.h"
+typedef Parser::Tokens_ Tokens;
 
 #define TOKEN_KEYWORD(word, token_name) \
     { word, { word, SA_KEYWORD_TOKEN, token_name, UNKNOWN, false } }
 #define TYPE_KEYWORD(word, type_name) \
-    { word, { word, SA_KEYWORD_DATATYPE, DATATYPES, type_name, false } }
+    { word, { word, SA_KEYWORD_DATATYPE, Parser::DATATYPES, type_name, false } }
 #define BOOL_KEYWORD(word, value) \
-    { word, { word, SA_KEYWORD_BOOL_LITERAL, BOOL_LITERAL, UNKNOWN, value } }
+    { word, { word, SA_KEYWORD_BOOL_LITERAL, Parser::BOOL_LITERAL, UNKNOWN, value } }
 
 static const std::unordered_map<std::string_view, SA_Keyword> SA_keywords = {
-    TOKEN_KEYWORD("#import", IMPORT),
-    TOKEN_KEYWORD("else", ELSE),
-    TOKEN_KEYWORD("if", IF),
-    TOKEN_KEYWORD("for", FOR),
-    TOKEN_KEYWORD("var", VAR),
+    TOKEN_KEYWORD("#import", Tokens::IMPORT),
+    TOKEN_KEYWORD("else", Tokens::ELSE),
+    TOKEN_KEYWORD("if", Tokens::IF),
+    TOKEN_KEYWORD("for", Tokens::FOR),
+    TOKEN_KEYWORD("var", Tokens::VAR),
     TYPE_KEYWORD("i8", I8),
     TYPE_KEYWORD("i16", I16),
     TYPE_KEYWORD("i32", I32),
@@ -38,16 +39,16 @@ static const std::unordered_map<std::string_view, SA_Keyword> SA_keywords = {
     TYPE_KEYWORD("char", CHARACTER),
     TYPE_KEYWORD("bool", BOOL),
     TYPE_KEYWORD("void", VOID),
-    TOKEN_KEYWORD("while", WHILE),
-    TOKEN_KEYWORD("in", IN),
-    TOKEN_KEYWORD("break", BREAK),
-    TOKEN_KEYWORD("continue", CONTINUE),
+    TOKEN_KEYWORD("while", Tokens::WHILE),
+    TOKEN_KEYWORD("in", Tokens::IN),
+    TOKEN_KEYWORD("break", Tokens::BREAK),
+    TOKEN_KEYWORD("continue", Tokens::CONTINUE),
     BOOL_KEYWORD("true", true),
     BOOL_KEYWORD("false", false),
-    TOKEN_KEYWORD("mut", MUT),
-    TOKEN_KEYWORD("fn", FN),
-    TOKEN_KEYWORD("ret", RETURN),
-    TOKEN_KEYWORD("return", RETURN),
+    TOKEN_KEYWORD("mut", Tokens::MUT),
+    TOKEN_KEYWORD("fn", Tokens::FN),
+    TOKEN_KEYWORD("ret", Tokens::RETURN),
+    TOKEN_KEYWORD("return", Tokens::RETURN),
 };
 
 const SA_Keyword *SA_find_keyword(const char *text, size_t len)

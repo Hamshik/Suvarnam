@@ -62,6 +62,26 @@ static inline SA_Location SA_loc_after(SA_Location loc) {
     return loc;
 }
 
+#ifdef __cplusplus
+}
+
+  template <typename ParserLocation>
+  static inline SA_Location SA_parser_loc(ParserLocation const &loc) {
+    return (SA_Location){
+      (size_t)loc.first_line,
+      (size_t)loc.first_column,
+      0,
+      (size_t)loc.last_line,
+      (size_t)loc.last_column,
+      0
+    };
+  }
+    #endif
+
+    #ifdef __cplusplus
+    extern "C" {
+    #endif
+
 extern file_t* file;
 
 void SA_annotate_decl_list(ASTNode_t *, DataTypes_t, DataTypes_t, bool);

@@ -107,6 +107,12 @@ typedef struct Param {
 #endif
 } Param_t;
 
+
+typedef struct ParamList {
+    Param_t *params;
+    int count;
+} ParamList_t;
+
 #include "nodes.h"
 
 #ifdef __cplusplus

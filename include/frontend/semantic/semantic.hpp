@@ -68,10 +68,6 @@ Type_t* check_unconditional_branches(ASTNode_t* n, Type_t* type);
 Type_t* check_while_loop(ASTNode_t* n, Type_t* type);
 Type_t* check_range(ASTNode_t* n, Type_t* type);
 Type_t* check_for_loop(ASTNode_t* n, Type_t* type);
-extern "C" {
-void yyrestart(FILE *f);
-int yyparse();
 void SA_lexer_get_cursor(SA_Location *);
-}
 
 #endif

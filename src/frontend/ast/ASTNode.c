@@ -5,7 +5,7 @@
 
 
 
-ASTNode_t* new_num(char *rawval, DataTypes_t datatype, SA_Location loc) {
+ASTNode_t* new_num(const char *rawval, DataTypes_t datatype, SA_Location loc) {
     ASTNode_t *node = ast_alloc();
     node->kind = AST_NUM;
     node->type = make_type(datatype, NULL);

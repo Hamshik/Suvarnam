@@ -187,8 +187,10 @@ extern "C" int compile_and_execute(ASTNode_t *root, const Options *opts) {
                                  ? opts->ir_output_path
                                  : "/tmp/temp_suvarnam_main.ll";
 
-  if (codegen(mast_root, main_ir_path, &ir_text, true) == EXIT_FAILURE)
+  if (codegen(mast_root, main_ir_path, &ir_text, true) == EXIT_FAILURE){
+    printf("Codegen is exited with 1");
     return 1;
+  }
 
   ast_free(root);
 

@@ -1,50 +1,33 @@
-%option noyywrap
-%option bison-bridge
-%option bison-locations
-%option noinput
-%option nounput
-
-%{
-    #include <stddef.h>
-    #include <stdio.h>
-    #include <stdlib.h>
-    #include <string.h>
-
-    #include "lexer/lexer.h"
-    #include "frontend/lexer/keywords.h"
-
-    static int SA_brace_depth = 0;
-    static int SA_comment_start_line = 1;
-    static int SA_comment_start_col = 1;
-    static int SA_comment_start_pos = 0;
-
-%}
+%filenames Scanner
+%baseclass-preinclude "frontend/lexer/lexer.h"
 
 %x COMMENT3
 
 %%
-"\357\273\277"               { /* skip */ }
-[ \t\r\n]+                   { /* skip */ }
+
+"\357\273\277"               { /* skip BOM */ }
+[ \t\r\n]+                   { /* skip whitespace */ }
 
 "'''"                        {
-    SA_comment_start_line = yylloc->first_line;
-    SA_comment_start_col = yylloc->first_column;
-    SA_comment_start_pos = yylloc->first_pos;
-    BEGIN(COMMENT3);
+    SA_lexer_get_cursor(&lex_loc);
+    SA_comment_start_line = lex_loc.first_line;
+    SA_comment_start_col  = lex_loc.first_column;
+    SA_comment_start_pos  = lex_loc.first_pos;
+    begin(StartCondition_::COMMENT3);
 }
-<COMMENT3>"'''"               { BEGIN(INITIAL); }
+<COMMENT3>"'''"               { begin(StartCondition_::INITIAL); }
 <COMMENT3>\n                  { /* skip */ }
 <COMMENT3>.                   { /* skip */ }
 <COMMENT3><<EOF>>             {
     panic(
-          (SA_Location){
-            SA_comment_start_line,
-            SA_comment_start_col,
-            SA_comment_start_pos,
+        (SA_Location){
+            (size_t)SA_comment_start_line,
+            (size_t)SA_comment_start_col,
+            (size_t)SA_comment_start_pos,
             0,0,0
-          },
-          LEX_UNCLOSED_COMMENT,
-          NULL);
+        },
+        LEX_UNCLOSED_COMMENT,
+        NULL);
     SA_lexer_mark_error();
     return 0;
 }
@@ -52,8 +35,8 @@
 "''".*                       { /* skip single-line comments */ }
 
 \"([^"\\\n]|\\.)*\"          {
-    const char *inner = yytext + 1;
-    size_t inner_len = (size_t)yyleng - 2;
+    const char *inner = matched().c_str() + 1;
+    size_t inner_len = length() - 2;
     size_t out_len = 0;
     int err_i = -1;
     const char *err_msg = NULL;
@@ -63,25 +46,25 @@
         int off = (err_i >= 0) ? err_i : 0;
         panic(
             (SA_Location){
-              yylloc->first_line,
-              yylloc->first_column + 1 + off,
-              yylloc->first_pos + 1 + off,
-              0,0,0
+                lex_loc.first_line,
+                lex_loc.first_column + 1 + off,
+                lex_loc.first_pos + 1 + off,
+                0,0,0
             },
-              LEX_INVALID_ESCAPE,
-              err_msg);
+            LEX_INVALID_ESCAPE,
+            err_msg);
         SA_lexer_mark_error();
-        return LEX_ERROR;
+        return Parser::LEX_ERROR;
     }
 
-    yylval->node = new_str(s, *yylloc);
+    val.node = new_str(s, lex_loc);
     free(s);
-    return STRING_LITERAL;
+    return Parser::STRING_LITERAL;
 }
 
-\'([^\'\\\n]|\\.)+\'            {
-    const char *inner = yytext + 1;          /* skip leading quote */
-    size_t inner_len = (size_t)yyleng - 2;   /* exclude quotes */
+\'([^\'\\\n]|\\.)+\'         {
+    const char *inner = matched().c_str() + 1;
+    size_t inner_len = length() - 2;
     size_t out_len = 0;
     int err_i = -1;
     const char *err_msg = NULL;
@@ -91,138 +74,123 @@
         int off = (err_i >= 0) ? err_i : 0;
         panic(
             (SA_Location){
-              yylloc->first_line,
-              yylloc->first_column + 1 + off,
-              yylloc->first_pos + 1 + off,
-              0,0,0
+                lex_loc.first_line,
+                lex_loc.first_column + 1 + off,
+                lex_loc.first_pos + 1 + off,
+                0,0,0
             },
-              LEX_INVALID_ESCAPE,
-              err_msg ? err_msg : "invalid character literal");
+            LEX_INVALID_ESCAPE,
+            err_msg ? err_msg : "invalid character literal");
         free(s);
         SA_lexer_mark_error();
-        return LEX_ERROR;
+        return Parser::LEX_ERROR;
     }
 
-    yylval->node = new_char_bytes(s, out_len, *yylloc);
+    val.node = new_char_bytes(s, out_len, lex_loc);
     free(s);
-    return CHAR_LITERAL;
+    return Parser::CHAR_LITERAL;
 }
 
-#[a-zA-Z_][a-zA-Z0-9_]* {
-    const SA_Keyword *keyword = SA_find_keyword(yytext, (size_t)yyleng);
+#[a-zA-Z_][a-zA-Z0-9_]*     {
+    const SA_Keyword *keyword = SA_find_keyword(matched().c_str(), length());
     if (keyword && keyword->kind == SA_KEYWORD_TOKEN) return keyword->token;
-    panic(*yylloc, LEX_UNKNOWN_CHAR, "unknown directive");
+    panic(lex_loc, LEX_UNKNOWN_CHAR, "unknown directive");
     SA_lexer_mark_error();
-    return LEX_ERROR;
+    return Parser::LEX_ERROR;
 }
 
 [0-9]+(\.[0-9]+)? {
-    yylval->node = new_num(yytext, UNKNOWN, *yylloc);
-    
-    return NUMBER;
+    val.node = new_num(matched().c_str(), UNKNOWN, lex_loc);
+    return Parser::NUMBER;
 }
 
 \.[0-9]+ {
-    char* buffer = (char*)calloc(1,strlen(yytext) + 2);
-    snprintf(buffer, strlen(yytext) + 2, "0%s", yytext);
-    yylval->node = new_num(buffer, UNKNOWN, *yylloc);
+    char* buffer = (char*)calloc(1, length() + 2);
+    snprintf(buffer, length() + 2, "0%s", matched().c_str());
+    val.node = new_num(buffer, UNKNOWN, lex_loc);
     free(buffer);
-    return NUMBER;
+    return Parser::NUMBER;
 }
 
-","                 { return COMMA; }
-"++"                { return INC; }
-"--"                { return DEC; }
-":"                 { return COLON;}
-"+"                 { return PLUS; }
-"-"                 { return MINUS; }
-"*"                 { return STAR; }
-"/"                 { return SLASH; }
-"%"                 { return MOD; }
-"^^"                { return POWER; }
-"["                 { return LSQUARE;}
-"]"                 { return RSQUARE;}
-"("                 { return LPAREN; }
-")"                 { return RPAREN; }
-"="                 { return ASSIGN; }
-"+="                { return PLUS_ASSIGN; }
-"-="                { return MINUS_ASSIGN; }
-"*="                { return STAR_ASSIGN; }
-"/="                { return SLASH_ASSIGN; }
-"%="                { return MOD_ASSIGN; }
-"^^="               { return POWER_ASSIGN; }
-";"                 { return SEMICOLON; }
-">>"                { return RSHIFT; }
-"<<"                { return LSHIFT; }
-"<<="               { return LSHIFT_ASSIGN; }
-">>="               { return RSHIFT_ASSIGN; }
-"&&"                { return AND; }
-"||"                { return OR; }
-"!"                 { return NOT; }
-"&"                 { return AMP; }
-"|"                 { return PIPE; }
-"^"                 { return BITXOR; }
-"~"                 { return BITNOT; }
-"=="                { return EQ; }
-"!="                { return NEQ; }
-"<="                { return LE; }
-">="                { return GE; }
-"<"                 { return LT; }
-">"                 { return GT; }
-"{"                 { SA_brace_depth++; return LBRACE; }
-"}"                 { if (  SA_brace_depth > 0) SA_brace_depth--; return RBRACE; }
-".."                { return DOT_DOT; }
-"..."               { return ELLIPSIS; }
+","                 { return Parser::COMMA; }
+"++"                { return Parser::INC; }
+"--"                { return Parser::DEC; }
+":"                 { return Parser::COLON; }
+"+"                 { return Parser::PLUS; }
+"-"                 { return Parser::MINUS; }
+"*"                 { return Parser::STAR; }
+"/"                 { return Parser::SLASH; }
+"%"                 { return Parser::MOD; }
+"^^"                { return Parser::POWER; }
+"["                 { return Parser::LSQUARE; }
+"]"                 { return Parser::RSQUARE; }
+"("                 { return Parser::LPAREN; }
+")"                 { return Parser::RPAREN; }
+"="                 { return Parser::ASSIGN; }
+"+="                { return Parser::PLUS_ASSIGN; }
+"-="                { return Parser::MINUS_ASSIGN; }
+"*="                { return Parser::STAR_ASSIGN; }
+"/="                { return Parser::SLASH_ASSIGN; }
+"%="                { return Parser::MOD_ASSIGN; }
+"^^="               { return Parser::POWER_ASSIGN; }
+";"                 { return Parser::SEMICOLON; }
+">>"                { return Parser::RSHIFT; }
+"<<"                { return Parser::LSHIFT; }
+"<<="               { return Parser::LSHIFT_ASSIGN; }
+">>="               { return Parser::RSHIFT_ASSIGN; }
+"&&"                { return Parser::AND; }
+"||"                { return Parser::OR; }
+"!"                 { return Parser::NOT; }
+"&"                 { return Parser::AMP; }
+"|"                 { return Parser::PIPE; }
+"^"                 { return Parser::BITXOR; }
+"~"                 { return Parser::BITNOT; }
+"=="                { return Parser::EQ; }
+"!="                { return Parser::NEQ; }
+"<="                { return Parser::LE; }
+">="                { return Parser::GE; }
+"<"                 { return Parser::LT; }
+">"                 { return Parser::GT; }
+"{"                 { SA_brace_depth++; return Parser::LBRACE; }
+"}"                 { if (SA_brace_depth > 0) SA_brace_depth--; return Parser::RBRACE; }
+".."                { return Parser::DOT_DOT; }
+"..."               { return Parser::ELLIPSIS; }
 
 [@a-zA-Z_][a-zA-Z0-9_]*|[a-zA-Z_] {
-    const SA_Keyword *keyword = SA_find_keyword(yytext, (size_t)yyleng);
+    const SA_Keyword *keyword = SA_find_keyword(matched().c_str(), length());
     if (keyword) {
         if (keyword->kind == SA_KEYWORD_TOKEN) return keyword->token;
         if (keyword->kind == SA_KEYWORD_DATATYPE) {
-            yylval->datatype = keyword->datatype;
+            val.datatype = keyword->datatype;
             return keyword->token;
         }
-        yylval->node = new_bool(keyword->bool_value, *yylloc);
+        val.node = new_bool(keyword->bool_value, lex_loc);
         return keyword->token;
     }
-    yylval->node = new_var(yytext, UNKNOWN, *yylloc);
-    return IDENTIFIER;
+    val.node = new_var(matched().c_str(), UNKNOWN, lex_loc);
+    return Parser::IDENTIFIER;
 }
 
-.                  {
-    if(*yytext == '\'' || *yytext == '"'){
-        SA_Location loc;
-        if (yylloc) {
-            loc = *yylloc;
-        } else {
-            SA_lexer_get_cursor(&loc);
-        }
-        panic( loc, PARSE_SYNTAX, " unclosed quatation mark");
+.                   {
+    if (matched()[0] == '\'' || matched()[0] == '"') {
+        panic(lex_loc, PARSE_SYNTAX, "unclosed quotation mark");
         SA_lexer_mark_error();
-        return LEX_ERROR;
+        return Parser::LEX_ERROR;
     }
-    unsigned char b0 = (unsigned char)yytext[0];
+    unsigned char b0 = static_cast<unsigned char>(matched()[0]);
     char detail[32];
     snprintf(detail, sizeof(detail), "0x%02X", b0);
-    SA_Location loc;
-    if (yylloc) {
-        loc = *yylloc;
-    } else {
-        SA_lexer_get_cursor(&loc);
-    }
-    panic( loc, LEX_UNKNOWN_CHAR, detail);
+    panic(lex_loc, LEX_UNKNOWN_CHAR, detail);
     SA_lexer_mark_error();
-    return LEX_ERROR;
+    return Parser::LEX_ERROR;
 }
 
 <<EOF>>             {
     if (SA_brace_depth > 0) {
-        SA_Location loc;
-        SA_lexer_get_cursor(&loc);
-        panic( loc, PARSE_UNCLOSED_BRACE, NULL);
+        SA_Location lex_loc;
+        SA_lexer_get_cursor(&lex_loc);
+        panic(lex_loc, PARSE_UNCLOSED_BRACE, NULL);
         SA_lexer_mark_error();
     }
-    
-    return 0;
+    return Parser::Eof; // Change from 'return 0;' to 'return Parser::Eof;'
 }
-%%

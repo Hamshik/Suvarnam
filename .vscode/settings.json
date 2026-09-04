@@ -1,17 +1,28 @@
 {
-    "C_Cpp.errorSquiggles": "disabled",
     "C_Cpp.default.includePath": [
         "${workspaceFolder}/src/**/*"
     ],
     "editor.fontLigatures": false,
     "C_Cpp.default.compileCommands": "${workspaceFolder}/.vscode/compile_commands.json",
-    "clangd.arguments": [
-        "--compile-commands-dir=build"
-    ],
     "cmake.debugConfig": {
         "type": "cppdbg",
         "MIMode": "gdb",
         "externalConsole": false
+    },
+    "C_Cpp.errorSquiggles": "disabled",
+    "C_Cpp.autocompleteAddParentheses": true,
+    "clangd.arguments": [
+        "--compile-commands-dir=${workspaceFolder}/build",
+        "--background-index",
+        "--clang-tidy",
+        "--header-insertion=iwyu"
+    ],
+    "files.associations": {
+        "*.yy": "bisonc++",
+        "*.l": "flexc++"
+    },
+    "bisonFlex.enableDiagnostics": false,
+    "chat.tools.terminal.autoApprove": {
+        "flexc++": true
     }
-
 }

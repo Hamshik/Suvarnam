@@ -11,7 +11,7 @@ extern "C" {
 #include <stdint.h>
 
 /* Constructors */
-ASTNode_t *new_num(char *, DataTypes_t, SA_Location);
+ASTNode_t *new_num(const char *, DataTypes_t, SA_Location);
 ASTNode_t *new_str(char *, SA_Location);
 ASTNode_t *new_char_bytes(const char *, size_t, SA_Location);
 ASTNode_t *new_var(const char *, DataTypes_t, SA_Location);
