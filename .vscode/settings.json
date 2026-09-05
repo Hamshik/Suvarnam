@@ -19,7 +19,7 @@
     ],
     "files.associations": {
         "*.yy": "bisonc++",
-        "*.l": "flexc++"
+        "*.l": "lex"
     },
     "bisonFlex.enableDiagnostics": false,
     "chat.tools.terminal.autoApprove": {

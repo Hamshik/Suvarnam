@@ -38,25 +38,24 @@ void SA_lexer_reset_loc(void) {
     isError = false;
 }
 
-void SA_lexer_update_loc(const char *text, int len) {
+void SA_lexer_update_loc(SA_Location* loc, const char *text, int len) {
+    if (!loc) return;
 
-    int line = lex_loc.first_line;
-    int col = lex_loc.first_column;
-    int pos = lex_loc.first_pos;
+    // Start of the token begins where the previous token left off
+    loc->first_line   = loc->last_line;
+    loc->first_column = loc->last_column;
+    loc->first_pos    = loc->last_pos;
 
+    // Advance last_* coordinates across the matched token length
     for (int i = 0; i < len; i++) {
         if (text[i] == '\n') {
-            line += 1;
-            col = 1;
+            loc->last_line += 1;
+            loc->last_column = 1;
         } else {
-            col += 1;
+            loc->last_column += 1;
         }
-        pos += 1;
+        loc->last_pos += 1;
     }
-
-    lex_loc.first_line = line;
-    lex_loc.first_column = col;
-    lex_loc.first_pos = pos;
 }
 
 void SA_lexer_get_cursor(SA_Location *locs) {

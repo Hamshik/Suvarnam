@@ -57,7 +57,7 @@
         return Parser::LEX_ERROR;
     }
 
-    val.node = new_str(s, lex_loc);
+    VAL(node, new_str(s, lex_loc));
     free(s);
     return Parser::STRING_LITERAL;
 }
@@ -86,7 +86,7 @@
         return Parser::LEX_ERROR;
     }
 
-    val.node = new_char_bytes(s, out_len, lex_loc);
+    VAL(node, new_char_bytes(s, out_len, lex_loc));
     free(s);
     return Parser::CHAR_LITERAL;
 }
@@ -100,14 +100,14 @@
 }
 
 [0-9]+(\.[0-9]+)? {
-    val.node = new_num(matched().c_str(), UNKNOWN, lex_loc);
+    VAL(node, new_num(matched().c_str(), UNKNOWN, lex_loc));
     return Parser::NUMBER;
 }
 
 \.[0-9]+ {
     char* buffer = (char*)calloc(1, length() + 2);
     snprintf(buffer, length() + 2, "0%s", matched().c_str());
-    val.node = new_num(buffer, UNKNOWN, lex_loc);
+    VAL(node, new_num(buffer, UNKNOWN, lex_loc));
     free(buffer);
     return Parser::NUMBER;
 }
@@ -161,13 +161,13 @@
     if (keyword) {
         if (keyword->kind == SA_KEYWORD_TOKEN) return keyword->token;
         if (keyword->kind == SA_KEYWORD_DATATYPE) {
-            val.datatype = keyword->datatype;
+            VAL(datatype, keyword->datatype);
             return keyword->token;
         }
-        val.node = new_bool(keyword->bool_value, lex_loc);
+        VAL(node, new_bool(keyword->bool_value, lex_loc));
         return keyword->token;
     }
-    val.node = new_var(matched().c_str(), UNKNOWN, lex_loc);
+    VAL(node, new_var(matched().c_str(), UNKNOWN, lex_loc));
     return Parser::IDENTIFIER;
 }
 
@@ -192,5 +192,5 @@
         panic(lex_loc, PARSE_UNCLOSED_BRACE, NULL);
         SA_lexer_mark_error();
     }
-    return Parser::Eof; // Change from 'return 0;' to 'return Parser::Eof;'
+    return 0;
 }

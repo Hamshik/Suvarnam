@@ -16,26 +16,6 @@ extern int g_last_parse_err_col;
 extern int g_last_parse_err_pos;
 extern const char *g_last_parse_err_msg;
 
-/* Tell Bison how to propagate our extra location fields. */
-#ifndef YYLLOC_DEFAULT
-#define YYLLOC_DEFAULT(Current, Rhs, N)                                        \
-  do {                                                                         \
-    if (N) {                                                                   \
-      (Current).first_line = YYRHSLOC(Rhs, 1).first_line;                      \
-      (Current).first_column = YYRHSLOC(Rhs, 1).first_column;                  \
-      (Current).first_pos = YYRHSLOC(Rhs, 1).first_pos;                        \
-      (Current).last_line = YYRHSLOC(Rhs, N).last_line;                        \
-      (Current).last_column = YYRHSLOC(Rhs, N).last_column;                    \
-      (Current).last_pos = YYRHSLOC(Rhs, N).last_pos;                          \
-    } else {                                                                   \
-      (Current).first_line = (Current).last_line = YYRHSLOC(Rhs, 0).last_line; \
-      (Current).first_column = (Current).last_column =                         \
-          YYRHSLOC(Rhs, 0).last_column;                                        \
-      (Current).first_pos = (Current).last_pos = YYRHSLOC(Rhs, 0).last_pos;    \
-    }                                                                          \
-  } while (0)
-#endif
-
 #define SA_SET_NODE_LOC(node, loc)                                              \
   do {                                                                         \
     if ((node) != NULL)                                                        \
@@ -65,22 +45,9 @@ static inline SA_Location SA_loc_after(SA_Location loc) {
 #ifdef __cplusplus
 }
 
-  template <typename ParserLocation>
-  static inline SA_Location SA_parser_loc(ParserLocation const &loc) {
-    return (SA_Location){
-      (size_t)loc.first_line,
-      (size_t)loc.first_column,
-      0,
-      (size_t)loc.last_line,
-      (size_t)loc.last_column,
-      0
-    };
-  }
-    #endif
 
-    #ifdef __cplusplus
-    extern "C" {
-    #endif
+extern "C" {
+#endif
 
 extern file_t* file;
 

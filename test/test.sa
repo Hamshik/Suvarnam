@@ -1,5 +1,6 @@
 fn i32 main() {
-    var globe = '🦀';
+    var globe = 100;
+    globe = "10";
 
     printf("%d\n",globe);
 

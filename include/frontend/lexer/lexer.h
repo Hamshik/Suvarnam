@@ -23,10 +23,11 @@ extern SA_Location SA_lexer_token_loc;
 extern SA_LexValue SA_lexer_value;
 
 #define lex_loc SA_lexer_token_loc
-#define val SA_lexer_value
+// Macro definition for setting the polymorphic semantic value
+#define VAL(type, action) d_val->assign<Tag_::type>(action)
 
 void SA_lexer_reset_loc(void);
-void SA_lexer_update_loc(const char *, int);
+void SA_lexer_update_loc(SA_Location *, const char *, int);
 void SA_lexer_get_cursor(SA_Location *);
 void SA_lexer_mark_error(void);
 bool SA_lexer_take_error(void);
