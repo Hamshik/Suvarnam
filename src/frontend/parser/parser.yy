@@ -9,18 +9,20 @@
     idx_epr: idx_expr_t*;
     type: Type_t*;
     size: size_t;
+    op: OP_kind_t;
 
 %token LEX_ERROR
 %token LBRACE RBRACE SEMICOLON COLON IN COMMA DOT_DOT ELLIPSIS
 %token IF FOR WHILE MUT VAR FN RETURN IMPORT
-%token SET CONTINUE BREAK NOT BITNOT
+%token CONTINUE BREAK NOT BITNOT SET
 
 %token <datatype> DATATYPES
 %token <node> IDENTIFIER NUMBER STRING_LITERAL BOOL_LITERAL CHAR_LITERAL
 
+%type <op> assign_op
 %type <node>  top_level_stmts block if_stmt for_stmt while_stmt import_stmt expr_stmts
 %type <node>  fn_def param param_tail return_stmt opt_args args list_stmt expr_stmt top_level_stmt index_stmt fn_block_t
-%type <node>  lvalue import_list expr assignment program range
+%type <node>  lvalue import_list expr assignment program range expr_assign
 %type <paramlist> opt_params params
 %type <type>  recursive_type
 %type <size>  opt_list_size
@@ -53,6 +55,7 @@
 %include fn.ly
 %include list.ly
 %include loops.ly
+%include assign.ly
 
 program:
     import_list top_level_stmts
@@ -94,9 +97,15 @@ expr_stmt:
     | while_stmt                { $$ = $1; }
     | CONTINUE SEMICOLON        { $$ = new_continue(@1); }
     | BREAK SEMICOLON           { $$ = new_break(@1); }
+    /* declaring assign here, to reduce the ambiguity */
+    | lvalue assign_op expr SEMICOLON {
+        OP_kind_t op = $2;
+        $$ = new_assign($1, $3, nullptr, 1, @1, op);
+    }
+
     | error {
         if (!scanner.lexTakeErr()) panic(@1, PARSE_SYNTAX, g_last_parse_err_msg);
-        if(err_no != 0) ABORT();
+        if(isError) ABORT();
         else ACCEPT();
     }
 ;

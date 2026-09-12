@@ -17,7 +17,7 @@ for_stmt:
     }
     | FOR LPAREN MUT IDENTIFIER IN expr RPAREN expr_stmt
     { 
-        $$ = new_for($4->var, $6, $8, @1, 1); 
+        $$ = new_for($4->var, $6, $8, @1, true); 
         ast_free($4);
     }
     | FOR LPAREN range RPAREN expr_stmt

@@ -1,6 +1,6 @@
 fn i32 main() {
     var mut globe = 100;
-    set globe = 10;
+    globe = 10;
 
     printf("%d\n",globe);
 
