@@ -3,41 +3,40 @@
 #include "shared/enums.h"
 #include "shared/structs.h"
 #include "utils/error_handler/error.h"
-#include "semantic/semantic.hpp" // for check_expr, type_error, is_numeric, is_integer
+#include "semantic/semantic.hpp" // for checkExpr, Semantic::typeError, is_numeric, Semantic::isInt
 #include <cstddef>
 #include <string>
 
 extern file_t* file; // global file
-bool verify_expression_path_is_mutable(ASTNode_t *n);
 
-ASTNode_t* get_base_var(const char* name){
+ASTNode* Semantic::getBaseVar(const char* name){
   if(!name) return nullptr;
 
-  auto symbol = SA::semantic_symbol_table::semantic_find_symbol(name);
+  auto symbol = sym->semantic_find_symbol(name);
   if(!symbol) return nullptr;
 
   if(symbol->node_ptr->kind == AST_UNOP && symbol->node_ptr->unop.op == OP_ADDR)
-    return get_base_var(symbol->node_ptr->unop.operand->var);
+    return getBaseVar(symbol->node_ptr->unop.operand->var);
 
   return symbol->node_ptr;
 }
 
-Type_t* unop(ASTNode_t *n, Type_t* type) {
+TypeInfo* Semantic::unop(ASTNode *n, TypeInfo* type) {
 
-  Type_t* t = check_expr(n->unop.operand, type);
+  TypeInfo* t = checkExpr(n->unop.operand, type);
 
   switch (n->unop.op) {
   case OP_NOT:
     if (t->base != BOOL)
-      type_error(n, "Operator ! expects bool");
-    n->type = make_type(BOOL, nullptr);
+      Semantic::typeError(n, "Operator ! expects bool");
+    n->type = new TypeInfo(BOOL, nullptr);
     return n->type;
 
   case OP_ADDR:{
-    Type_t *t = check_expr(n->unop.operand, type);
+    TypeInfo *t = checkExpr(n->unop.operand, type);
 
-    n->type = make_type(PTR, t);
-    auto node = get_base_var(n->unop.operand->var);
+    n->type = new TypeInfo(PTR, t);
+    auto node = getBaseVar(n->unop.operand->var);
 
     std::string name = node->kind == AST_ASSIGN ? node->assign.lhs->var : node->var;
     
@@ -51,16 +50,16 @@ Type_t* unop(ASTNode_t *n, Type_t* type) {
   }
 
   case OP_DEREF:
-    // If the operand is a nested deref, check_expr will resolve it first!
+    // If the operand is a nested deref, checkExpr will resolve it first!
     if (!t) return nullptr;
     
     if (t->base != PTR) {
-        type_error(n, "dereference requires a pointer type");
+        Semantic::typeError(n, "dereference requires a pointer type");
         return nullptr;
     }
     
     if (!t->inner) {
-        type_error(n, "pointer target type is missing");
+        Semantic::typeError(n, "pointer target type is missing");
         return nullptr;
     }
         
@@ -76,17 +75,17 @@ Type_t* unop(ASTNode_t *n, Type_t* type) {
    */
   if (n->unop.operand && n->unop.operand->kind == AST_NUM &&
       n->unop.operand->type->base == UNKNOWN) {
-    n->unop.operand->type = make_type(I32, NULL);
+    n->unop.operand->type = new TypeInfo(I32, NULL);
     t = n->unop.operand->type;
   }
 
-  if (!is_numeric(t->base))
+  if (!Semantic::isNumeric(t->base))
     panic(n->loc, SEM_UNARY_NEEDS_NUM, NULL);
 
-  if ((n->unop.op == OP_INC || n->unop.op == OP_DEC) && !SA_semantic_is_mutable(n->unop.operand->var)) 
+  if ((n->unop.op == OP_INC || n->unop.op == OP_DEC) && !sym->is_mutable(n->unop.operand->var))
     panic(n->loc, SEM_ASSIGN_IMMUTABLE, "cannot increment/decrement immutable variable");
 
-  if (n->unop.op == OP_BITNOT && !is_integer(t->base)) {
+  if (n->unop.op == OP_BITNOT && !Semantic::isInt(t->base)) {
     panic(n->loc, SEM_UNARY_NEEDS_NUM,
           "bitwise not requires integer type");
   }

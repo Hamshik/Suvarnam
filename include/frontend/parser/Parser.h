@@ -11,6 +11,7 @@ class Parser: public ParserBase
 {
     Scanner& d_scanner;
     Scanner& scanner;
+    const char* ErrMsg{};
 
     public:
         int parse();

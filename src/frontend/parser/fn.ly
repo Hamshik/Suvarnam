@@ -1,5 +1,5 @@
 fn_block_t:
-    SEMICOLON                   { $$ = static_cast<ASTNode_t *>(nullptr); }
+    SEMICOLON                   { $$ = static_cast<ASTNode *>(nullptr); }
     | block                     { $$ = $1; }
 ;
 
@@ -54,19 +54,19 @@ params:
 
 param:
     VAR MUT recursive_type param_tail {
-        $4->type = $4->is_variadic ? make_type(LIST, $3) : $3;
+        $4->type = $4->is_variadic ? new TypeInfo(LIST, $3) : $3;
         $4->type->ismut = true;
         $4->ismut = true;
         $$ = $4;
     }
     | VAR recursive_type param_tail {
-        $3->type = $3->is_variadic ? make_type(LIST, $2) : $2;
+        $3->type = $3->is_variadic ? new TypeInfo(LIST, $2) : $2;
         $3->type->ismut = false;
         $3->ismut = false;
         $$ = $3;
     }
     | recursive_type param_tail {
-        $2->type = $2->is_variadic ? make_type(LIST, $1) : $1;
+        $2->type = $2->is_variadic ? new TypeInfo(LIST, $1) : $1;
         $2->type->ismut = false;
         $2->ismut = false;
         $$ = $2;
@@ -90,7 +90,7 @@ return_stmt:
 ;
 
 opt_args:
-    /* empty */                 { $$ = static_cast<ASTNode_t *>(nullptr); }
+    /* empty */                 { $$ = static_cast<ASTNode *>(nullptr); }
     | args                      { $$ = $1; }
 ;
 

@@ -8,7 +8,7 @@ llvm::Value *emit_assing(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
   if (!lhs)
     return nullptr;
 
-  Value *targetPtr = nullptr;
+  llvm::Value *targetPtr = nullptr;
   Module *m = b.GetInsertBlock()->getModule();
   
   /* -----------------------------------------------------------------
@@ -80,11 +80,11 @@ llvm::Value *emit_assing(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
   /* -----------------------------------------------------------------
    * 4. EVALUATE VALUE & EMIT STORE (2000)
    * ----------------------------------------------------------------- */
-  Value *rhs = emit_expr(n->assign.value, ctx, b, entryBuilder, locals);
+  llvm::Value *rhs = emit_expr(n->assign.value, ctx, b, entryBuilder, locals);
   if (!rhs)
     return nullptr;
 
-  Value *result = rhs;
+  llvm::Value *result = rhs;
   DataTypes_t t = n->type->base != UNKNOWN ? n->type->base : (lhs->type ? lhs->type->base : UNKNOWN);
 
   if (t == STRINGS) {
@@ -133,20 +133,20 @@ void emit_global(HIRNode *n, Module &mod, LLVMContext &ctx) {
   }
 }
 
-llvm::AllocaInst *get_or_create_alloca(const std::string &name, DataTypes_t t,
-                                       llvm::LLVMContext &ctx,
-                                       llvm::IRBuilder<> &entryBuilder,
+AllocaInst *get_or_create_alloca(const std::string &name, DataTypes_t t,
+                                       LLVMContext &ctx,
+                                       IRBuilder<> &entryBuilder,
                                        Codegen::Scope &locals) {
 
   // If it already exists on the stack, return it right away
   if (name[0] == '@')
     return nullptr;
   if (locals.lookup(name)) {
-    return llvm::cast<llvm::AllocaInst>(locals[name]);
+    return cast<AllocaInst>(locals[name]);
   }
 
   // 1. Get the parent function and entry block
-  llvm::BasicBlock *entryBB = entryBuilder.GetInsertBlock();
+  BasicBlock *entryBB = entryBuilder.GetInsertBlock();
 
   // 2. 🎯 THE PERMANENT FIX: Save the current insert point, then force
   // the builder to move to the absolute top of the entry block (before any
@@ -160,7 +160,7 @@ llvm::AllocaInst *get_or_create_alloca(const std::string &name, DataTypes_t t,
 
   // 3. Create the type and stack allocation safely at the top
   llvm::Type *llvmTy = ir_type(t, ctx);
-  llvm::AllocaInst *allocaInst =
+  AllocaInst *allocaInst =
       entryBuilder.CreateAlloca(llvmTy, nullptr, name);
 
   // 4. Restore the entryBuilder back to where it was so it doesn't disturb

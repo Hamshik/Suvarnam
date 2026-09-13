@@ -1,22 +1,22 @@
 #include "semantic/semantic.hpp"
 #include "semantic/typecheck.h"
 
-bool literal_fits_type(const ASTNode_t *lit, DataTypes_t t) {
+bool Semantic::literalFitsType(const ASTNode *lit, DataTypes_t t) {
   if (!lit)
     return false;
   switch (lit->kind) {
   case AST_UNOP:
-    return literal_fits_type(lit->unop.operand, t);
+    return literalFitsType(lit->unop.operand, t);
   case AST_BINOP:
-    return literal_fits_type(lit->bin.right, t) &&
-           literal_fits_type(lit->bin.left, t);
+    return literalFitsType(lit->bin.right, t) &&
+           literalFitsType(lit->bin.left, t);
   case AST_ASSIGN:
-    return literal_fits_type(lit->assign.rhs, t) &&
-           literal_fits_type(lit->assign.lhs, t);
+    return literalFitsType(lit->assign.rhs, t) &&
+           literalFitsType(lit->assign.lhs, t);
   case AST_VAR:
-    if (!is_numeric(lit->type->base) || !is_numeric(t))
+    if (!isNumeric(lit->type->base) || !isNumeric(t))
       return false;
-    if (numeric_bits(lit->type->base) > numeric_bits(t))
+    if (numericBits(lit->type->base) > numericBits(t))
       return false;
     /* Allow widening signed->unsigned; actual sign is checked at runtime
      * elsewhere. */
@@ -61,7 +61,7 @@ bool literal_fits_type(const ASTNode_t *lit, DataTypes_t t) {
   }
 }
 
-DataTypes_t promote(DataTypes_t a, DataTypes_t b) {
+DataTypes_t Semantic::promote(DataTypes_t a, DataTypes_t b) {
   bool a_is_f = (a == F32 || a == F64 || a == F128);
   bool b_is_f = (b == F32 || b == F64 || b == F128);
   bool a_is_uf = (a == UF32 || a == UF64 || a == UF128);
@@ -109,12 +109,11 @@ DataTypes_t promote(DataTypes_t a, DataTypes_t b) {
   return I8;
 }
 
-void force_numeric_type(ASTNode_t *n, DataTypes_t t) {
-    if (!n || t == UNKNOWN || !is_numeric(t)) return;
+void Semantic::forceNumericType(ASTNode *n, DataTypes_t t) {
+    if (!n || t == UNKNOWN || !isNumeric(t)) return;
   
-  // If the node doesn't have a type object yet, give it one
   if (!n->type) {
-      n->type = make_type(t, NULL);
+      n->type = new TypeInfo(t, NULL);
   }
 
   switch (n->kind) {
@@ -125,17 +124,17 @@ void force_numeric_type(ASTNode_t *n, DataTypes_t t) {
 
   case AST_UNOP:
     if (n->unop.operand) {
-        force_numeric_type(n->unop.operand, t);
+        forceNumericType(n->unop.operand, t);
     }
     if (n->type->base == UNKNOWN) {
-      n->type->base = (n->unop.operand && n->unop.operand->type->base != UNKNOWN)
+      n->type->base = (n->unop.operand && n->unop.operand->type && n->unop.operand->type->base != UNKNOWN)
                         ? n->unop.operand->type->base
                         : t;
     }
     break;
   case AST_BINOP:
-    force_numeric_type(n->bin.left, t);
-    force_numeric_type(n->bin.right, t);
+    forceNumericType(n->bin.left, t);
+    forceNumericType(n->bin.right, t);
     if (n->type->base == UNKNOWN)
       n->type->base = t;
     break;

@@ -1,20 +1,11 @@
 #ifndef PARSER_HELPERS_H
 #define PARSER_HELPERS_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include "shared/structs.h"
 #include <stdbool.h>
 #include <stdlib.h>
 
-extern ASTNode_t *root;
-
-extern int g_last_parse_err_line;
-extern int g_last_parse_err_col;
-extern int g_last_parse_err_pos;
-extern const char *g_last_parse_err_msg;
+extern ASTNode *root;
 
 #define SA_SET_NODE_LOC(node, loc)                                              \
   do {                                                                         \
@@ -41,24 +32,10 @@ static inline SA_Location SA_loc_after(SA_Location loc) {
     return loc;
 }
 
-#ifdef __cplusplus
-}
-
-
-extern "C" {
-#endif
-
 extern file_t* file;
-
-void SA_annotate_decl_list(ASTNode_t *, DataTypes_t, DataTypes_t, bool);
-
 /* ----------------- external function declaration --------------------------*/
 
 void panic(SA_Location, errc_t, const char *);
 unsigned __int128 SA_parse_u128(const char *, int *);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

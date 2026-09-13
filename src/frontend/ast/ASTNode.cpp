@@ -5,33 +5,33 @@
 
 
 
-ASTNode_t* new_num(const char *rawval, DataTypes_t datatype, SA_Location loc) {
-    ASTNode_t *node = ast_alloc();
+ASTNode* new_num(const char *rawval, DataTypes_t datatype, SA_Location loc) {
+    ASTNode *node = ast_alloc();
     node->kind = AST_NUM;
-    node->type = make_type(datatype, NULL);
+    node->type = new TypeInfo(datatype, NULL);
     if (node->type) node->type->size = 0; // Initialize to prevent garbage values
     node->loc = loc;
     node->literal.raw = strdup(rawval);
     return node;
 }
 
-ASTNode_t *new_str(char *rawval, SA_Location loc) {
-    ASTNode_t *node = ast_alloc();
+ASTNode *new_str(char *rawval, SA_Location loc) {
+    ASTNode *node = ast_alloc();
     node->kind = AST_STR;
-    node->type = make_type(STRINGS, NULL);
+    node->type = new TypeInfo(STRINGS, NULL);
     if (node->type) node->type->size = strlen(rawval);
     node->loc = loc;
     node->literal.raw = strdup(rawval);
     return node;
 }
 
-ASTNode_t *new_char_bytes(const char *bytes, size_t len, SA_Location loc) {
-    ASTNode_t *node = ast_alloc();
+ASTNode *new_char_bytes(const char *bytes, size_t len, SA_Location loc) {
+    ASTNode *node = ast_alloc();
     node->kind = AST_CHAR;
-    node->type = make_type(CHARACTER, NULL);
+    node->type = new TypeInfo(CHARACTER, NULL);
     node->loc = loc;
     node->literal.len = len;
-    node->literal.raw = calloc(1, len + 1);
+    node->literal.raw = new char[len+1];
     if (node->literal.raw && bytes) {
         memcpy(node->literal.raw, bytes, len);
         node->literal.raw[len] = '\0';
@@ -39,43 +39,43 @@ ASTNode_t *new_char_bytes(const char *bytes, size_t len, SA_Location loc) {
     return node;
 }
 
-ASTNode_t* new_bool(bool val, SA_Location loc) {
-    ASTNode_t *node = ast_alloc();
+ASTNode* new_bool(bool val, SA_Location loc) {
+    ASTNode *node = ast_alloc();
     node->kind = AST_BOOL;
-    node->type = make_type(BOOL, NULL);
+    node->type = new TypeInfo(BOOL, NULL);
     if (node->type) node->type->size = 1;
     node->loc = loc;
     node->literal.raw = strdup(val ? "true" : "false");
     return node;
 }
 
-ASTNode_t* new_var(const char *name, DataTypes_t datatype, SA_Location loc) {
-    ASTNode_t *node = ast_alloc();
+ASTNode* new_var(const char *name, DataTypes_t datatype, SA_Location loc) {
+    ASTNode *node = ast_alloc();
     node->kind = AST_VAR;
     node->isglobal = name[0] == '@';
     node->var = strdup(node->isglobal ? name+1 : name);
-    node->type = make_type(datatype, NULL);
+    node->type = new TypeInfo(datatype, NULL);
     if (node->type) node->type->size = 0;
     node->loc = loc;
     return node;
 }
 
-ASTNode_t* new_unop(ASTNode_t *operand, SA_Location loc, OP_kind_t op) {
-    ASTNode_t *node = ast_alloc();
+ASTNode* new_unop(ASTNode *operand, SA_Location loc, OP_kind_t op) {
+    ASTNode *node = ast_alloc();
     node->kind = AST_UNOP;
     node->unop.op = op;
     // Unary ops usually inherit the type of the operand
-    node->type = make_type(operand->type->base, operand->type->inner);
+    node->type = new TypeInfo(operand->type->base, operand->type->inner);
     if (node->type) node->type->size = operand->type->size;
     node->unop.operand = operand;
     node->loc = loc;
     return node;
 }
 
-ASTNode_t* new_binop(ASTNode_t *left, ASTNode_t *right, SA_Location loc, OP_kind_t op) {
-    ASTNode_t *node = ast_alloc();
+ASTNode* new_binop(ASTNode *left, ASTNode *right, SA_Location loc, OP_kind_t op) {
+    ASTNode *node = ast_alloc();
     node->kind = AST_BINOP;
-    node->type = make_type(UNKNOWN, NULL); // Resolved during semantic analysis
+    node->type = new TypeInfo(UNKNOWN, NULL); // Resolved during semantic analysis
     if (node->type) node->type->size = 0;
     node->bin.op = op;
     node->bin.left = left;
@@ -84,8 +84,8 @@ ASTNode_t* new_binop(ASTNode_t *left, ASTNode_t *right, SA_Location loc, OP_kind
     return node;
 }
 
-ASTNode_t* new_assign(ASTNode_t *lhs, ASTNode_t *rhs, Type_t* datatype, bool is_mutable, SA_Location loc, OP_kind_t op) {
-    ASTNode_t *node = ast_alloc();
+ASTNode* new_assign(ASTNode *lhs, ASTNode *rhs, TypeInfo* datatype, bool is_mutable, SA_Location loc, OP_kind_t op) {
+    ASTNode *node = ast_alloc();
     node->kind = AST_ASSIGN;
     node->assign.op = op;
     node->assign.lhs = lhs;
@@ -96,8 +96,8 @@ ASTNode_t* new_assign(ASTNode_t *lhs, ASTNode_t *rhs, Type_t* datatype, bool is_
     return node;
 }
 
-ASTNode_t* new_seq(ASTNode_t *a, ASTNode_t *b) {
-    ASTNode_t *node = ast_alloc();
+ASTNode* new_seq(ASTNode *a, ASTNode *b) {
+    ASTNode *node = ast_alloc();
     node->kind = AST_SEQ;
     node->seq.a = a;
     node->seq.b = b;
@@ -105,8 +105,8 @@ ASTNode_t* new_seq(ASTNode_t *a, ASTNode_t *b) {
     return node;
 }
 
-ASTNode_t* new_if(ASTNode_t *cond, ASTNode_t *thenB, ASTNode_t *elseB, SA_Location loc) {
-    ASTNode_t *node = ast_alloc();
+ASTNode* new_if(ASTNode *cond, ASTNode *thenB, ASTNode *elseB, SA_Location loc) {
+    ASTNode *node = ast_alloc();
     node->kind = AST_IF;
     node->ifnode.cond = cond;
     node->ifnode.then_branch = thenB;
@@ -116,8 +116,8 @@ ASTNode_t* new_if(ASTNode_t *cond, ASTNode_t *thenB, ASTNode_t *elseB, SA_Locati
     return node;
 }
 
-ASTNode_t* new_for(const char* var, ASTNode_t *interable, ASTNode_t *body, SA_Location loc, bool ismut) {
-    ASTNode_t *node = ast_alloc();
+ASTNode* new_for(const char* var, ASTNode *interable, ASTNode *body, SA_Location loc, bool ismut) {
+    ASTNode *node = ast_alloc();
     node->kind = AST_FOR;
     node->fornode.iterable = interable;
     node->fornode.body = body;
@@ -128,8 +128,8 @@ ASTNode_t* new_for(const char* var, ASTNode_t *interable, ASTNode_t *body, SA_Lo
     return node;
 }
 
-ASTNode_t* new_while(ASTNode_t *cond, ASTNode_t *body, ASTNode_t* expr, SA_Location loc) {
-    ASTNode_t *node = ast_alloc();
+ASTNode* new_while(ASTNode *cond, ASTNode *body, ASTNode* expr, SA_Location loc) {
+    ASTNode *node = ast_alloc();
     node->kind = AST_WHILE;
     node->whilenode.cond = cond;
     node->whilenode.body = body;
@@ -139,8 +139,8 @@ ASTNode_t* new_while(ASTNode_t *cond, ASTNode_t *body, ASTNode_t* expr, SA_Locat
     return node;
 }
 
-ASTNode_t *new_fn_def(const char *name, Param_t *params, int param_count, Type_t *ret_type, ASTNode_t *body, SA_Location loc){
-    ASTNode_t *node = ast_alloc();
+ASTNode *new_fn_def(const char *name, Param_t *params, int param_count, TypeInfo *ret_type, ASTNode *body, SA_Location loc){
+    ASTNode *node = ast_alloc();
     node->kind = AST_FN;
     node->fn_def.name = strdup(name);
     node->fn_def.params = params;
@@ -152,18 +152,18 @@ ASTNode_t *new_fn_def(const char *name, Param_t *params, int param_count, Type_t
     return node;
 }
 
-ASTNode_t* new_fn_call(const char *name, ASTNode_t *args, SA_Location loc){
-    ASTNode_t *node = ast_alloc();
+ASTNode* new_fn_call(const char *name, ASTNode *args, SA_Location loc){
+    ASTNode *node = ast_alloc();
     node->kind = AST_CALL;
     node->call.name = strdup(name);
     node->call.args = args;
-    node->type = make_type(UNKNOWN, NULL); // To be resolved by semantic pass
+    node->type = new TypeInfo(UNKNOWN, NULL); // To be resolved by semantic pass
     node->loc = loc;
     return node;
 }
 
-ASTNode_t* new_return(ASTNode_t *value, SA_Location loc) {
-    ASTNode_t *node = ast_alloc();
+ASTNode* new_return(ASTNode *value, SA_Location loc) {
+    ASTNode *node = ast_alloc();
     node->kind = AST_RETURN;
     node->ret_stmt.value = value;
     node->type = value ? value->type : NULL;
@@ -171,30 +171,30 @@ ASTNode_t* new_return(ASTNode_t *value, SA_Location loc) {
     return node;
 }
 
-ASTNode_t* new_list(ASTNode_t *elements, SA_Location loc) {
-    ASTNode_t *node = ast_alloc();
+ASTNode* new_list(ASTNode *elements, SA_Location loc) {
+    ASTNode *node = ast_alloc();
     node->kind = AST_LIST;
     node->list.elements = elements;
     node->list.count = 0; // Initialize to 0 to avoid massive unsigned underflow
-    node->type = make_type(LIST, NULL); // Base list type
+    node->type = new TypeInfo(LIST, NULL); // Base list type
     if (node->type) node->type->size = 0;
     node->loc = loc;
     return node;
 }
 
-ASTNode_t* new_index(ASTNode_t *target, idx_expr_t *index, bool islhs , SA_Location loc) {
-    ASTNode_t *node = ast_alloc();
+ASTNode* new_index(ASTNode *target, idx_expr_t *index, bool islhs , SA_Location loc) {
+    ASTNode *node = ast_alloc();
     node->kind = AST_INDEX;
     node->index.target = target;
     node->index.idx = index;
     node->index.islhs = islhs;
-    node->type = make_type(UNKNOWN, NULL); // Sub-type resolved during semantic analysis
+    node->type = new TypeInfo(UNKNOWN, NULL); // Sub-type resolved during semantic analysis
     node->loc = loc;
     return node;
 }
 
-ASTNode_t* new_import_node(const char *path, SA_Location loc) {
-    ASTNode_t *node = ast_alloc();
+ASTNode* new_import_node(const char *path, SA_Location loc) {
+    ASTNode *node = ast_alloc();
     node->kind = AST_IMPORT;
     node->importNode.path = strdup(path);
     node->type = NULL;
@@ -202,27 +202,27 @@ ASTNode_t* new_import_node(const char *path, SA_Location loc) {
     return node;
 }
 
-ASTNode_t* new_range(ASTNode_t* start, ASTNode_t* end, ASTNode_t* step, bool isexslusive) {
-    ASTNode_t* node = ast_alloc();
+ASTNode* new_range(ASTNode* start, ASTNode* end, ASTNode* step, bool isexslusive) {
+    ASTNode* node = ast_alloc();
     node->kind = AST_RANGE;
     node->range.start = start;
     node->range.end = end;
     node->range.step = step; // Will be NULL if no step is provided
-    node->type = make_type(RANGE, NULL); // Initial type, semantic analysis will confirm
+    node->type = new TypeInfo(RANGE, NULL); // Initial type, semantic analysis will confirm
     node->range.isexslusive = isexslusive;
     return node;
 }
 
-ASTNode_t* new_break(SA_Location loc) {
-    ASTNode_t *node = ast_alloc();
+ASTNode* new_break(SA_Location loc) {
+    ASTNode *node = ast_alloc();
     node->kind = AST_BREAK;
     node->type = NULL;
     node->loc = loc;
     return node;
 }
 
-ASTNode_t* new_continue(SA_Location loc){
-    ASTNode_t* node = ast_alloc();
+ASTNode* new_continue(SA_Location loc){
+    ASTNode* node = ast_alloc();
     node->kind = AST_CONTINUE;
     node->type = NULL;
     node->loc = loc;

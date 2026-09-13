@@ -10,14 +10,14 @@
 #define macro(val, str)  if (val) { \
         printf((str), (val)); \
     } \
-    return (TypedValue){.type = make_type(VOID, nullptr)};
+    return (TypedValue){.type = new TypeInfo(VOID, nullptr)};
 
 // Example Interpreter implementation for SA_print_list
 TypedValue SA_print_list_interpreter(TypedValue* args, int argc) {
     if (argc < 2) return (TypedValue){0};
     // Implementation logic here...
     std::cout << "[Interpreter] Printing list at " << args[0].val.raw << std::endl;
-    return (TypedValue){.type = make_type(VOID, nullptr)};
+    return (TypedValue){.type = new TypeInfo(VOID, nullptr)};
 }
 
 TypedValue println_str(TypedValue* str, int argc) {
@@ -37,7 +37,7 @@ BuiltinRegistry& BuiltinRegistry::instance() {
     return inst;
 }
 
-void BuiltinRegistry::register_builtin(const char* name, Type_t* ret, std::vector<Param_t*> params, InterpreterCallback impl) {
+void BuiltinRegistry::register_builtin(const char* name, TypeInfo* ret, std::vector<Param_t*> params, InterpreterCallback impl) {
     BuiltinFunction fn;
     fn.name = name;
     fn.return_type = ret;
@@ -55,13 +55,13 @@ BuiltinFunction* BuiltinRegistry::lookup(const char* name) {
 
 void BuiltinRegistry::bootstrap() {
     // Register SA_print_list: void SA_print_list(list[any], i32)
-    // Using make_type to build the signature
-    Type_t* void_ty = make_type(VOID, nullptr);
+    // Using new TypeInfo to build the signature
+    TypeInfo* void_ty = new TypeInfo(VOID, nullptr);
 
     register_builtin(
         "malloc", 
-        make_type(PTR, void_ty),
-        { new Param_t(make_type(U128, nullptr)) }, 
+        new TypeInfo(PTR, void_ty),
+        { new Param_t(new TypeInfo(U128, nullptr)) }, 
         nullptr
     );
 
@@ -69,8 +69,8 @@ void BuiltinRegistry::bootstrap() {
         "printf", 
         void_ty,
         {
-            new Param(make_type(STRINGS, nullptr)),
-            new Param(true, make_type(UNKNOWN, nullptr))
+            new Param(new TypeInfo(STRINGS, nullptr)),
+            new Param(true, new TypeInfo(UNKNOWN, nullptr))
         }, 
         nullptr
     );
@@ -79,10 +79,10 @@ void BuiltinRegistry::bootstrap() {
         // sequence for a single character at `idx` inside a string.
         register_builtin(
             "_SA_getCharAt",
-            make_type(PTR, nullptr),
+            new TypeInfo(PTR, nullptr),
             {
-                new Param(make_type(STRINGS, nullptr)),
-                new Param(make_type(I64, nullptr))
+                new Param(new TypeInfo(STRINGS, nullptr)),
+                new Param(new TypeInfo(I64, nullptr))
             },
             nullptr
         );
@@ -90,8 +90,8 @@ void BuiltinRegistry::bootstrap() {
     // Encode a Unicode code point (CHARACTER) into a UTF-8 byte sequence
     register_builtin(
         "SA_encode_cp",
-        make_type(PTR, nullptr),
-        { new Param(make_type(CHARACTER, nullptr)) },
+        new TypeInfo(PTR, nullptr),
+        { new Param(new TypeInfo(CHARACTER, nullptr)) },
         nullptr
     );
 

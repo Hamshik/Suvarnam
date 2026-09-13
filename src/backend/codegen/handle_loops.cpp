@@ -3,8 +3,8 @@
 #include <vector>
 
 struct LoopContext {
-  llvm::BasicBlock *continuationBB; // Targets for 'continue'
-  llvm::BasicBlock *exitBB;         // Targets for 'break'
+  BasicBlock *continuationBB; // Targets for 'continue'
+  BasicBlock *exitBB;         // Targets for 'break'
 };
 
 // Stack to handle nested loops securely

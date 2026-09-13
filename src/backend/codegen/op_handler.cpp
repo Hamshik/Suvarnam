@@ -17,7 +17,7 @@ llvm::Value *emit_binop(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
   bool is_float = is_float_dtype(n->type->base);
   bool is_unsigned = is_unsigned_dtype(n->type->base);
 
-  llvm::Module *module = b.GetInsertBlock()->getModule();
+  Module *module = b.GetInsertBlock()->getModule();
 
   switch (n->binary.op) {
 
@@ -46,8 +46,8 @@ llvm::Value *emit_binop(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
 
   case OP_POW:
     if (is_float) {
-      auto *powFn = llvm::Intrinsic::getDeclarationIfExists(
-          module, llvm::Intrinsic::pow, {L->getType()});
+      auto *powFn = Intrinsic::getDeclarationIfExists(
+          module, Intrinsic::pow, {L->getType()});
       return b.CreateCall(powFn, {L, R});
     }
     // integer pow NOT supported yet
@@ -101,7 +101,7 @@ llvm::Value *emit_binop(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
 
 #define num_inc_OR_dec(LLVM_OPCODE, node, builder)                             \
   do {                                                                         \
-    /* Convert your custom frontend Type_t* to an actual llvm::Type* */        \
+    /* Convert your custom frontend TypeInfo* to an actual llvm::Type* */        \
     llvm::Type* llvmTy = ir_type((node)->type->base, ctx);                     \
                                                                                \
     /* 1. Extract the name string into a local macro variable for legibility */\
@@ -119,13 +119,13 @@ llvm::Value *emit_binop(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
         return nullptr;                                                        \
     }                                                                          \
                                                                                \
-    /* 4. Load the OLD value from memory using the converted LLVM Type */      \
+    /* 4. Load the OLD value from memory using the converted LLVM TypeInfo */      \
     llvm::Value *oldVal =                                                      \
         (builder).CreateLoad(llvmTy, varPtr, "old_val");                       \
                                                                                \
     /* 5. Create the constant '1' (Casting llvmTy to IntegerType) */           \
-    llvm::Value *constantOne = llvm::ConstantInt::get(                         \
-        llvm::cast<llvm::IntegerType>(llvmTy), 1);                             \
+    llvm::Value *constantOne = ConstantInt::get(                         \
+        cast<IntegerType>(llvmTy), 1);                             \
                                                                                \
     /* 6. Perform the operation (Add or Sub depending on macro argument) */    \
     llvm::Value *newVal =                                                      \
@@ -153,9 +153,9 @@ llvm::Value *emit_unop(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
     return b.CreateNot(opnd);
 
   case OP_INC:
-    num_inc_OR_dec(llvm::Instruction::Add, n, b);
+    num_inc_OR_dec(Instruction::Add, n, b);
   case OP_DEC:
-    num_inc_OR_dec(llvm::Instruction::Sub, n, b);
+    num_inc_OR_dec(Instruction::Sub, n, b);
   
   case OP_ADDR: {
     

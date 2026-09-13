@@ -1,12 +1,12 @@
 #include "eval/eval.h"
 
 
-TypedValue eval_call(ASTNode_t *node, bool g_returning, TypedValue g_return_value) {
-  ASTNode_t *fn = SA_runtime_fn_lookup(node->call.name);
+TypedValue eval_call(ASTNode *node, bool g_returning, TypedValue g_return_value) {
+  ASTNode *fn = SA_runtime_fn_lookup(node->call.name);
 
   // Evaluate args left-to-right into a small array.
   int argc = 0;
-  for (ASTNode_t *it = node->call.args; it;) {
+  for (ASTNode *it = node->call.args; it;) {
     argc++;
     if (it->kind == AST_SEQ)
       it = it->seq.b;
@@ -20,9 +20,9 @@ TypedValue eval_call(ASTNode_t *node, bool g_returning, TypedValue g_return_valu
     exit(1);
   }
 
-  ASTNode_t *arg = node->call.args;
+  ASTNode *arg = node->call.args;
   for (int i = 0; i < argc; i++) {
-    ASTNode_t *cur = arg ? (arg->kind == AST_SEQ ? arg->seq.a : arg) : NULL;
+    ASTNode *cur = arg ? (arg->kind == AST_SEQ ? arg->seq.a : arg) : NULL;
     argv[i] = ast_eval(cur);
     if (arg && arg->kind == AST_SEQ)
       arg = arg->seq.b;
@@ -61,7 +61,7 @@ TypedValue eval_call(ASTNode_t *node, bool g_returning, TypedValue g_return_valu
   TypedValue last = ast_eval(fn->fn_def.body);
   TypedValue ret = g_returning ? g_return_value : last;
   if (fn->type->base == VOID)
-    ret = (TypedValue){.type = make_type(VOID, NULL)};
+    ret = (TypedValue){.type = new TypeInfo(VOID, NULL)};
 
   g_returning = saved_returning;
   g_return_value = saved_return_value;

@@ -7,7 +7,7 @@
 class HIRNode {
     public:
     ASTKind kind;
-    Type_t *type;      // Every mid-end node is strictly typed
+    TypeInfo *type;      // Every mid-end node is strictly typed
     SA_Location loc;
     bool isglobal;
 

@@ -14,7 +14,7 @@ inline void Parser::error()
 // $insert lex
 inline int Parser::lex()
 {
-    return d_scanner.lex(&d_val_, &d_loc_);
+    return scanner.lex(&d_val_, &d_loc_);
 }
 
 inline void Parser::print()         
@@ -25,15 +25,3 @@ inline void Parser::exceptionHandler(std::exception const &exc)
 {
     throw;              // re-implement to handle exceptions thrown by actions
 }
-
-
-    // Add here includes that are only required for the compilation 
-    // of Parser's sources.
-
-
-
-    // UN-comment the next using-declaration if you want to use
-    // int Parser's sources symbols from the namespace std without
-    // specifying std::
-
-//using namespace std;

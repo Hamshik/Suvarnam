@@ -8,7 +8,7 @@
 
 // Forward declare the helper
 Function *get_malloc_fn(Module &m, LLVMContext &ctx);
-Type_t *get_AST_ret(Type_t *t, size_t depth);
+TypeInfo *get_AST_ret(TypeInfo *t, size_t depth);
 static size_t idx = 0;
 
 FunctionCallee get_builtin_llvm_fn(const char* name, Module &m, LLVMContext &ctx) {
@@ -21,8 +21,8 @@ FunctionCallee get_builtin_llvm_fn(const char* name, Module &m, LLVMContext &ctx
     }
 
     // Construct the LLVM signature from our metadata
-   Type* retTy = ir_type(builtin->return_type->base, ctx);
-std::vector<Type*> argTys;
+   llvm::Type* retTy = ir_type(builtin->return_type->base, ctx);
+std::vector<llvm::Type*> argTys;
 bool isVarArg = false;
 
 for (auto* pt : builtin->param_types) {
@@ -58,17 +58,17 @@ void emit_list_print_call(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b, IRBuilde
     }
 
     // 2. Get the list pointer (the '473480416' address)
-    Value *listPtr = emit_expr(n, ctx, b, entryBuilder, locals);
+    llvm::Value *listPtr = emit_expr(n, ctx, b, entryBuilder, locals);
 
     // 3. Get the size (from your AST metadata)
-    Value *listSize = b.getInt32(n->type->size);
+    llvm::Value *listSize = b.getInt32(n->type->size);
 
     // 4. Generate the call: SA_print_list(listPtr, listSize)
     b.CreateCall(printFn, {listPtr, listSize});
 }
 
-Value *generateList(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
-                    IRBuilder<> &entryBuilder, Codegen::Scope &locals) {
+llvm::Value *generateList(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
+                          IRBuilder<> &entryBuilder, Codegen::Scope &locals) {
   if (!n->type || !n->type->inner) {
     std::cerr
         << "Codegen Error: List type or inner element type is missing at line "
@@ -76,7 +76,7 @@ Value *generateList(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
     return nullptr;
   }
 
-  Type *elemType = ir_type(n->type->inner->base, ctx);
+  llvm::Type *elemType = ir_type(n->type->inner->base, ctx);
 
   if (!elemType) {
     std::cerr << "Warning: invalid element type at line "
@@ -89,8 +89,8 @@ Value *generateList(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
   Function *currentFn = b.GetInsertBlock()->getParent();
   Module *m = b.GetInsertBlock()->getModule();
 
-  Value *allocatedPtr = nullptr;
-  Value *typedPtr = nullptr;
+  llvm::Value *allocatedPtr = nullptr;
+  llvm::Value *typedPtr = nullptr;
 
   static size_t list_heap = 0;
   static size_t list_stack = 0;
@@ -112,10 +112,10 @@ Value *generateList(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
 
   for (uint32_t index = 0; index < n->element.elements->size(); ++index) {
     HIRNode *exprNode = (*n->element.elements)[index];
-    Value *elementVal = emit_expr(exprNode, ctx, b, entryBuilder, locals);
+    llvm::Value *elementVal = emit_expr(exprNode, ctx, b, entryBuilder, locals);
 
     // Calculate element address using typedPtr
-    Value *elementAddr =
+    llvm::Value *elementAddr =
         b.CreateInBoundsGEP(elemType, typedPtr, b.getInt32(index));
     b.CreateStore(elementVal, elementAddr);
   }
@@ -124,44 +124,37 @@ Value *generateList(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
   return b.CreateBitCast(typedPtr, ir_type(LIST, ctx));
 }
 
-Value *generateListElementPtr(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
-                              IRBuilder<> &entryBuilder, Codegen::Scope &locals) {
-  Value *currentPtr = emit_expr(n->index.target, ctx, b, entryBuilder, locals);
-  Type_t *current_type_data = n->index.target->type;
+llvm::Value *generateListElementPtr(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
+                                  IRBuilder<> &entryBuilder, Codegen::Scope &locals) {
+  llvm::Value *currentPtr = emit_expr(n->index.target, ctx, b, entryBuilder, locals);
+  TypeInfo *current_type_data = n->index.target->type; // semantic type metadata
   std::vector<HIRNode*> &indices = *n->index.idx;
 
-  if(current_type_data->base == PTR){
-    currentPtr = b.CreateLoad(PointerType::getUnqual(ctx),
-         currentPtr, "implicit_load");
+  if (current_type_data && current_type_data->base == PTR) {
+    currentPtr = b.CreateLoad(PointerType::getUnqual(ctx), currentPtr,
+                             "implicit_load");
     current_type_data = current_type_data->inner;
   }
+
   for (size_t i = 0; i < indices.size(); ++i) {
     HIRNode* idx_expr_node = indices[i];
-    // 1. Peek at the semantic type
     if (!current_type_data || current_type_data->base != LIST) {
-      // This should technically be caught by Semantics,
-      // but it's a good safety check for the compiler developer.
       std::cerr << "Codegen Error: Attempted to index a non-list type!"
                 << std::endl;
       return nullptr;
     }
 
-    Value *indexVal = emit_expr(idx_expr_node, ctx, b, entryBuilder, locals);
+    llvm::Value *indexVal = emit_expr(idx_expr_node, ctx, b, entryBuilder, locals);
 
-    // 2. Identify the element type (e.g., I32 or LIST)
-    Type_t *inner_type = current_type_data->inner;
-    Type *llvmElemType = ir_type(inner_type->base, ctx);
+    TypeInfo *inner_type = current_type_data->inner;
+    llvm::Type *llvmElemType = ir_type(inner_type->base, ctx);
 
-    // 3. Pointer Arithmetic
-    Value *typedPtr =
+    llvm::Value *typedPtr =
         b.CreateBitCast(currentPtr, PointerType::getUnqual(ctx));
     currentPtr =
         b.CreateInBoundsGEP(llvmElemType, typedPtr, indexVal, "ptr_step");
 
-    // 4. THE CHECK: Do we need to load a pointer to go deeper?
     if (i < indices.size() - 1) {
-      // If the inner type isn't a list, but we have more indices,
-      // the user wrote something like 'integer_var[0]'
       if (inner_type->base != LIST) {
         std::cerr << "Codegen Error: Too many indices for list depth."
                   << std::endl;
@@ -170,21 +163,20 @@ Value *generateListElementPtr(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
 
       currentPtr = b.CreateLoad(PointerType::getUnqual(ctx), currentPtr,
                                 "sub_list_load");
-      current_type_data = inner_type; // Move type pointer deeper
+      current_type_data = inner_type;
     }
   }
 
   return currentPtr;
 }
 
-Value *generateListAccess(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
-                          IRBuilder<> &entryBuilder, Codegen::Scope &locals) {
-  Value *elementAddr = generateListElementPtr(n, ctx, b, entryBuilder, locals);
+llvm::Value *generateListAccess(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
+                               IRBuilder<> &entryBuilder, Codegen::Scope &locals) {
+  llvm::Value *elementAddr = generateListElementPtr(n, ctx, b, entryBuilder, locals);
   if (!elementAddr)
     return nullptr;
 
-  // 1. Get the actual base type (e.g., i32) resolved by semantics
-  Type *elementType = ir_type(n->type->base , ctx);
+  llvm::Type *elementType = ir_type(n->type->base, ctx);
 
   if (elementType->isVoidTy()) {
     fprintf(stderr, "Error: Invalid element type at line %zu\n",

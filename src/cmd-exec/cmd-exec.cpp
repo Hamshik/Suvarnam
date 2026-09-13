@@ -1,5 +1,7 @@
 #include "cmd-exec/cmd-exec.hpp"
 #include "HIRGen/HIRGen.hpp"
+#include "semantic/import.hpp"
+#include "semantic/semantic.hpp"
 #include "shared/structs.h"
 #include "utils/error_handler/error.h"
 #include <cstdlib>
@@ -12,6 +14,7 @@
 extern std::vector<std::string> ir_out;
 std::vector<char*> I_src{};
 int codegen(HIRNode *, const char *, char **, bool);
+SemanticSymTable* sym;
 
 static std::string make_object_path(const std::string &input_path) {
   std::string obj_path = input_path;
@@ -81,7 +84,7 @@ FILE *open_file(const char *filename, char **resolved_path_out) {
 }
 
 /* Parse command-line arguments */
-extern "C" bool parse_arguments(int argc, char **argv, Options *opts) {
+bool parse_arguments(int argc, char **argv, Options *opts) {
   // Set defaults
   opts->input_filename = NULL;
   opts->bin_output_path = (char *)"SA.bin";
@@ -149,7 +152,7 @@ extern "C" bool parse_arguments(int argc, char **argv, Options *opts) {
 }
 
 /* Set up input file and file_t structure */
-extern "C" bool setup_input_file(const Options *opts, file_t *file) {
+bool setup_input_file(const Options *opts, file_t *file) {
   if (!opts->input_filename) {
     file->filename = (char *)"<stdin>";
     file->source = stdin;
@@ -168,13 +171,16 @@ extern "C" bool setup_input_file(const Options *opts, file_t *file) {
 
 /* Compile and execute the AST */
 
-extern "C" int compile_and_execute(ASTNode_t *root, const Options *opts) {
+int compile_and_execute(ASTNode *root, const Options *opts) {
   error_fatal = false; /* collect semantic errors like Rust */
-  semantic_check(root);
+
+  CompilerContext ctx;
+  ctx.semantic->main(root);
+  sym = ctx.symbols;
   error_fatal = true; /* runtime errors should still stop */
   char *ir_text = NULL;
 
-  HIRGenerator *mgen = new HIRGenerator();
+  HIRGenerator *mgen = new HIRGenerator(ctx.semantic);
   HIRNode *mast_root = mgen->generate(root);
   delete mgen;
 
@@ -267,6 +273,5 @@ extern "C" int compile_and_execute(ASTNode_t *root, const Options *opts) {
     return 1;
   }
 
-  env_clear_all();
   return 0;
 }

@@ -1,9 +1,5 @@
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include "enums.h"
 #include <stdint.h>
 #include <stdio.h>
@@ -83,27 +79,30 @@ typedef struct Types{
     struct Types* inner;      // Points to the next type (recursive)
     size_t size;
     bool ismut;
-} Type_t;
+
+    Types(DataTypes_t base, Types* inner):base(base), inner(inner) {}
+} TypeInfo;
 
 typedef struct {
-    Type_t* type;
+    TypeInfo* type;
     SA_Value val;
 } TypedValue;
+
 typedef struct Param {
     char *name;
-    Type_t* type;
+    TypeInfo* type;
     bool is_variadic;
 #ifdef __cplusplus
     // Default constructor: safely zero out everything
     Param() : name(nullptr), type(nullptr), is_variadic(false) {}
 
-    // Type constructor: ensure non-pointer fields aren't filled with junk data
-    Param(Type_t *type) : name(nullptr), type(type), is_variadic(false) {}
+    // TypeInfo constructor: ensure non-pointer fields aren't filled with junk data
+    Param(TypeInfo *type) : name(nullptr), type(type), is_variadic(false) {}
     
     // Variadic helper constructor (useful for built-ins like printf)
     Param(bool variadic) : name(nullptr), type(nullptr), is_variadic(variadic) {}
     
-    Param(bool variadic, Type_t* types) : name(nullptr), type(types), is_variadic(variadic) {}
+    Param(bool variadic, TypeInfo* types) : name(nullptr), type(types), is_variadic(variadic) {}
 #endif
 } Param_t;
 
@@ -114,7 +113,3 @@ typedef struct ParamList {
 } ParamList_t;
 
 #include "nodes.h"
-
-#ifdef __cplusplus
-}
-#endif

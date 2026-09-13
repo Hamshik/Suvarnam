@@ -2,22 +2,21 @@
 #define SA_SYMBOL_TABLE_INTERNAL_HPP
 
 #include "SymbolTable.hpp"
+#include "semantic/import.hpp"
 #include "shared/nodes.h"
 #include "shared/structs.h"
 #include <llvm-22/llvm/IR/Value.h>
 #include <string>
 #include <unordered_map>
 
-extern "C" {
 extern file_t* file;
-}
 struct SemanticSymbolRecord {
-  Type_t* type = nullptr;
+  TypeInfo* type = nullptr;
   DataTypes_t max_type = UNKNOWN;
   DataTypes_t last_maxed_type = UNKNOWN;
   bool is_mutable = false;
   bool is_used = false;
-  ASTNode_t* node_ptr = nullptr;
+  ASTNode* node_ptr = nullptr;
 };
 
 struct SemanticScopeRecord {
@@ -25,46 +24,34 @@ struct SemanticScopeRecord {
   SemanticScopeRecord *parent = nullptr;
 };
 
-namespace  SA::runtime_symbol_table {
+class SemanticSymTable {
+public:
+  SemanticSymTable() = default;
 
-void env_push();
-void env_pop();
-void env_clear_all();
-void env_set(const char *, SA_Value *, Type_t *);
-void env_set_current(const char *, SA_Value *, Type_t *);
-SA_Value env_get(const char *, Type_t *, SA_Location);
-TypedValue *env_get_ref(const char *, SA_Location);
-int env_frame_id_of(const char *, SA_Location);
-TypedValue *env_get_ref_at(int, const char *, SA_Location);
-void env_set_at(int, const char *, SA_Value *, Type_t *, SA_Location);
+  TypeInfo *lookup(const char *);
+  bool declare(const char *, bool *, TypeInfo *, ASTNode *, bool);
+  exitcode_t exists(ASTNode *);
+  exitcode_t assign_check(const char *, bool, DataTypes_t, DataTypes_t);
+  bool is_mutable(const char *);
+  void scope_push();
+  void scope_pop();
+  void clear_symbols();
+  bool fn_declare(ASTNode *);
+  FnSymbol_t *fn_lookup(const char *);
+  void clear_fns();
+  DataTypes_t update_datatype(const char *, DataTypes_t);
+  ASTModule_t *get_module(const char *);
+  ASTModule_t *load_module(char *, const char *, Importer *, bool &);
+  SemanticSymbolRecord *semantic_find_symbol(const char *);
+  SemanticSymbolRecord *semantic_find_global_symbol(const char *);
 
-bool fn_register(ASTNode_t *);
-ASTNode_t *fn_lookup(const char *);
-void fn_clear();
-
-} // namespace  SA::runtime_symbol_table
-
-
-namespace  SA::semantic_symbol_table {
-
-Type_t *lookup(const char *);
-bool declare(const char *, bool *, Type_t *, ASTNode_t *, bool);
-exitcode_t exists(ASTNode_t*);
-exitcode_t assign_check(const char *, bool, DataTypes_t, DataTypes_t);
-bool is_mutable(const char *);
-void scope_push();
-void scope_pop();
-void clear_symbols();
-bool fn_declare(ASTNode_t *);
-FnSymbol_t *fn_lookup(const char *);
-void clear_fns();
-DataTypes_t update_datatype(const char *, DataTypes_t);
-ASTModule_t *get_module(const char *);
-ASTModule_t *load_module(char *, const char *,bool &);
-extern "C" SemanticSymbolRecord *semantic_find_symbol(const char *);
-extern "C" SemanticSymbolRecord *semantic_find_global_symbol(const char *);
-
-} // namespace  SA::semantic_symbol_table
+private:
+  SemanticScopeRecord *scope_top();
+  SemanticScopeRecord *get_global_scope();
+  SemanticScopeRecord *scope_ = new SemanticScopeRecord();
+  std::unordered_map<std::string, std::unique_ptr<FnSymbol_t>> functions_;
+    std::unordered_map<std::string, std::unique_ptr<ASTModule_t>> modules_;
+};
 
 namespace SA::Codegen{
 class Scope {

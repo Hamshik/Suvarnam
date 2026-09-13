@@ -15,7 +15,6 @@ bool isError = false;
 bool isWarning = false;
 bool error_fatal = true;
 
-extern "C"{
 void panic(SA_Location loc, errc_t code, const char *detail) {
   const char *filename = (file && file->filename) ? file->filename : "<input>";
   const char *base = errc_msg(code);
@@ -202,5 +201,4 @@ void syswarn(const char *context) {
     fprintf(stderr, SA_BOLD SA_DIM " note:" SA_RESET " %s\n",
             strerror(saved_errno));
   }
-}
 }

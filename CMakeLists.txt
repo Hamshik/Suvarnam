@@ -71,9 +71,10 @@ add_custom_command(
 # 6. Define Executable
 # ==============================================================================
 file(GLOB_RECURSE ALL_SOURCES CONFIGURE_DEPENDS
-    "src/*.c"
     "src/*.cpp"
 )
+
+list(REMOVE_ITEM ALL_SOURCES)
 
 add_executable(suvarnam
     ${ALL_SOURCES}

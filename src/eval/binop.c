@@ -3,14 +3,14 @@
 #include "shared/structs.h"
 #include <string.h>
 
-TypedValue eval_binop(ASTNode_t *node, TypedValue v) {
+TypedValue eval_binop(ASTNode *node, TypedValue v) {
   TypedValue l = ast_eval(node->bin.left);
   TypedValue r = ast_eval(node->bin.right);
 
   if (node->type->base == STRINGS) {
     if (node->bin.op == OP_ADD) {
       v = (TypedValue) {
-        make_type(STRINGS, NULL),
+        new TypeInfo(STRINGS, NULL),
         { .chars = do_operation_str(l.val.chars, r.val.chars, node->bin.op) }
       };
     } else if (node->bin.op == OP_MUL) {
@@ -25,7 +25,7 @@ TypedValue eval_binop(ASTNode_t *node, TypedValue v) {
         memcpy(res + i * len, str_v.val.chars, len);
       }
       v = (TypedValue) {
-        make_type(STRINGS, NULL),
+        new TypeInfo(STRINGS, NULL),
         { .chars = res }
       };
     }
@@ -35,7 +35,7 @@ TypedValue eval_binop(ASTNode_t *node, TypedValue v) {
   if (node->bin.op == OP_AND || node->bin.op == OP_OR) {
     TypedValue lb = SA_cast_typed(l, node->bin.left->type);
     TypedValue rb = SA_cast_typed(r, node->bin.right->type);
-    v.type = make_type(BOOL, NULL);
+    v.type = new TypeInfo(BOOL, NULL);
     v.val = eval_bool(node->bin.op, BOOL, lb.val, rb.val);
     return v;
   }
@@ -44,7 +44,7 @@ TypedValue eval_binop(ASTNode_t *node, TypedValue v) {
     DataTypes_t cmp_t = SA_promote_runtime(l.type->base, r.type->base);
     TypedValue lc = SA_cast_typed(l, l.type);
     TypedValue rc = SA_cast_typed(r, r.type);
-    v.type = make_type(BOOL, NULL);
+    v.type = new TypeInfo(BOOL, NULL);
     v.val = eval_bool(node->bin.op, cmp_t, lc.val, rc.val);
     return v;
   }
@@ -52,7 +52,7 @@ TypedValue eval_binop(ASTNode_t *node, TypedValue v) {
   DataTypes_t op_t = node->type->base;
   TypedValue lc = SA_cast_typed(l, node->type);
   TypedValue rc = SA_cast_typed(r, node->type);
-  v.type = make_type(op_t, NULL);
+  v.type = new TypeInfo(op_t, NULL);
   v.val = SA_eval_binop_numeric(node->bin.op, op_t, lc.val, rc.val);
   return v;
 }

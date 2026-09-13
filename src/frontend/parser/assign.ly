@@ -7,24 +7,24 @@ lvalue:
 assignment:
     /* Explicitly list IDENTIFIER for declarations to prevent shift/reduce ambiguity */
     VAR recursive_type IDENTIFIER ASSIGN expr {
-        ASTNode_t* id = $3;
+        ASTNode* id = $3;
         $$ = new_assign(id, $5, $2, false, @1, OP_ASSIGN);
-        $$->assign.is_declaration = 1;
+        $$->assign.is_declaration = true;
     }
     | VAR MUT recursive_type IDENTIFIER ASSIGN expr {
-        ASTNode_t* id = $4;
-        $$ = new_assign(id, $6, $3, 1, @1, OP_ASSIGN);
-        $$->assign.is_declaration = 1;
+        ASTNode* id = $4;
+        $$ = new_assign(id, $6, $3, true, @1, OP_ASSIGN);
+        $$->assign.is_declaration = true;
     }
     | VAR IDENTIFIER ASSIGN expr {
-        ASTNode_t* id = $2;
+        ASTNode* id = $2;
         $$ = new_assign(id, $4, NULL, false, @1, OP_ASSIGN);
-        $$->assign.is_declaration = 1;
+        $$->assign.is_declaration = true;
     }
     | VAR MUT IDENTIFIER ASSIGN expr {
-        ASTNode_t* id = $3;
-        $$ = new_assign(id, $5, NULL, 1, @1, OP_ASSIGN);
-        $$->assign.is_declaration = 1;
+        ASTNode* id = $3;
+        $$ = new_assign(id, $5, NULL, true, @1, OP_ASSIGN);
+        $$->assign.is_declaration = true;
     }
 ;
 

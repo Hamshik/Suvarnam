@@ -98,7 +98,7 @@ void assign_value(DataTypes_t dt, SA_Value *dst, SA_Value src) {
 // leading to segfaults when handle_num() tries to dereference it.
 // Instead, we update the string representation so handle_num can re-parse it.
 
-static void update_val(SA_Value r, ASTNode_t *dst) {
+static void update_val(SA_Value r, ASTNode *dst) {
   if (!dst)
     return;
   SA_Location loc = dst->loc;
@@ -161,7 +161,7 @@ static void update_val(SA_Value r, ASTNode_t *dst) {
   dst->literal.raw = new_raw;
 }
 
-SA_Value eval_assign(ASTNode_t *lhs, ASTNode_t *rhs, OP_kind_t op, Type_t *type,
+SA_Value eval_assign(ASTNode *lhs, ASTNode *rhs, OP_kind_t op, TypeInfo *type,
                     SA_Location loc) {
   TypedValue rt0 = ast_eval(rhs);
   TypedValue rt = SA_cast_typed(rt0, type);
@@ -287,7 +287,7 @@ SA_Value eval_assign(ASTNode_t *lhs, ASTNode_t *rhs, OP_kind_t op, Type_t *type,
   if (lhs->kind == AST_INDEX) {
 
     // 1. Initial Mutability Check (Do this once)
-    ASTNode_t *base_var = lhs->index.target;
+    ASTNode *base_var = lhs->index.target;
     while (base_var && base_var->kind == AST_INDEX)
       base_var = base_var->index.target;
 

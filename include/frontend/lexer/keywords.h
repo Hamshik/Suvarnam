@@ -5,10 +5,6 @@
 
 #include "shared/enums.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /*
  * The language keyword registry.  Keep this as the single source of truth for
  * words reserved by the lexer and for diagnostic syntax highlighting.
@@ -27,8 +23,6 @@ typedef struct SA_Keyword {
     bool bool_value;
 } SA_Keyword;
 
-#ifdef __cplusplus
-}
 #include "Parser.h"
 
 typedef Parser::Tokens_ Tokens;
@@ -78,5 +72,3 @@ static const std::unordered_map<std::string_view, SA_Keyword> SA_keywords = {
     TOKEN_KEYWORD("return", Tokens::RETURN),
     TOKEN_KEYWORD("set", Tokens::SET),
 };
-
-#endif

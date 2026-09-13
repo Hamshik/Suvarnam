@@ -2,7 +2,7 @@
 #include "shared/enums.h"
 #include <string.h>
 
-TypedValue handle_num(ASTNode_t *node, TypedValue v) {
+TypedValue handle_num(ASTNode *node, TypedValue v) {
   if (!node || !node->literal.raw) {
     panic( node ? node->loc : (SA_Location){0}, RT_NUM_LITERAL_UNSUPPORTED,
           "Numeric literal missing raw string value");
@@ -89,7 +89,7 @@ TypedValue handle_num(ASTNode_t *node, TypedValue v) {
   if (node->type && node->type->base != UNKNOWN) {
       v.type = node->type;
   } else {
-      v.type = make_type(base, NULL);
+      v.type = new TypeInfo(base, NULL);
   }
 
   return v;

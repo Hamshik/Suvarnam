@@ -7,7 +7,6 @@
 
 static SA_MessageTranslator message_translator = NULL;
 static void *message_translator_context = NULL;
-extern "C"{
 void SA_set_message_translator(SA_MessageTranslator translator, void *context)
 {
     message_translator = translator;
@@ -182,5 +181,4 @@ int starts_with(const char *s, const char *prefix) {
         if (*s++ != *prefix++) return 0;
     }
     return 1;
-}
 }

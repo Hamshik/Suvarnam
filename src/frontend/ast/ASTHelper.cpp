@@ -2,23 +2,14 @@
 #include "shared/structs.h"
 #include <stdlib.h>
 
-
-
-Type_t* make_type(DataTypes_t base, Type_t* inner) {
-    Type_t* t = calloc(1,sizeof(Type_t));
-    t->base = base;
-    t->inner = inner;
-    return t;
-}
-
-ASTNode_t *ast_alloc(void) {
-    ASTNode_t *n = calloc(1, sizeof(ASTNode_t));
+ASTNode *ast_alloc(void) {
+    ASTNode *n = (ASTNode*)calloc(1, sizeof(ASTNode));
     if (!n) { perror("malloc"); exit(1); }
-    n->type = make_type(UNKNOWN, NULL);
+    n->type = new TypeInfo(UNKNOWN, NULL);
     return n;
 }
 
-void ast_free(ASTNode_t *n) {
+void ast_free(ASTNode *n) {
     if (!n) return;
 
     switch (n->kind) {

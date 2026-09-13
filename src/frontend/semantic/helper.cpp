@@ -13,35 +13,30 @@ typedef struct {
 } ReturnInfo;
 
 /* Helpers */
-void type_error(ASTNode_t *n, const char *msg) {
+void Semantic::typeError(ASTNode *n, const char *msg) {
   if (n && n->type)
-    n->type = make_type(UNKNOWN, NULL);
+    n->type = new TypeInfo(UNKNOWN, NULL);
   panic(n ? n->loc : (SA_Location){0},
         SEM_BINOP_INVALID, msg ? msg : NULL);
   return;
 }
 
-
-bool types_are_equal(Type_t* a, Type_t* b) {
-    // 1. If both are null, they are equal (base case)
+bool Semantic::typesAreEqual(TypeInfo* a, TypeInfo* b) {
     if (a == nullptr && b == nullptr) return true;
-    // If one is null and the other is not, they are not equal
     if (!a || !b) return false;
 
-    if (is_numeric(a->base) && is_numeric(b->base)) return true;
+    if (Semantic::isNumeric(a->base) && Semantic::isNumeric(b->base)) return true;
     if (a->base != b->base) return false;
-    
-    // 3. For Lists and Pointers, check sizes and inner types
+
     if (a->base == LIST || a->base == PTR) {
         if (a->size != b->size) return false;
-        return types_are_equal(a->inner, b->inner);
+        return Semantic::typesAreEqual(a->inner, b->inner);
     }
 
     return true;
 }
 
-
-extern "C" void check_err() {
+void Semantic::checkErr() {
   if (isError && isWarning) {
     fprintf(stderr, SA_BOLD SA_RED "ERROR: " SA_RESET);
     fprintf(stderr,
@@ -61,10 +56,10 @@ extern "C" void check_err() {
             SA_UNDERLINE SA_MAGENTA
             "Compilation succeeded with %zu warning(s)\n" SA_RESET,
             warn_no);
-  } 
+  }
 }
 
-ReturnInfo analyze_returns(ASTNode_t *n) {
+ReturnInfo analyze_returns(ASTNode *n) {
   if (!n) return (ReturnInfo){false, true};
 
   switch (n->kind) {
@@ -112,6 +107,6 @@ ReturnInfo analyze_returns(ASTNode_t *n) {
   }
 }
 
-bool fn_always_returns(ASTNode_t *body) {
+bool Semantic::fnAlwaysReturns(ASTNode *body) {
   return analyze_returns(body).always_return;
 }

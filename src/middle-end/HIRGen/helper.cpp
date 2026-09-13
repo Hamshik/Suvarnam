@@ -5,18 +5,16 @@
 #include <algorithm>
 #include <cstring>
 
-extern "C" {
 void panic(SA_Location loc, errc_t code, const char *detail);
 unsigned __int128 SA_parse_u128(const char *str, int *ok);
 __int128 SA_parse_i128(const char *str, int *ok);
-Type_t *make_type(DataTypes_t base, Type_t *inner);
-}
 
-SA_Value handle_num(ASTNode_t *node);
+
+SA_Value handle_num(ASTNode *node);
 
 // Flattens front-end binary sequence trees into a flat vector of Mid-AST
 // nodes
-void HIRGenerator::flatten_sequence(ASTNode_t *node,
+void HIRGenerator::flatten_sequence(ASTNode *node,
                                     std::vector<HIRNode *> *stmts) {
   if (!node)
     return;
@@ -53,7 +51,7 @@ void HIRGenerator::flatten_sequence(ASTNode_t *node,
 }
 
 
-HIRNode *HIRGenerator::emit_idx(ASTNode_t *node) {
+HIRNode *HIRGenerator::emit_idx(ASTNode *node) {
   HIRNode *target_node = generate(node->index.target);
   
   if (target_node && target_node->type && target_node->type->base == STRINGS) {
@@ -70,7 +68,7 @@ HIRNode *HIRGenerator::emit_idx(ASTNode_t *node) {
 
     HIRNode *call_node = create_call(
         "_SA_getCharAt", call_args,
-        node->type ? node->type : make_type(CHARACTER, nullptr));
+        node->type ? node->type : new TypeInfo(CHARACTER, nullptr));
       
     call_node->loc = node->loc;
     return call_node;
@@ -101,7 +99,7 @@ HIRNode *HIRGenerator::emit_idx(ASTNode_t *node) {
   return index_node;
 }
 
-SA_Value handle_num(ASTNode_t *node) {
+SA_Value handle_num(ASTNode *node) {
   if (!node || !node->literal.raw) {
     panic(node ? node->loc : (SA_Location){0}, RT_NUM_LITERAL_UNSUPPORTED,
           "Numeric literal missing raw string value");
@@ -110,7 +108,7 @@ SA_Value handle_num(ASTNode_t *node) {
 
   DataTypes_t base =
       (node->type && node->type->base != UNKNOWN) ? node->type->base : I32;
-  TypedValue v = {.type = node->type ? node->type : make_type(base, NULL)};
+  TypedValue v = {.type = node->type ? node->type : new TypeInfo(base, NULL)};
   const char *raw = node->literal.raw;
 
   switch (base) {
@@ -190,7 +188,7 @@ SA_Value handle_num(ASTNode_t *node) {
   return v.val;
 }
 
-HIRNode *HIRGenerator::create_var(ASTNode_t *node) {
+HIRNode *HIRGenerator::create_var(ASTNode *node) {
   HIRNode *m_node = new HIRNode(ASTKind::AST_VAR);
   m_node->name = strdup(node->var);
   m_node->type = node->type;

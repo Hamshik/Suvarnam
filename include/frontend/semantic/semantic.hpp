@@ -1,73 +1,93 @@
 #pragma once
 
+#include "SymbolTable/SymbolTableInternal.hpp"
+#include "semantic/import.hpp"
 #include "shared/enums.h"
 #include "shared/structs.h"
-#include "SymbolTable/SymbolTable.hpp"
-
-#ifdef __cplusplus
-
-#include <llvm-22/llvm/IR/DerivedTypes.h>
-#include <stdbool.h>
-#endif
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-void semantic_check(ASTNode_t *);
-ASTNode_t *parse_file(FILE *);
-#ifdef __cplusplus
-}
-#endif
-bool is_numeric(DataTypes_t);
-
-#ifdef __cplusplus
-extern "C" {
-    Type_t* check_expr(ASTNode_t *, Type_t*&);
-    Type_t* semantic_index_handle(ASTNode_t *);
-    Type_t* list_handle(ASTNode_t *, Type_t* type = nullptr);
-    bool islist(ASTNode_t *);
-}
-Type_t* check_expr(ASTNode_t *);
-bool fn_always_returns(ASTNode_t *);
 
 extern bool isError;
 extern size_t err_no;
 extern size_t warn_no;
 extern bool isWarning;
-extern ASTNode_t *root;
+extern ASTNode *root;
 
-void type_error(ASTNode_t *, const char *);
-bool is_integer(DataTypes_t);
-extern "C" void check_err();
+class Semantic {
+  bool globalVarAllowed = false;
+  DataTypes_t fnRet = UNKNOWN;
+  int isInFn = 0;
+  int inLoop = 0;
+  TypeInfo *currFnRet = nullptr;
+  bool importParseFailed = false;
+  size_t checkDepth = 0;
 
-Type_t* unop(ASTNode_t*, Type_t* type = nullptr);
-Type_t* binop(ASTNode_t*, Type_t* type = nullptr);
-Type_t* assign(ASTNode_t*, Type_t* type = nullptr);
-void handle_idx_assign(ASTNode* &, ASTNode_t* &, Type_t* &);
+  void regGlobalVarAndFn(ASTNode*);
+  TypeInfo* handleNum(ASTNode*, TypeInfo*&);
 
-Type_t* handle_fn(ASTNode_t*);
-Type_t* ret(ASTNode_t *);
-Type_t* call(ASTNode_t*);
+  TypeInfo *listHandle(ASTNode *, TypeInfo *type = nullptr);
+  bool isList(ASTNode *);
+  TypeInfo *semanticIndexHandle(ASTNode *);
+  void idxAssign(ASTNode *&, ASTNode *&, TypeInfo *&);
 
-void type_error(ASTNode_t *, const char*);
-bool is_numeric(DataTypes_t);
-DataTypes_t promote(DataTypes_t, DataTypes_t);
-void force_numeric_type(ASTNode_t *, DataTypes_t);
+  void typeError(ASTNode *, const char *);
+  bool typesAreEqual(TypeInfo *, TypeInfo *);
 
-bool literal_fits_type(const ASTNode_t *, DataTypes_t);
-bool is_unsigned_numeric(DataTypes_t);
-bool is_signed_numeric(DataTypes_t);
-bool is_numeric(DataTypes_t);
-bool is_integer(DataTypes_t);
-int numeric_bits(DataTypes_t);
-bool types_are_equal(Type_t*, Type_t*);
-extern "C" Type_t* make_type(DataTypes_t, Type_t*);
+  TypeInfo *unop(ASTNode *, TypeInfo *type = nullptr);
+  ASTNode* getBaseVar(const char*);
 
-void ensure_semantic(ASTModule_t *);
-Type_t* check_unconditional_branches(ASTNode_t* n, Type_t* type);
-Type_t* check_while_loop(ASTNode_t* n, Type_t* type);
-Type_t* check_range(ASTNode_t* n, Type_t* type);
-Type_t* check_for_loop(ASTNode_t* n, Type_t* type);
-void SA_lexer_get_cursor(SA_Location *);
+  TypeInfo *binop(ASTNode *, TypeInfo *type = nullptr);
 
-#endif
+  TypeInfo *assign(ASTNode *, TypeInfo *type = nullptr);
+  void validateAssign(ASTNode*, TypeInfo*, TypeInfo*);
+  bool verifyExprPathIsMut(ASTNode*);
+  void processDecl(ASTNode* ,TypeInfo*& ,TypeInfo*);
+  void resolveTargetType(ASTNode *, TypeInfo *&);
+  const char* getSafeName(ASTNode *);
+  void resloveNestedNumeric(ASTNode *, TypeInfo *);
+  ASTNode* getBaseVarNode(ASTNode *);
+
+  TypeInfo *fn(ASTNode *);
+  TypeInfo *ret(ASTNode *);
+  TypeInfo *call(ASTNode *);
+  bool fnAlwaysReturns(ASTNode *);
+  struct ResolvedSig getCallSig(const char*);
+  void updateRetTy(const char *, TypeInfo *);
+
+  TypeInfo *checkUncondBranch(ASTNode *n, TypeInfo *type);
+  TypeInfo *checkWhileLoop(ASTNode *n, TypeInfo *type);
+  TypeInfo *checkRange(ASTNode *n, TypeInfo *type);
+  TypeInfo *checkForLoop(ASTNode *n, TypeInfo *type);
+
+public:
+  static bool isNumeric(DataTypes_t);
+  static void checkErr();
+  static DataTypes_t promote(DataTypes_t, DataTypes_t);
+  static void forceNumericType(ASTNode *, DataTypes_t);
+  static bool literalFitsType(const ASTNode *, DataTypes_t);
+  static bool isUnsignedNumeric(DataTypes_t);
+  static bool isSignedNumeric(DataTypes_t);
+  static bool isInt(DataTypes_t);
+  static int numericBits(DataTypes_t);
+
+  void main(ASTNode *);
+  TypeInfo *checkExpr(ASTNode *, TypeInfo *&);
+  TypeInfo *checkExpr(ASTNode *n) {
+    TypeInfo *dummy = nullptr;
+    return checkExpr(n, dummy);
+  }
+
+  Semantic(SemanticSymTable *sym, Importer *importer)
+      : sym(sym), importer(importer) {}
+
+  Semantic() : sym(new SemanticSymTable()), importer(new Importer(sym)) {}
+
+  SemanticSymTable* sym;
+  Importer* importer;
+};
+
+struct CompilerContext {
+  SemanticSymTable* symbols = new SemanticSymTable;
+  Importer* importer = nullptr;
+  Semantic* semantic = nullptr;
+
+  CompilerContext() : importer(new Importer(symbols)), semantic(new Semantic(symbols, importer)) {}
+};

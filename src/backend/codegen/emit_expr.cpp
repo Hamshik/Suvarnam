@@ -3,12 +3,12 @@
 #include <vector>
 
 struct LoopContext {
-    llvm::BasicBlock *continuationBB;
-    llvm::BasicBlock *exitBB;
+    BasicBlock *continuationBB;
+    BasicBlock *exitBB;
 };
 extern std::vector<LoopContext> loopStack;
 
-Value *emit_expr(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
+llvm::Value *emit_expr(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
                        IRBuilder<> &entryBuilder, Codegen::Scope &locals) {
   if (!n)
     return nullptr;
@@ -23,7 +23,7 @@ Value *emit_expr(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
   case AST_NUM:
     return emit_number(n, ctx);
   case AST_BOOL:
-    return ConstantInt::get(Type::getInt1Ty(ctx), n->literals.val.bval ? 1 : 0);
+    return ConstantInt::get(llvm::Type::getInt1Ty(ctx), n->literals.val.bval ? 1 : 0);
 
   case AST_STR:
     return emit_strs(n, ctx, b);
@@ -34,7 +34,7 @@ Value *emit_expr(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
   case AST_VAR: {
     const char* varName = n->name ? n->name : "unnamed_tmp";
 
-    llvm::Module *m = b.GetInsertBlock()->getModule();
+    Module *m = b.GetInsertBlock()->getModule();
     llvm::Value* foundVal = nullptr;
 
     if (n->isglobal) {
@@ -48,11 +48,11 @@ Value *emit_expr(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
     if (foundVal) {
       // 🏠 Check if it is a local Stack variable allocation
       // 🌍 Check if it is a module Global Variable allocation (This will now succeed!)
-      if (llvm::GlobalVariable *global_var = llvm::dyn_cast<llvm::GlobalVariable>(foundVal)) {
+      if (GlobalVariable *global_var = dyn_cast<GlobalVariable>(foundVal)) {
         return b.CreateLoad(global_var->getValueType(), global_var, varName);
       }
 
-      if (llvm::AllocaInst *alloca_inst = llvm::dyn_cast<llvm::AllocaInst>(foundVal)) {
+      if (AllocaInst *alloca_inst = dyn_cast<AllocaInst>(foundVal)) {
         return b.CreateLoad(alloca_inst->getAllocatedType(), alloca_inst, varName);
       }
 
@@ -85,7 +85,7 @@ Value *emit_expr(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
 
   case AST_BLOCK: {
     // ITERATIVE processing of block statements
-    Value* lastVal = nullptr;
+    llvm::Value* lastVal = nullptr;
     for (auto stmt : *n->block_stmts) {
         // If the current instruction stream is truly terminated (e.g., a return),
         // we skip the rest of this specific block.
@@ -97,7 +97,7 @@ Value *emit_expr(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
   }
 
   case AST_RETURN: {
-    Value *v = emit_expr(n->ret_stmt.value, ctx, b, entryBuilder, locals);
+    llvm::Value *v = emit_expr(n->ret_stmt.value, ctx, b, entryBuilder, locals);
 
     if (!blockTerminated(b)) {
       if (v)

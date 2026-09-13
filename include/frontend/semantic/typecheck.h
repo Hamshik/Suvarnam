@@ -3,10 +3,6 @@
 #include "shared/structs.h"
 #include <stdbool.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 bool is_i8(const char *);
 bool is_i16(const char *);
 bool is_i32(const char *);
@@ -24,8 +20,4 @@ bool is_f64(const char *);
 bool is_f128(const char *);
 
 DataTypes_t infer_smallest_numeric(const char *);
-bool has_max_numeric_type(const ASTNode_t *);
-
-#ifdef __cplusplus
-}
-#endif
+bool has_max_numeric_type(const ASTNode *);

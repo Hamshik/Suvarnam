@@ -1,9 +1,8 @@
 #pragma once
 
-#ifdef __cplusplus
+
 #include "shared/HIRNode.hpp"
-extern "C" {
-#endif
+
 #include "shared/structs.h"
 
 #include <limits.h>
@@ -27,17 +26,12 @@ typedef struct {
 } Options;
 bool parse_arguments(int, char **, Options *);
 bool setup_input_file(const Options *, file_t *);
-int compile_and_execute(ASTNode_t *, const Options *);
+int compile_and_execute(ASTNode *, const Options *);
 void yyrestart(FILE *);
-void semantic_check(ASTNode_t *);
-void ast_free(ASTNode_t *);
-void env_clear_all();
-TypedValue ast_eval_main(ASTNode_t *);
+void semantic_check(ASTNode *);
+void ast_free(ASTNode *);
 
-#ifdef __cplusplus
-}
 int run_exec(const char *, char *const []);
 FILE *open_file(const char *, char **);
 
 int codegen(HIRNode *, const char *, char **);
-#endif

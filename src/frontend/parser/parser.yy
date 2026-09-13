@@ -3,11 +3,11 @@
 %ltype SA_Location
 
 %polymorphic
-    node: ASTNode_t*;
+    node: ASTNode*;
     datatype: DataTypes_t;
     paramlist: ParamList_t;
     idx_epr: idx_expr_t*;
-    type: Type_t*;
+    type: TypeInfo*;
     size: size_t;
     op: OP_kind_t;
 
@@ -72,7 +72,7 @@ top_level_stmt:
 ;
 
 top_level_stmts:
-    /* empty */                 { $$ = static_cast<ASTNode_t *>(nullptr); }
+    /* empty */                 { $$ = static_cast<ASTNode *>(nullptr); }
     | top_level_stmt top_level_stmts
     {
         if (!$1) $$ = $2;
@@ -83,15 +83,15 @@ top_level_stmts:
 
 expr_stmt:
     assignment SEMICOLON        { $$ = $1; }
-    | assignment error SEMICOLON { panic(SA_loc_after(@1), PARSE_MISSING_SEMI, NULL); $$ = static_cast<ASTNode_t *>(nullptr); }
+    | assignment error SEMICOLON { panic(SA_loc_after(@1), PARSE_MISSING_SEMI, NULL); $$ = static_cast<ASTNode *>(nullptr); }
     | expr SEMICOLON            { $$ = $1; }
-    | expr error SEMICOLON      { panic(SA_loc_after(@1), PARSE_MISSING_SEMI, NULL); $$ = static_cast<ASTNode_t *>(nullptr); }
+    | expr error SEMICOLON      { panic(SA_loc_after(@1), PARSE_MISSING_SEMI, NULL); $$ = static_cast<ASTNode *>(nullptr); }
     | block                     { $$ = $1; }
     | return_stmt SEMICOLON     { $$ = $1; }
-    | return_stmt error SEMICOLON { panic(SA_loc_after(@1), PARSE_MISSING_SEMI, NULL); $$ = static_cast<ASTNode_t *>(nullptr); }
-    | LEX_ERROR SEMICOLON       { scanner.lexTakeErr(); $$ = static_cast<ASTNode_t *>(nullptr); }
-    | LEX_ERROR                 { scanner.lexTakeErr(); $$ = static_cast<ASTNode_t *>(nullptr); }
-    | error SEMICOLON           { panic(@1, PARSE_SYNTAX, NULL); $$ = static_cast<ASTNode_t *>(nullptr); }
+    | return_stmt error SEMICOLON { panic(SA_loc_after(@1), PARSE_MISSING_SEMI, NULL); $$ = static_cast<ASTNode *>(nullptr); }
+    | LEX_ERROR SEMICOLON       { scanner.lexTakeErr(); $$ = static_cast<ASTNode *>(nullptr); }
+    | LEX_ERROR                 { scanner.lexTakeErr(); $$ = static_cast<ASTNode *>(nullptr); }
+    | error SEMICOLON           { panic(@1, PARSE_SYNTAX, NULL); $$ = static_cast<ASTNode *>(nullptr); }
     | if_stmt                   { $$ = $1; }
     | for_stmt                  { $$ = $1; }
     | while_stmt                { $$ = $1; }
@@ -100,18 +100,18 @@ expr_stmt:
     /* declaring assign here, to reduce the ambiguity */
     | lvalue assign_op expr SEMICOLON {
         OP_kind_t op = $2;
-        $$ = new_assign($1, $3, nullptr, 1, @1, op);
+        $$ = new_assign($1, $3, nullptr, false, @1, op);
     }
 
     | error {
-        if (!scanner.lexTakeErr()) panic(@1, PARSE_SYNTAX, g_last_parse_err_msg);
+        if (!scanner.lexTakeErr()) panic(@1, PARSE_SYNTAX, ErrMsg);
         if(isError) ABORT();
         else ACCEPT();
     }
 ;
 
 import_list:
-    /* empty */                 { $$ = static_cast<ASTNode_t *>(nullptr); }
+    /* empty */                 { $$ = static_cast<ASTNode *>(nullptr); }
     | import_stmt SEMICOLON import_list
       {
           if (!$3) $$ = $1;
@@ -120,7 +120,7 @@ import_list:
 ;
 
 expr_stmts:
-    /* empty */                 { $$ = static_cast<ASTNode_t *>(nullptr); }
+    /* empty */                 { $$ = static_cast<ASTNode *>(nullptr); }
     | expr_stmt expr_stmts
     {
         if (!$1) $$ = $2;
@@ -149,17 +149,17 @@ if_stmt:
 
 recursive_type:
     DATATYPES {
-        $$ = make_type($1, static_cast<Type_t*>(nullptr)); 
+        $$ = new TypeInfo($1, static_cast<TypeInfo*>(nullptr)); 
     }
     | recursive_type LSQUARE opt_list_size RSQUARE {
-        $$ = make_type(LIST, $1);
+        $$ = new TypeInfo(LIST, $1);
         $$->size = $3; 
     }
     | recursive_type AMP %prec AMP {
-        $$ = make_type(PTR, $1);
+        $$ = new TypeInfo(PTR, $1);
     }
     | recursive_type AND %prec AMP {
-        Type_t* first_ptr = make_type(PTR, $1);
-        $$ = make_type(PTR, first_ptr);
+        TypeInfo* first_ptr = new TypeInfo(PTR, $1);
+        $$ = new TypeInfo(PTR, first_ptr);
     }
 ;

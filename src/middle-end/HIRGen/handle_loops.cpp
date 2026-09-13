@@ -7,12 +7,12 @@
 #include <string>
 #include <vector>
 
-extern "C" Type_t *make_type(DataTypes_t base, Type_t *inner);
 
-HIRNode *HIRGenerator::emit_MAST_for_range_loop(ASTNode_t *node) {
 
-  ASTNode_t *range_node = node->fornode.iterable->kind == AST_VAR
-                              ? SA::semantic_symbol_table::semantic_find_symbol(
+HIRNode *HIRGenerator::emit_MAST_for_range_loop(ASTNode *node) {
+
+  ASTNode *range_node = node->fornode.iterable->kind == AST_VAR
+                              ? sym->semantic_find_symbol(
                                     node->fornode.iterable->var)
                                     ->node_ptr
                               // to get ranges
@@ -114,14 +114,14 @@ HIRNode *HIRGenerator::emit_MAST_for_range_loop(ASTNode_t *node) {
   return root_block;
 }
 
-HIRNode *HIRGenerator::emit_MAST_for_loop(ASTNode_t *node) {
+HIRNode *HIRGenerator::emit_MAST_for_loop(ASTNode *node) {
   if (!node)
     return nullptr;
   if (node->fornode.iterable->kind == AST_RANGE)
     return emit_MAST_for_range_loop(node);
 
-  ASTNode_t *body = node->fornode.body;
-  ASTNode_t *iterable = node->fornode.iterable;
+  ASTNode *body = node->fornode.body;
+  ASTNode *iterable = node->fornode.iterable;
   const char *iterator_name = strdup(node->fornode.iterator_var_name);
 
   // 1. Create a root block to isolate configuration data structures
@@ -139,9 +139,9 @@ HIRNode *HIRGenerator::emit_MAST_for_loop(ASTNode_t *node) {
   const char *idx_var_name = strdup(idx_var_str.c_str());
   const char *arr_var_name = strdup(arr_var_str.c_str());
 
-  Type_t *int_type =
-      make_type(I64, nullptr); // Ensure 64-bit safe bounds index typing
-  Type_t *element_type = iterable->type->inner;
+  TypeInfo *int_type =
+      new TypeInfo(I64, nullptr); // Ensure 64-bit safe bounds index typing
+  TypeInfo *element_type = iterable->type->inner;
 
   // ==========================================
   // 🎯 THE FIX: PRE-DECLARE ALL VARIABLES FIRST
@@ -278,7 +278,7 @@ HIRNode *HIRGenerator::emit_MAST_for_loop(ASTNode_t *node) {
   return root_block;
 }
 
-HIRNode *HIRGenerator::emit_MAST_while_loop(ASTNode_t *node) {
+HIRNode *HIRGenerator::emit_MAST_while_loop(ASTNode *node) {
   if (!node)
     return nullptr;
 

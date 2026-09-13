@@ -165,12 +165,12 @@ SA_Value SA_from_u128(unsigned __int128 x, DataTypes_t t) {
     return out;
 }
 
-TypedValue SA_cast_typed(TypedValue v, Type_t* target) {
+TypedValue SA_cast_typed(TypedValue v, TypeInfo* target) {
     if (v.type->base == target->base) return v;
 
     if (target->base == BOOL) {
         if (v.type->base == BOOL) return v;
-        return (TypedValue){.type = make_type(BOOL, NULL), 
+        return (TypedValue){.type = new TypeInfo(BOOL, NULL), 
             .val = ( SA_Value){.bval = SA_as_f128(v.val, v.type->base) != 0.0L}};
     }
 

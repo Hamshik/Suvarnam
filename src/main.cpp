@@ -1,20 +1,16 @@
 #include "cmd-exec/cmd-exec.hpp"
+#include "parser/parser_helpers.h"
+#include "semantic/import.hpp"
 #include "semantic/semantic.hpp"
-#include "shared/enums.h"
 #include "shared/structs.h"
 #include <stdlib.h>
 
-extern FILE *yyin;
-extern ASTNode_t* root;
-file_t *file;
-
-int yyparse();
-Type_t* make_type(DataTypes_t , Type_t*);
-void check_err();
+ASTNode* root{};
+file_t *file{};
 
 int main(int argc, char **argv) {
 
-    file = malloc(sizeof(file_t));
+    file = new file_t();
     
     Options opts;
     if (!parse_arguments(argc, argv, &opts)) {
@@ -27,12 +23,9 @@ int main(int argc, char **argv) {
     error_fatal = false;
 
     int status = 0;
-    root = parse_file(file->source);
-    if (root && !isError) 
+    root = Importer::parseFile(file->source);
+    if (root && !isError)
         status = compile_and_execute(root, &opts);
-    
-    check_err();
-
 
     if (file->source != stdin)
         fclose(file->source);

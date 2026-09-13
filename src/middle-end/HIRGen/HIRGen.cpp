@@ -1,5 +1,5 @@
 #include "HIRGen/HIRGen.hpp"
-#include "SymbolTable/SymbolTable.hpp"
+#include "SymbolTable/SymbolTableInternal.hpp"
 #include "SymbolTable/HIR_SymbolTable.hpp"
 #include "shared/HIRNode.hpp"
 #include "shared/enums.h"
@@ -8,13 +8,13 @@
 #include <cstdlib>
 #include <cstring>
 
-extern "C" void panic(SA_Location loc, errc_t code, const char *detail);
-extern "C" unsigned __int128 SA_parse_u128(const char *str, int *ok);
-extern "C" __int128 SA_parse_i128(const char *str, int *ok);
-SA_Value handle_num(ASTNode_t *node);
+void panic(SA_Location loc, errc_t code, const char *detail);
+unsigned __int128 SA_parse_u128(const char *str, int *ok);
+__int128 SA_parse_i128(const char *str, int *ok);
+SA_Value handle_num(ASTNode *node);
 
 // Main entry point: Lower a generic front-end node to MAST
-HIRNode *HIRGenerator::generate(ASTNode_t *node) {
+HIRNode *HIRGenerator::generate(ASTNode *node) {
   if (!node)
     return nullptr;
 
@@ -81,7 +81,7 @@ HIRNode *HIRGenerator::generate(ASTNode_t *node) {
     m_node->name = strdup(node->importNode.path);
     m_node->type = node->type;
     m_node->loc = node->loc;
-    auto module = SA_semantic_get_module(node->importNode.path);
+    auto module = sym->get_module(node->importNode.path);
     
     HIRNode *imported_node = generate(module->ast);
     SA::HIR_SymbolTable::loadOrCreateMod(m_node->name, imported_node);

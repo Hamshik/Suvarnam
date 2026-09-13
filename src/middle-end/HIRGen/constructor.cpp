@@ -8,19 +8,31 @@
 #include <cstring>
 
 // Helper: Generate an Integer Literal
-HIRNode *HIRGenerator::create_literal(SA_Value value, Type_t *type) {
-  HIRNode *node = new HIRNode(is_numeric(type->base) ? ASTKind::AST_NUM :
-                          type->base == STRINGS ? ASTKind::AST_STR : 
-                          type->base == CHARACTER ? ASTKind::AST_CHAR : ASTKind::AST_BOOL);
+HIRNode *HIRGenerator::create_literal(SA_Value value, TypeInfo *type) {
+  DataTypes_t base = type ? type->base : UNKNOWN;
+
+  if (base == UNKNOWN || base == VOID) {
+    base = I32;
+  }
+
+  HIRNode *node = new HIRNode(
+      semantic && semantic->isNumeric(base) ? ASTKind::AST_NUM :
+      base == STRINGS ? ASTKind::AST_STR :
+      base == CHARACTER ? ASTKind::AST_CHAR :
+      base == BOOL ? ASTKind::AST_BOOL :
+      ASTKind::AST_NUM
+  );
 
   node->literals.val = value;
-  node->type = type;
+  node->type = type ? type : new TypeInfo(base, nullptr);
+  if (node->type && node->type->base == UNKNOWN)
+    node->type->base = base;
   return node;
 }
 
 // Helper: Generate a Binary Operation
 HIRNode *HIRGenerator::create_binary_op(OP_kind_t op, HIRNode *left, HIRNode *right,
-                           Type_t *result_type) {
+                           TypeInfo *result_type) {
   HIRNode *node = new HIRNode(ASTKind::AST_BINOP);
   node->binary.op = op;
   node->binary.left = left;
@@ -119,9 +131,9 @@ HIRNode *HIRGenerator::create_block(std::vector<HIRNode *> *statements) {
 }
 
 // Helper: Lower a function definition/declaration
-HIRNode *HIRGenerator::create_fn_definition(ASTNode_t *node) {
+HIRNode *HIRGenerator::create_fn_definition(ASTNode *node) {
   if (strcmp(node->fn_def.name, "main") == 0 &&
-      (!node->type || !is_numeric(node->type->base))) {
+      (!node->type || !semantic->isNumeric(node->type->base))) {
     panic(node->loc, SEM_RETURN_TYPE_MISMATCH,
           "main requires return stmt or mumeric return datatype");
   }
@@ -134,7 +146,7 @@ HIRNode *HIRGenerator::create_fn_definition(ASTNode_t *node) {
 
   fn_node->fn.name = strdup(node->fn_def.name);
   fn_node->type = node->type ? node->type : 
-      make_type(VOID, nullptr); // Function return type
+      new TypeInfo(VOID, nullptr); // Function return type
   fn_node->fn.param_count = node->fn_def.param_count;
   fn_node->loc = node->loc;
 
@@ -150,7 +162,7 @@ HIRNode *HIRGenerator::create_fn_definition(ASTNode_t *node) {
     if (p->is_variadic && p->type && p->type->base == LIST) {
       p->type->size = 0;
       auto int_arg = new Param_t();
-      int_arg->type = make_type(I64, nullptr);
+      int_arg->type = new TypeInfo(I64, nullptr);
       std::string count_name = std::string(p->name) + "\003_count";
       int_arg->name = strdup(count_name.c_str()); 
       current_params.insert(count_name);
@@ -170,7 +182,7 @@ HIRNode *HIRGenerator::create_fn_definition(ASTNode_t *node) {
 }
 
 // Helper: Generate a variable declaration
-HIRNode *HIRGenerator::create_declaration(const char *name, HIRNode *init, Type_t *type) {
+HIRNode *HIRGenerator::create_declaration(const char *name, HIRNode *init, TypeInfo *type) {
   HIRNode *node = new HIRNode(ASTKind::AST_DECL);
   node->decl.decl_name = strdup(name);
   node->decl.init_value = init;
@@ -180,7 +192,7 @@ HIRNode *HIRGenerator::create_declaration(const char *name, HIRNode *init, Type_
 
 // Helper: Generate a Function Call
 HIRNode *HIRGenerator::create_call(const char *fn_name, std::vector<HIRNode *> *args,
-                      Type_t *ret_type) {
+                      TypeInfo *ret_type) {
   HIRNode *node = new HIRNode(ASTKind::AST_CALL);
   node->call.target_fn = strdup(fn_name);
   node->call.args = args;

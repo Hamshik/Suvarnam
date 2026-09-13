@@ -13,7 +13,9 @@
 #include <cstring>
 #include <filesystem>
 #include <memory>
+
 extern std::vector<char*> I_src;
+
 namespace {
 
 void die_allocation(const char *what) {
@@ -21,27 +23,22 @@ void die_allocation(const char *what) {
   std::exit(1);
 }
 
-SemanticScopeRecord *g_semantic_scope = nullptr;
-std::unordered_map<std::string, std::unique_ptr<FnSymbol_t>>
-    g_semantic_functions;
-std::unordered_map<std::string, std::unique_ptr<ASTModule_t>> g_modules;
+} // namespace
 
-SemanticScopeRecord *semantic_scope_top() {
-  if (!g_semantic_scope) {
-    g_semantic_scope = new SemanticScopeRecord();
+SemanticScopeRecord *SemanticSymTable::scope_top() {
+  if (!scope_) {
+    scope_ = new SemanticScopeRecord();
   }
-  return g_semantic_scope;
+  return scope_;
 }
 
-extern "C" SemanticSymbolRecord *semantic_find_global_symbol(const char *name) {
-  SemanticScopeRecord *global_scope = semantic_scope_top();
+SemanticSymbolRecord *SemanticSymTable::semantic_find_global_symbol(const char *name) {
+  SemanticScopeRecord *global_scope = scope_top();
 
-  // 1. Follow the parent links down to the absolute root frame
   while (global_scope && global_scope->parent != nullptr) {
     global_scope = global_scope->parent;
   }
 
-  // 2. Search exclusively inside this global scope map
   if (global_scope) {
     auto found = global_scope->symbols.find(name);
     if (found != global_scope->symbols.end()) {
@@ -49,11 +46,11 @@ extern "C" SemanticSymbolRecord *semantic_find_global_symbol(const char *name) {
     }
   }
 
-  return nullptr; // Symbol not declared in global scope
+  return nullptr;
 }
 
-extern "C" SemanticSymbolRecord *semantic_find_symbol(const char *name) {
-  for (SemanticScopeRecord *it = semantic_scope_top(); it; it = it->parent) {
+SemanticSymbolRecord *SemanticSymTable::semantic_find_symbol(const char *name) {
+  for (SemanticScopeRecord *it = scope_top(); it; it = it->parent) {
     auto found = it->symbols.find(name);
     if (found != it->symbols.end()) {
       return &found->second;
@@ -62,27 +59,22 @@ extern "C" SemanticSymbolRecord *semantic_find_symbol(const char *name) {
   return nullptr;
 }
 
-} // namespace
-
-namespace SA::semantic_symbol_table {
-
-Type_t *lookup(const char *name) {
+TypeInfo *SemanticSymTable::lookup(const char *name) {
   SemanticSymbolRecord *symbol = semantic_find_symbol(name);
   return symbol ? symbol->type : nullptr;
 }
 
-SemanticScopeRecord *get_global_scope() {
-  SemanticScopeRecord *scope = semantic_scope_top();
+SemanticScopeRecord *SemanticSymTable::get_global_scope() {
+  SemanticScopeRecord *scope = scope_top();
   while (scope && scope->parent != nullptr) {
     scope = scope->parent;
   }
   return scope;
 }
 
-bool declare(const char *name, bool *isglobal, Type_t *type, ASTNode_t *node,
-             bool is_mutable) {
-  SemanticScopeRecord *scope =
-      *isglobal ? get_global_scope() : semantic_scope_top();
+bool SemanticSymTable::declare(const char *name, bool *isglobal, TypeInfo *type,
+                              ASTNode *node, bool is_mutable) {
+  SemanticScopeRecord *scope = *isglobal ? get_global_scope() : scope_top();
   auto [it, inserted] = scope->symbols.try_emplace(name);
 
   if (!inserted) {
@@ -98,7 +90,7 @@ bool declare(const char *name, bool *isglobal, Type_t *type, ASTNode_t *node,
   return true;
 }
 
-exitcode_t exists(ASTNode_t *n) {
+exitcode_t SemanticSymTable::exists(ASTNode *n) {
   if (n->kind != AST_VAR)
     return NOT_DECLARED;
 
@@ -111,20 +103,23 @@ exitcode_t exists(ASTNode_t *n) {
     return NOT_DEC_AT_GLOB_SCOPE;
 
   if (symbol->type != n->type &&
-      !(is_numeric(symbol->type->base) && is_numeric(n->type->base))) {
+      !(Semantic::isNumeric(symbol->type->base) &&
+        Semantic::isNumeric(n->type->base))) {
     return TYPE_MISMATCH;
   }
 
   if (n->type->base == PTR && symbol->type->inner != n->type->inner &&
-      !(is_numeric(symbol->type->base) && is_numeric(n->type->base))) {
+      !(Semantic::isNumeric(symbol->type->base) &&
+        Semantic::isNumeric(n->type->base))) {
     return TYPE_MISMATCH;
   }
 
   return SUCCESS;
 }
 
-exitcode_t assign_check(const char *name, bool isglobal, DataTypes_t rhs_type,
-                        DataTypes_t rhs_sub_type) {
+exitcode_t SemanticSymTable::assign_check(const char *name, bool isglobal,
+                                          DataTypes_t rhs_type,
+                                          DataTypes_t rhs_sub_type) {
   SemanticSymbolRecord *symbol =
       isglobal ? semantic_find_global_symbol(name) : semantic_find_symbol(name);
   if (!symbol) {
@@ -132,7 +127,7 @@ exitcode_t assign_check(const char *name, bool isglobal, DataTypes_t rhs_type,
   }
 
   if (rhs_type != UNKNOWN && symbol->type->base != rhs_type &&
-      !is_numeric(rhs_type) && !is_numeric(symbol->type->base))
+      !Semantic::isNumeric(rhs_type) && !Semantic::isNumeric(symbol->type->base))
     return TYPE_MISMATCH;
 
   if (rhs_type == PTR && (symbol->type->base != rhs_sub_type))
@@ -144,33 +139,33 @@ exitcode_t assign_check(const char *name, bool isglobal, DataTypes_t rhs_type,
   return SUCCESS;
 }
 
-bool is_mutable(const char *name) {
+bool SemanticSymTable::is_mutable(const char *name) {
   SemanticSymbolRecord *symbol = semantic_find_symbol(name);
   return symbol ? symbol->is_mutable : false;
 }
 
-void scope_push() {
+void SemanticSymTable::scope_push() {
   auto *scope = new SemanticScopeRecord();
-  scope->parent = semantic_scope_top();
-  g_semantic_scope = scope;
+  scope->parent = scope_top();
+  scope_ = scope;
 }
 
-void scope_pop() {
-  SemanticScopeRecord *top = semantic_scope_top();
+void SemanticSymTable::scope_pop() {
+  SemanticScopeRecord *top = scope_top();
   if (!top->parent) {
     top->symbols.clear();
     return;
   }
 
-  g_semantic_scope = top->parent;
+  scope_ = top->parent;
   delete top;
 }
 
-void clear_symbols() { semantic_scope_top()->symbols.clear(); }
+void SemanticSymTable::clear_symbols() { scope_top()->symbols.clear(); }
 
-bool fn_declare(ASTNode_t *node_ptr) {
+bool SemanticSymTable::fn_declare(ASTNode *node_ptr) {
   char *name = node_ptr->fn_def.name;
-  if (g_semantic_functions.find(name) != g_semantic_functions.end()) {
+  if (functions_.find(name) != functions_.end()) {
     return false;
   }
 
@@ -189,23 +184,23 @@ bool fn_declare(ASTNode_t *node_ptr) {
   fn->isReturned = false;
   fn->node_ptr = node_ptr;
 
-  g_semantic_functions.emplace(name, std::move(fn));
+  functions_.emplace(name, std::move(fn));
   return true;
 }
 
-FnSymbol_t *fn_lookup(const char *name) {
-  auto found = g_semantic_functions.find(name);
-  return found == g_semantic_functions.end() ? nullptr : found->second.get();
+FnSymbol_t *SemanticSymTable::fn_lookup(const char *name) {
+  auto found = functions_.find(name);
+  return found == functions_.end() ? nullptr : found->second.get();
 }
 
-void clear_fns() {
-  for (auto &entry : g_semantic_functions) {
+void SemanticSymTable::clear_fns() {
+  for (auto &entry : functions_) {
     free((void *)entry.second->name);
   }
-  g_semantic_functions.clear();
+  functions_.clear();
 }
 
-DataTypes_t update_datatype(const char *name, DataTypes_t want) {
+DataTypes_t SemanticSymTable::update_datatype(const char *name, DataTypes_t want) {
   SemanticSymbolRecord *symbol = semantic_find_symbol(name);
   if (!symbol) {
     return UNKNOWN;
@@ -215,33 +210,31 @@ DataTypes_t update_datatype(const char *name, DataTypes_t want) {
   return symbol->type->base;
 }
 
-ASTModule_t *get_module(const char *path) {
-  auto found = g_modules.find(path);
-  return found == g_modules.end() ? nullptr : found->second.get();
+ASTModule_t *SemanticSymTable::get_module(const char *path) {
+  auto found = modules_.find(path);
+  return found == modules_.end() ? nullptr : found->second.get();
 }
 
-ASTModule_t *load_module(char *requested_path,
-                         const char *importer_file_path,
-                         bool &already_imported) {
+ASTModule_t *SemanticSymTable::load_module(char *requested_path,
+                                          const char *importer_file_path,
+                                          Importer *g_resolver,
+                                          bool &already_imported) {
   already_imported = false;
-  std::vector<fs::path>* import_vec = new std::vector<fs::path>
-    {fs::path(requested_path), fs::path(importer_file_path)};
+  std::vector<fs::path> *import_vec = new std::vector<fs::path>{
+      fs::path(requested_path), fs::path(importer_file_path)};
 
-  for(auto i : I_src){
+  for (auto i : I_src) {
     import_vec->push_back(fs::path(i));
   }
-  
-  ImportResolver g_resolver(import_vec);
-  // 1. Resolve relative path to absolute canonical path
+
   fs::path parent_path =
       importer_file_path ? fs::path(importer_file_path) : fs::current_path();
 
-  // Try resolving exact name or appending .sa
-  auto resolved_opt = g_resolver.resolve(requested_path, parent_path);
+  auto resolved_opt = g_resolver->resolve(requested_path, parent_path);
   if (!resolved_opt &&
       std::string(requested_path).substr(strlen(requested_path) - 2) != ".sa") {
     resolved_opt =
-        g_resolver.resolve(std::string(requested_path) + ".sa", parent_path);
+        g_resolver->resolve(std::string(requested_path) + ".sa", parent_path);
   }
 
   if (!resolved_opt) {
@@ -249,14 +242,11 @@ ASTModule_t *load_module(char *requested_path,
     return nullptr;
   }
 
-  // Always use canonical string path for lookup to avoid duplicate imports
   std::string canonical_path = resolved_opt->string();
 
-  // 2. Check Cache
   ASTModule_t *existing = get_module(canonical_path.c_str());
   if (existing) {
     if (existing->state == MOD_LOADING) {
-      // Circular Import detected!
       panic((SA_Location){0}, SEM_IMPORT_FILE_NOT_FOUND,
             canonical_path.c_str());
       return nullptr;
@@ -265,7 +255,6 @@ ASTModule_t *load_module(char *requested_path,
     return existing;
   }
 
-  // 3. Create module entry
   std::unique_ptr<ASTModule_t> module(new (std::nothrow) ASTModule_t{});
   if (!module) {
     die_allocation("new");
@@ -278,26 +267,22 @@ ASTModule_t *load_module(char *requested_path,
   module->state = MOD_LOADING;
 
   ASTModule_t *raw = module.get();
-  g_modules.emplace(canonical_path, std::move(module));
+  modules_.emplace(canonical_path, std::move(module));
 
-  // 4. Open File using resolved canonical path
   FILE *source = fopen(canonical_path.c_str(), "r");
   if (!source) {
     panic((SA_Location){0}, SEM_IMPORT_FILE_NOT_FOUND, canonical_path.c_str());
     return nullptr;
   }
 
-  // 5. Parse
   FILE *previous_source = file ? file->source : nullptr;
   char *previous_filename = file ? file->filename : nullptr;
   if (file) {
     file->source = source;
-    file->filename =
-        raw->path; // Points to absolute path for accurate diagnostic traces
+    file->filename = raw->path;
   }
 
-  size_t errors_before_parse = err_no;
-  raw->ast = parse_file(source);
+  raw->ast = Importer::parseFile(source);
   raw->parsed = !isError;
 
   if (file) {
@@ -310,5 +295,3 @@ ASTModule_t *load_module(char *requested_path,
 
   return raw;
 }
-
-} // namespace  SA::semantic_symbol_table

@@ -3,18 +3,18 @@
 llvm::Value *emit_mul_strs(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
                         IRBuilder<> &entryBuilder, Codegen::Scope &locals, llvm::Value *L, llvm::Value *R)
 {
-  llvm::Type *i8Ptr = llvm::PointerType::getUnqual(ctx);
+  llvm::Type *i8Ptr = PointerType::getUnqual(ctx);
   llvm::Type *i64Ty = llvm::Type::getInt64Ty(ctx);
 
-  llvm::Module *module = b.GetInsertBlock()->getModule();
+  Module *module = b.GetInsertBlock()->getModule();
   // ensure multiplication function exists
-  llvm::Function *mulFn = module->getFunction("_SA_mulstr");
+  Function *mulFn = module->getFunction("_SA_mulstr");
   if (!mulFn) {
     // Signature: char* _SA_mulstr(char* s, int64_t count)
-    llvm::FunctionType *ft =
-        llvm::FunctionType::get(i8Ptr, {i8Ptr, i64Ty}, false);
+    FunctionType *ft =
+        FunctionType::get(i8Ptr, {i8Ptr, i64Ty}, false);
 
-    mulFn = llvm::Function::Create(ft, llvm::Function::ExternalLinkage,
+    mulFn = Function::Create(ft, Function::ExternalLinkage,
                                    "_SA_mulstr", *module);
   }
 
@@ -41,17 +41,17 @@ llvm::Value *emit_mul_strs(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
 llvm::Value *emit_add_strs(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
     IRBuilder<> &entryBuilder, Codegen::Scope &locals, llvm::Value *L, llvm::Value *R)
 {
-    llvm::Module *module = b.GetInsertBlock()->getModule();
+    Module *module = b.GetInsertBlock()->getModule();
     llvm::Type *i8Ty = llvm::Type::getInt8Ty(ctx);
-    llvm::Type *i8Ptr = llvm::PointerType::getUnqual(ctx);
+    llvm::Type *i8Ptr = PointerType::getUnqual(ctx);
 
     // ensure concat function exists
-    llvm::Function *concatFn = module->getFunction("_SA_concat");
+    Function *concatFn = module->getFunction("_SA_concat");
 
     if (!concatFn) {
-      llvm::FunctionType *ft =
-          llvm::FunctionType::get(i8Ptr, {i8Ptr, i8Ptr}, false);
-      concatFn = llvm::Function::Create(ft, llvm::Function::ExternalLinkage,
+      FunctionType *ft =
+          FunctionType::get(i8Ptr, {i8Ptr, i8Ptr}, false);
+      concatFn = Function::Create(ft, Function::ExternalLinkage,
                                         "_SA_concat", *module);
     }
 

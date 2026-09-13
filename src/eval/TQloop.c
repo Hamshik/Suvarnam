@@ -261,7 +261,7 @@
 //   return next;
 // }
 
-// TypedValue eval_for(ASTNode_t *node, bool g_returning, TypedValue g_return_value) {
+// TypedValue eval_for(ASTNode *node, bool g_returning, TypedValue g_return_value) {
 //   if (!node->fornode.init || node->fornode.init->kind != AST_ASSIGN ||
 //       node->fornode.init->assign.lhs->kind != AST_VAR ||
 //       node->fornode.init->assign.op != OP_ASSIGN) {

@@ -6,9 +6,11 @@
 #include "shared/nodes.h"
 #include "shared/structs.h"
 #include "utils/error_handler/error.h"
+#include "SymbolTable/SymbolTableInternal.hpp"
+
 
 std::optional<fs::path>
-ImportResolver::resolve(const std::string &import_path,
+Importer::resolve(const std::string &import_path,
                         const fs::path &current_file_path) {
   fs::path target(import_path);
 
@@ -40,10 +42,10 @@ ImportResolver::resolve(const std::string &import_path,
   return std::nullopt;
 }
 
-extern ASTNode_t *root;
+extern ASTNode *root;
 static bool import_parse_failed = false;
 
-int restart(FILE *f, ASTNode_t* old_root) {
+int Importer::restart(FILE *f, ASTNode* old_root) {
     long saved_pos = ftell(f);
     if (saved_pos < 0) saved_pos = 0;
     rewind(f);
@@ -70,17 +72,17 @@ int restart(FILE *f, ASTNode_t* old_root) {
     return parser.parse();
 }
 
-extern "C" ASTNode_t *parse_file(FILE *f) {
+ASTNode *Importer::parseFile(FILE *f) {
   if (!f)
     return nullptr;
 
-  ASTNode_t *old_root = root; // save current AST
+  ASTNode *old_root = root; // save current AST
   root = nullptr;             // reset for new parse
 
   int parse_status = restart(f, old_root);
 
-  if (parse_status == 0) {
-    ASTNode_t *new_root = root; // get parsed AST
+  if (parse_status == 0 || !isError) {
+    ASTNode *new_root = root; // get parsed AST
     root = old_root;            // restore old AST
     return new_root;
   }
@@ -89,18 +91,17 @@ extern "C" ASTNode_t *parse_file(FILE *f) {
   return nullptr;
 }
 
-void ensure_semantic(ASTModule_t *m) {
+void Importer::ensureSemantic(ASTModule_t *m) {
   if (!m || m->semantic_done)
     return;
 
-  semantic_check(m->ast);
   m->semantic_done = true;
 }
 
-Type_t* handle_import(ASTNode_t *n) {
+TypeInfo* Importer::handleImport(ASTNode *n) {
   char *path = n->importNode.path;
   bool already_imported = false;
-  ASTModule_t *mod = SA_semantic_load_module(path, &already_imported);
+  ASTModule_t *mod = sym->load_module(path, file->filename, this, already_imported);
   if (!mod) {
     panic(n->loc, SEM_IMPORT_FILE_NOT_FOUND, path);
     import_parse_failed = true;
@@ -117,9 +118,7 @@ Type_t* handle_import(ASTNode_t *n) {
   if (already_imported)
     return nullptr;
 
-  ensure_semantic(mod);
-
-  check_expr(mod->ast);
+  ensureSemantic(mod);
 
   return nullptr;
 }

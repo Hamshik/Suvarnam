@@ -1,8 +1,8 @@
 fn i32 main() {
-    var mut globe = 100;
-    globe = 10;
+    var global = 100;
+    global = 10;
 
-    printf("%d\n",globe);
-
+    printf("%d\n", global);
+    
     ret 0;
 }

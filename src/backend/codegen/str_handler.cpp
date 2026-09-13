@@ -32,45 +32,45 @@ uint32_t decode_utf8(const char *raw, size_t raw_len, size_t *byte_len,
   return cp;
 }
 
-Value *to_i8_ptr(Value *v, IRBuilder<> &b) {
+llvm::Value *to_i8_ptr(llvm::Value *v, IRBuilder<> &b) {
   auto &ctx = b.getContext();
 
   auto *i8Ty = llvm::Type::getInt8Ty(ctx);
-  auto *i8Ptr = llvm::PointerType::getUnqual(ctx);
+  auto *i8Ptr = PointerType::getUnqual(ctx);
 
   // already correct type
   if (v->getType() == i8Ptr)
     return v;
 
   // global string: [N x i8]*
-  if (auto *GV = llvm::dyn_cast<llvm::GlobalVariable>(v)) {
+  if (auto *GV = dyn_cast<GlobalVariable>(v)) {
     auto *valTy = GV->getValueType();
 
     if (valTy->isArrayTy() && valTy->getArrayElementType() == i8Ty) {
 
-      auto zero = llvm::ConstantInt::get(llvm::Type::getInt32Ty(ctx), 0);
+      auto zero = ConstantInt::get(llvm::Type::getInt32Ty(ctx), 0);
 
       return b.CreateInBoundsGEP(valTy, GV, {zero, zero});
     }
   }
 
   // ⚠️ IMPORTANT: DO NOT silently pass wrong types
-  llvm::errs() << "Invalid string conversion type: ";
-  v->getType()->print(llvm::errs());
-  llvm::errs() << "\n";
+  errs() << "Invalid string conversion type: ";
+  v->getType()->print(errs());
+  errs() << "\n";
 
   return v;
 }
 
-Value *emit_char_to_string(Value *ch, LLVMContext &ctx, IRBuilder<> &b) {
+llvm::Value *emit_char_to_string(llvm::Value *ch, LLVMContext &ctx, IRBuilder<> &b) {
   // Use runtime `SA_encode_cp(uint32_t)` to encode the codepoint into a
   // malloc'd UTF-8 C string. This correctly handles multi-byte characters
   // (emojis, etc.) instead of truncating to a single byte.
   auto m = b.GetInsertBlock()->getModule();
 
   // Ensure encoder function exists with a parameter matching `ch`'s type
-  Type *i8PtrTy = PointerType::getUnqual(ctx);
-  Type *cpTy = ch->getType();
+  llvm::Type *i8PtrTy = PointerType::getUnqual(ctx);
+  llvm::Type *cpTy = ch->getType();
 
   Function *encFn = m->getFunction("SA_encode_cp");
   if (!encFn) {
@@ -79,9 +79,9 @@ Value *emit_char_to_string(Value *ch, LLVMContext &ctx, IRBuilder<> &b) {
   }
 
   // If the existing declaration has a different param type, try to adapt.
-  Value *arg = ch;
+  llvm::Value *arg = ch;
   if (encFn->getFunctionType()->getNumParams() >= 1) {
-    Type *paramTy = encFn->getFunctionType()->getParamType(0);
+    llvm::Type *paramTy = encFn->getFunctionType()->getParamType(0);
     if (arg->getType() != paramTy) {
       if (arg->getType()->isIntegerTy() && paramTy->isIntegerTy()) {
         unsigned srcBits = arg->getType()->getIntegerBitWidth();
@@ -97,7 +97,7 @@ Value *emit_char_to_string(Value *ch, LLVMContext &ctx, IRBuilder<> &b) {
   return b.CreateCall(encFn, {arg});
 }
 
-Value *emit_char(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b) {
+llvm::Value *emit_char(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b) {
   if (!n->literals.val.chars) {
     panic(n->loc, INVAILD_UTF8_CHAR, nullptr);
     return nullptr;
@@ -135,7 +135,7 @@ Value *emit_char(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b) {
   return ConstantInt::get(ir_type(CHARACTER, ctx), codepoint);
 }
 
-Value *emit_strs(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b) {
+llvm::Value *emit_strs(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b) {
   auto module = b.GetInsertBlock()->getModule();
 
   const char *data = n->literals.val.chars ? n->literals.val.chars : "";
@@ -145,21 +145,21 @@ Value *emit_strs(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b) {
     len = strlen(data);
 
   // ✅ BEST PRACTICE: LLVM string constant
-  llvm::Constant *strConst =
-      llvm::ConstantDataArray::getString(ctx, data, true); // null terminated
+  Constant *strConst =
+      ConstantDataArray::getString(ctx, data, true); // null terminated
 
   static int id = 0;
   std::string name = "strlit." + std::to_string(id++);
 
-  auto global = new llvm::GlobalVariable(*module, strConst->getType(), true,
-                                         llvm::GlobalValue::PrivateLinkage,
+  auto global = new GlobalVariable(*module, strConst->getType(), true,
+                                         GlobalValue::PrivateLinkage,
                                          strConst, name);
 
   // ✅ Correct GEP: from pointer, NOT array type
-  Value *zero = llvm::ConstantInt::get(llvm::Type::getInt32Ty(ctx), 0);
+  llvm::Value *zero = ConstantInt::get(llvm::Type::getInt32Ty(ctx), 0);
 
-  Value *ptr = b.CreateInBoundsGEP(global->getValueType(), global,
-                                   {b.getInt32(0), b.getInt32(0)});
+  llvm::Value *ptr = b.CreateInBoundsGEP(global->getValueType(), global,
+                                         {b.getInt32(0), b.getInt32(0)});
 
-  return b.CreateBitCast(ptr, llvm::PointerType::getUnqual(ctx));
+  return b.CreateBitCast(ptr, PointerType::getUnqual(ctx));
 }

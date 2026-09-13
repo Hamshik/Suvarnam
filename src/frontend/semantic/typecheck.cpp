@@ -39,7 +39,7 @@ static bool is_hex_literal_body(const char *s) {
     return true;
 }
 
-static bool is_integer_literal(const char *s) {
+bool isInt_literal(const char *s) {
     if (!s || !*s) return false;
     if (*s == '+' || *s == '-') ++s;
     if (!*s) return false;
@@ -110,17 +110,17 @@ static bool fits_unsigned_128(const char *raw_num) {
     return dec_fits_under(digits, U128_MAX_DEC);
 }
 
-bool is_i8(const char *raw_num)  { bool ok; long double v = parse_ld(raw_num, &ok); return ok && v >= I8_MIN_LD  && v <= I8_MAX_LD  && is_integer_literal(raw_num); }
-bool is_i16(const char *raw_num) { bool ok; long double v = parse_ld(raw_num, &ok); return ok && v >= I16_MIN_LD && v <= I16_MAX_LD && is_integer_literal(raw_num); }
-bool is_i32(const char *raw_num) { bool ok; long double v = parse_ld(raw_num, &ok); return ok && v >= I32_MIN_LD && v <= I32_MAX_LD && is_integer_literal(raw_num); }
-bool is_i64(const char *raw_num) { bool ok; long double v = parse_ld(raw_num, &ok); return ok && v >= I64_MIN_LD && v <= I64_MAX_LD && is_integer_literal(raw_num); }
-bool is_i128(const char *raw_num){ return is_integer_literal(raw_num) && fits_signed_128(raw_num); }
+bool is_i8(const char *raw_num)  { bool ok; long double v = parse_ld(raw_num, &ok); return ok && v >= I8_MIN_LD  && v <= I8_MAX_LD  && isInt_literal(raw_num); }
+bool is_i16(const char *raw_num) { bool ok; long double v = parse_ld(raw_num, &ok); return ok && v >= I16_MIN_LD && v <= I16_MAX_LD && isInt_literal(raw_num); }
+bool is_i32(const char *raw_num) { bool ok; long double v = parse_ld(raw_num, &ok); return ok && v >= I32_MIN_LD && v <= I32_MAX_LD && isInt_literal(raw_num); }
+bool is_i64(const char *raw_num) { bool ok; long double v = parse_ld(raw_num, &ok); return ok && v >= I64_MIN_LD && v <= I64_MAX_LD && isInt_literal(raw_num); }
+bool is_i128(const char *raw_num){ return isInt_literal(raw_num) && fits_signed_128(raw_num); }
 
-bool is_u8(const char *raw_num)  { bool ok; long double v = parse_ld(raw_num, &ok); return ok && v >= 0.0L && v <= U8_MAX_LD  && is_integer_literal(raw_num); }
-bool is_u16(const char *raw_num) { bool ok; long double v = parse_ld(raw_num, &ok); return ok && v >= 0.0L && v <= U16_MAX_LD && is_integer_literal(raw_num); }
-bool is_u32(const char *raw_num) { bool ok; long double v = parse_ld(raw_num, &ok); return ok && v >= 0.0L && v <= U32_MAX_LD && is_integer_literal(raw_num); }
-bool is_u64(const char *raw_num) { bool ok; long double v = parse_ld(raw_num, &ok); return ok && v >= 0.0L && v <= U64_MAX_LD && is_integer_literal(raw_num); }
-bool is_u128(const char *raw_num){ return is_integer_literal(raw_num) && fits_unsigned_128(raw_num); }
+bool is_u8(const char *raw_num)  { bool ok; long double v = parse_ld(raw_num, &ok); return ok && v >= 0.0L && v <= U8_MAX_LD  && isInt_literal(raw_num); }
+bool is_u16(const char *raw_num) { bool ok; long double v = parse_ld(raw_num, &ok); return ok && v >= 0.0L && v <= U16_MAX_LD && isInt_literal(raw_num); }
+bool is_u32(const char *raw_num) { bool ok; long double v = parse_ld(raw_num, &ok); return ok && v >= 0.0L && v <= U32_MAX_LD && isInt_literal(raw_num); }
+bool is_u64(const char *raw_num) { bool ok; long double v = parse_ld(raw_num, &ok); return ok && v >= 0.0L && v <= U64_MAX_LD && isInt_literal(raw_num); }
+bool is_u128(const char *raw_num){ return isInt_literal(raw_num) && fits_unsigned_128(raw_num); }
 
 static bool is_float_literal(const char *s) {
     if (!s) return false;

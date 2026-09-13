@@ -11,8 +11,6 @@
 
 std::vector<std::string> ir_out;
 
-using namespace llvm;
-using namespace SA;
 /* ===================== TARGET SETUP ===================== */
 
 static TargetMachine *setup_target(Module &mod) {
@@ -41,8 +39,8 @@ static TargetMachine *setup_target(Module &mod) {
   return tm;
 }
 
-void pre_declare_all_user_functions(HIRNode *n, llvm::Module &mod,
-                                    llvm::LLVMContext &ctx) {
+void pre_declare_all_user_functions(HIRNode *n, Module &mod,
+                                    LLVMContext &ctx) {
   if (!n || !n->block_stmts)
     return;
 
@@ -81,7 +79,7 @@ static void emit_functions(HIRNode *root, Module &mod, LLVMContext &ctx) {
 }
 
 static Function *emit_init(HIRNode *root, Module &mod, LLVMContext &ctx) {
-  FunctionType *ft = FunctionType::get(Type::getVoidTy(ctx), false);
+  FunctionType *ft = FunctionType::get(llvm::Type::getVoidTy(ctx), false);
   Function *initFn =
       Function::Create(ft, Function::InternalLinkage, "init", mod);
 
@@ -121,7 +119,7 @@ static bool emit_entry(Module &mod, LLVMContext &ctx, Function *initFn) {
     return false;
   }
 
-  FunctionType *ft = FunctionType::get(Type::getVoidTy(ctx), false);
+  FunctionType *ft = FunctionType::get(llvm::Type::getVoidTy(ctx), false);
   Function *entry =
       Function::Create(ft, Function::ExternalLinkage, "entrypoint", mod);
 
@@ -132,16 +130,16 @@ static bool emit_entry(Module &mod, LLVMContext &ctx, Function *initFn) {
 
   Function *exitFn = mod.getFunction("exit");
   if (!exitFn) {
-    FunctionType *ft = FunctionType::get(Type::getVoidTy(ctx),    // return void
-                                         {Type::getInt32Ty(ctx)}, // takes int
-                                         false);
+    FunctionType *ft = FunctionType::get(llvm::Type::getVoidTy(ctx),    // return void
+                                                    {llvm::Type::getInt32Ty(ctx)}, // takes int
+                                                    false);
 
     exitFn = Function::Create(ft, Function::ExternalLinkage, "exit", mod);
   }
 
-  Value *ret = b.CreateCall(userMain);
+  llvm::Value *ret = b.CreateCall(userMain);
 
-  Value *exitCode = userMain->getReturnType()->isVoidTy()
+  llvm::Value *exitCode = userMain->getReturnType()->isVoidTy()
                         ? b.getInt32(0)
                         : b.CreateIntCast(ret, b.getInt32Ty(), true);
 

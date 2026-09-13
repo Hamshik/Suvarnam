@@ -5,27 +5,27 @@
 #include <stdio.h>
 
 extern file_t* file;
-ASTNode_t *root = NULL; // This is the single correct place for the definition
+ASTNode *root = NULL; // This is the single correct place for the definition
 static int g_returning = 0;
 static TypedValue g_return_value = (TypedValue){0};
 
-TypedValue ast_eval_main(ASTNode_t *root) {
+TypedValue ast_eval_main(ASTNode *root) {
   SA_runtime_fn_clear();
   /* first pass: register all function definitions */
   if (root)
     ast_eval(root); /* ast_eval registers functions on AST_FN */
-  ASTNode_t *main_fn = SA_runtime_fn_lookup("main");
+  ASTNode *main_fn = SA_runtime_fn_lookup("main");
   if (!main_fn) {
     panic( (SA_Location){1, 1, 0, 0, 0, 0}, SEM_CALL_UNDEF_FN, "main");
     return (TypedValue){0};
   }
-  ASTNode_t *call = new_fn_call("main", NULL, (SA_Location){0});
+  ASTNode *call = new_fn_call("main", NULL, (SA_Location){0});
   TypedValue ret = ast_eval(call);
   ast_free(call);
   return ret;
 }
 
-static void fn_register_runtime(ASTNode_t *fn) {
+static void fn_register_runtime(ASTNode *fn) {
   if (!fn || fn->kind != AST_FN)
     return;
   if (!SA_runtime_fn_register(fn)) {
@@ -33,7 +33,7 @@ static void fn_register_runtime(ASTNode_t *fn) {
   }
 }
 
-TypedValue ast_eval(ASTNode_t *node) {
+TypedValue ast_eval(ASTNode *node) {
   if (!node)
     return (TypedValue){0};
   TypedValue v = {0};
@@ -58,7 +58,7 @@ TypedValue ast_eval(ASTNode_t *node) {
     // If the node type is UNKNOWN, we should try to determine the type
     // from the environment lookup rather than just trusting node->type.
     v.type = (node->type && node->type->base != UNKNOWN) ? node->type
-                                                         : make_type(I32, NULL);
+                                                         : new TypeInfo(I32, NULL);
     return v;
   case AST_BINOP:
     return eval_binop(node, v);
@@ -156,7 +156,7 @@ TypedValue ast_eval(ASTNode_t *node) {
     TypedValue *elements = calloc(node->list.count, sizeof(TypedValue));
 
     // Eagerly evaluate every element now
-    ASTNode_t *curr = node->list.elements;
+    ASTNode *curr = node->list.elements;
     for (int i = 0; i < node->list.count && curr; i++) {
       if (curr->kind == AST_SEQ) {
         elements[i] = ast_eval(curr->seq.a);

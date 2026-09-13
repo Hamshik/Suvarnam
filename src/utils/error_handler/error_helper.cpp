@@ -8,7 +8,6 @@
 #include "frontend/lexer/keywords.h"
 #include "utils/colors.h"
 
-extern "C"{
 static bool is_ident_start(unsigned char c)
 {
     return c == '_' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
@@ -150,5 +149,4 @@ void SA_print_highlighted_source_line(const char *line, size_t len)
         while (i < len && is_ident_continue((unsigned char)line[i])) i++;
         print_identifier_or_call(line, start, i, len);
     }
-}
 }

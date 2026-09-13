@@ -1,9 +1,5 @@
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <stdio.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -28,7 +24,3 @@ void panic(SA_Location, errc_t, const char *);
 void warn(SA_Location, warnc_t, const char *);
 void syserr(const char *);
 void syswarn(const char *);
-
-#ifdef __cplusplus
-}
-#endif

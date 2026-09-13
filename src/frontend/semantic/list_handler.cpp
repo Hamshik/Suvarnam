@@ -6,16 +6,16 @@
 #include <cstddef>
 #include <cstdlib>
 
-static bool is_float(ASTNode_t *n) {
+static bool is_float(ASTNode *n) {
   if (!n) return false;
   if (n->kind == AST_NUM && strchr(n->literal.raw, '.') != NULL) return true;
   if (n->type && (n->type->base == F32 || n->type->base == F64 || n->type->base == F128)) return true;
   return false;
 }
 
-static bool types_match(Type_t *lhs, Type_t *rhs) {
-  Type_t *l = lhs;
-  Type_t *r = rhs;
+static bool typesMatch(TypeInfo *lhs, TypeInfo *rhs) {
+  TypeInfo *l = lhs;
+  TypeInfo *r = rhs;
 
   while (l != nullptr && r != nullptr) {
     // 1. If base types differ (e.g., LIST vs I32) or are both numeric but different, they don't match
@@ -40,36 +40,36 @@ static bool types_match(Type_t *lhs, Type_t *rhs) {
   return l == r;
 }
 
-extern "C" Type_t *list_handle(ASTNode_t *n, Type_t *target_type) {
+TypeInfo *Semantic::listHandle(ASTNode *n, TypeInfo *target_type) {
   // 1. Guard: Ensure we are actually looking for a list
   if (!target_type || target_type->base == UNKNOWN) {
-    target_type = make_type(LIST, nullptr);
+    target_type = new TypeInfo(LIST, nullptr);
   } else if (target_type->base != LIST) {
      return nullptr;
   }
 
-  ASTNode_t *curr = n->list.elements;
-  Type_t *expected_inner = target_type->inner;
+  ASTNode *curr = n->list.elements;
+  TypeInfo *expected_inner = target_type->inner;
   size_t actual_count = 0;
 
   // 2. Iterate through the elements (AST_SEQ is a linked list)
   while (curr) {
     // Extract the actual element from the sequence node
-    ASTNode_t *element = (curr->kind == AST_SEQ) ? curr->seq.a : curr;
+    ASTNode *element = (curr->kind == AST_SEQ) ? curr->seq.a : curr;
 
     // Validate the element against the inner type
-    // If element is a list, check_expr calls list_handle (AST recursion)
-    // If element is an i32, check_expr handles it directly.
+    // If element is a list, checkExpr calls list_handle (AST recursion)
+    // If element is an i32, checkExpr handles it directly.
     if (!expected_inner) {
         // Auto-inference: use the first element to define the list's inner type
-        expected_inner = check_expr(element);
+        expected_inner = checkExpr(element);
         target_type->inner = expected_inner;
     }
 
-    Type_t *actual_element_type = check_expr(element, expected_inner);
+    TypeInfo *actual_element_type = checkExpr(element, expected_inner);
 
     // Use the iterative type matcher to ensure types align
-    if (!types_match(expected_inner, actual_element_type)) {
+    if (!typesMatch(expected_inner, actual_element_type)) {
       panic( element->loc, SEM_ASSIGN_TYPE_MISMATCH,
             "List element type mismatch");
       return nullptr;
@@ -111,10 +111,10 @@ extern "C" Type_t *list_handle(ASTNode_t *n, Type_t *target_type) {
   return target_type;
 }
 
-extern "C" Type_t *semantic_index_handle(ASTNode_t *n) {
+TypeInfo *Semantic::semanticIndexHandle(ASTNode *n) {
   // 1. Check the TARGET
   // We pass UNKNOWN because we don't know the required type yet
-  Type_t *target_base = check_expr(n->index.target);
+  TypeInfo *target_base = checkExpr(n->index.target);
   if (!target_base)
     return nullptr;
 
@@ -130,7 +130,7 @@ extern "C" Type_t *semantic_index_handle(ASTNode_t *n) {
 
   while (current_idx != NULL && target_base != NULL) {
     // 1. Get the expression node for this specific dimension
-    ASTNode_t *expr = current_idx->expr_node;
+    ASTNode *expr = current_idx->expr_node;
 
     if (!expr) {
       // This is where you were seeing NULL because you were
@@ -142,9 +142,9 @@ extern "C" Type_t *semantic_index_handle(ASTNode_t *n) {
     // We MUST NOT pass the list's inner type here, as indices are always integers.
     // If it's a literal number with no type yet, default it to I32.
     if (expr->kind == AST_NUM && (!expr->type || expr->type->base == UNKNOWN)) {
-        expr->type = make_type(I32, nullptr);
+        expr->type = new TypeInfo(I32, nullptr);
     }
-    Type_t *idx_type = check_expr(expr);
+    TypeInfo *idx_type = checkExpr(expr);
 
     if (!idx_type || (idx_type->base != I32 && idx_type->base != I64)) {
       panic( expr->loc, SEM_INDEX_NOT_INT, NULL);
@@ -152,7 +152,7 @@ extern "C" Type_t *semantic_index_handle(ASTNode_t *n) {
 
     // 3. Move to the next dimension in the linked list
     current_idx = current_idx->next;
-    target_base = target_base->inner ? target_base->inner : make_type(CHARACTER, nullptr);
+    target_base = target_base->inner ? target_base->inner : new TypeInfo(CHARACTER, nullptr);
   }
 
   // 3. Resolve the element type
@@ -163,7 +163,7 @@ extern "C" Type_t *semantic_index_handle(ASTNode_t *n) {
   return n->type;
 }
 
-bool islist(ASTNode_t *target) {
+bool Semantic::isList(ASTNode *target) {
   if (!target)
     return false;
   if (target->kind == AST_INDEX)
@@ -172,14 +172,14 @@ bool islist(ASTNode_t *target) {
     return false;
 
   SemanticSymbolRecord *symbol =
-      SA::semantic_symbol_table::semantic_find_symbol(target->var);
+      sym->semantic_find_symbol(target->var);
   if (!symbol)
     return false;
 
   return symbol->type && symbol->type->base == LIST;
 }
 
-Type_t* get_AST_ret(Type_t *t, size_t depth){
+TypeInfo* get_AST_ret(TypeInfo *t, size_t depth){
   if(!t) return nullptr;
 
   if(depth > 0)
@@ -191,23 +191,22 @@ Type_t* get_AST_ret(Type_t *t, size_t depth){
 
 }
 
-void handle_idx_assign(ASTNode_t *&n, ASTNode_t *&lhs, Type_t *&final_type) {
+void Semantic::idxAssign(ASTNode *&n, ASTNode *&lhs, TypeInfo *&final_type) {
   if (!lhs || lhs->kind != AST_INDEX) return;
 
   // 1. Resolve the base type of the object being indexed
   // We pass final_type here in case the target itself needs inference
-  Type_t *current_type = check_expr(lhs->index.target, final_type);
-  Type_t* want = get_AST_ret(current_type, lhs->index.idx->depth);
+  TypeInfo *current_type = checkExpr(lhs->index.target, final_type);
 
   // 2. Mutability Check
-  ASTNode_t *base = lhs->index.target;
+  ASTNode *base = lhs->index.target;
   while (base->kind == AST_INDEX) base = base->index.target;
 
   if (base->kind == AST_VAR) {
     // Ensure we check the specific identifier (preserving @ for globals)
     // to avoid accidental shadowing by immutable locals of the same name.
-    base->ismut = n->isglobal ? SA::semantic_symbol_table::semantic_find_global_symbol(base->var)->is_mutable
-        : SA_semantic_is_mutable(base->var);
+    base->ismut = n->isglobal ? sym->semantic_find_global_symbol(base->var)->is_mutable
+        : sym->is_mutable(base->var);
     if (!base->ismut) {
       panic(n->loc, SEM_ASSIGN_IMMUTABLE, base->var);
     }
@@ -225,10 +224,10 @@ void handle_idx_assign(ASTNode_t *&n, ASTNode_t *&lhs, Type_t *&final_type) {
     // IMPORTANT: The index MUST be an integer. 
     // Ensure numeric literals used as indices default to I32.
     if (curr_idx->expr_node->kind == AST_NUM && (!curr_idx->expr_node->type || curr_idx->expr_node->type->base == UNKNOWN))
-        curr_idx->expr_node->type = make_type(I32, nullptr);
-    Type_t *itype = check_expr(curr_idx->expr_node); 
+        curr_idx->expr_node->type = new TypeInfo(I32, nullptr);
+    TypeInfo *itype = checkExpr(curr_idx->expr_node); 
 
-    if (!itype || !is_numeric(itype->base) || is_float(curr_idx->expr_node)) {
+    if (!itype || !Semantic::isNumeric(itype->base) || is_float(curr_idx->expr_node)) {
       panic( curr_idx->expr_node->loc, SEM_INDEX_NOT_INT, NULL);
       break;
     }

@@ -54,8 +54,8 @@
 #include <math.h>
 #include "SymbolTable/SymbolTable.hpp"
 
-TypedValue ast_eval(ASTNode_t *);
-TypedValue ast_eval_main(ASTNode_t *);
+TypedValue ast_eval(ASTNode *);
+TypedValue ast_eval_main(ASTNode *);
 
 char *do_operation_str(const char *, const char *, OP_kind_t);
 SA_Value eval_bool(OP_kind_t, DataTypes_t, SA_Value, SA_Value);
@@ -74,7 +74,7 @@ SA_Value add_step_for(DataTypes_t, SA_Value, SA_Value);
 
 /* Numeric helpers (runtime) */
 DataTypes_t SA_promote_runtime(DataTypes_t a, DataTypes_t b);
-TypedValue SA_cast_typed(TypedValue v, Type_t* target);
+TypedValue SA_cast_typed(TypedValue v, TypeInfo* target);
 
 SA_Value SA_eval_binop_numeric(OP_kind_t op, DataTypes_t type, SA_Value a, SA_Value b);
 unsigned __int128  SA_parse_u128(const char *s, int *ok);
@@ -98,23 +98,23 @@ unsigned __int128 SA_as_u128( SA_Value v, DataTypes_t t);
 long double SA_as_f128( SA_Value v, DataTypes_t t);
 SA_Value SA_from_f128(long double x, DataTypes_t t);
 
-TypedValue eval_binop(ASTNode_t *node, TypedValue v);
-TypedValue eval_unop(ASTNode_t *node);
-TypedValue handle_num(ASTNode_t *node, TypedValue v);
+TypedValue eval_binop(ASTNode *node, TypedValue v);
+TypedValue eval_unop(ASTNode *node);
+TypedValue handle_num(ASTNode *node, TypedValue v);
 
-TypedValue SA_cast_typed(TypedValue v, Type_t* target);
+TypedValue SA_cast_typed(TypedValue v, TypeInfo* target);
 
-TypedValue eval_call(ASTNode_t *node, bool g_returning, TypedValue g_return_value);
-TypedValue eval_for(ASTNode_t *node, bool g_returning, TypedValue g_return_value);
+TypedValue eval_call(ASTNode *node, bool g_returning, TypedValue g_return_value);
+TypedValue eval_for(ASTNode *node, bool g_returning, TypedValue g_return_value);
 
 /*------------- external function declaration --------------------*/
 void panic(SA_Location loc, errc_t code, const char *detail);
-Type_t* make_type(DataTypes_t base, Type_t* inner);
+TypeInfo* make_type(DataTypes_t base, TypeInfo* inner);
 
 /*for eval.c*/
-ASTNode_t* new_fn_call(const char *name, ASTNode_t *args, SA_Location loc);
-void ast_free(ASTNode_t *n);
-SA_Value eval_assign(ASTNode_t *lhs, ASTNode_t *rhs, OP_kind_t op, Type_t* type , SA_Location loc);
+ASTNode* new_fn_call(const char *name, ASTNode *args, SA_Location loc);
+void ast_free(ASTNode *n);
+SA_Value eval_assign(ASTNode *lhs, ASTNode *rhs, OP_kind_t op, TypeInfo* type , SA_Location loc);
 void set_var_current(const char *name, SA_Value *val, DataTypes_t datatype);
 
 /*for fn_handler.c*/

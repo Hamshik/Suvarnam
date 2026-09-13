@@ -4,7 +4,7 @@
 typedef struct ASTNode {
     ASTKind_t kind;
 
-    Type_t* type;
+    TypeInfo* type;
     bool isglobal;
     bool is_variadic;
     
@@ -70,4 +70,4 @@ typedef struct ASTNode {
             bool islhs;
         } index;
     };
-} ASTNode_t;
+} ASTNode;

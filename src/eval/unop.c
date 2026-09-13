@@ -2,7 +2,7 @@
 #include "eval/eval.h"
 #include "shared/enums.h"
 
-TypedValue eval_unop(ASTNode_t *node) {
+TypedValue eval_unop(ASTNode *node) {
   if (node->unop.op == OP_ADDR) {
     if (!node->unop.operand || node->unop.operand->kind != AST_VAR) {
       panic( node->loc, RT_UNKNOWN_AST,
