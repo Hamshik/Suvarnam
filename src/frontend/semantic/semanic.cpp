@@ -24,10 +24,10 @@ void Semantic::main(ASTNode *root) {
   BuiltinRegistry::instance().bootstrap();
   globalVarAllowed = true;
   regGlobalVarAndFn(root);
-  sym->scope_push();
+  ctx->sym->push();
 
   checkExpr(root);
-  sym->scope_pop();
+  ctx->sym->pop();
   --checkDepth;
 }
 
@@ -57,9 +57,9 @@ TypeInfo *Semantic::checkExpr(ASTNode *n, TypeInfo *&type) {
 
   case AST_VAR: {
     if (n->type->base == UNKNOWN)
-      n->type = sym->lookup(n->var);
+      n->type = ctx->sym->lookup(n->var);
 
-    exitcode_t exit_code = sym->exists(n);
+    exitcode_t exit_code = ctx->sym->exists(n);
 
     switch (exit_code) {
     case NOT_DECLARED:

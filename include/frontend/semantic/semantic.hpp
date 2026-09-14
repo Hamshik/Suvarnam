@@ -75,19 +75,9 @@ public:
     return checkExpr(n, dummy);
   }
 
-  Semantic(SemanticSymTable *sym, Importer *importer)
-      : sym(sym), importer(importer) {}
+  Semantic(Importer* importer)
+      : ctx(importer->getCtx()), importer(importer) {}
 
-  Semantic() : sym(new SemanticSymTable()), importer(new Importer(sym)) {}
-
-  SemanticSymTable* sym;
+  CompilerContext* ctx;
   Importer* importer;
-};
-
-struct CompilerContext {
-  SemanticSymTable* symbols = new SemanticSymTable;
-  Importer* importer = nullptr;
-  Semantic* semantic = nullptr;
-
-  CompilerContext() : importer(new Importer(symbols)), semantic(new Semantic(symbols, importer)) {}
 };

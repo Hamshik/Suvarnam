@@ -28,7 +28,7 @@ ResolvedSig Semantic::getCallSig(const char* name) {
   if (!name) return sig;
   
   // 1. Check the Symbol Table (includes both User functions and SA_lib prototypes)
-  if (FnSymbol_t *f = sym->fn_lookup(name)) {
+  if (FnSymbol *f = ctx->sym->fnFind(name)) {
     sig.ret = f->ret;
     sig.param_count = f->param_count;
     sig.exists = true;
@@ -50,7 +50,7 @@ void Semantic::updateRetTy(const char *fn_name, TypeInfo *rt) {
   if (!fn_name || !rt)
     return;
 
-  FnSymbol_t *fn = sym->fn_lookup(fn_name);
+  FnSymbol *fn = ctx->sym->fnFind(fn_name);
   if (!fn)
     return;
 
@@ -66,11 +66,11 @@ TypeInfo* Semantic::fn(ASTNode *n) {
   
   fn_name = n->fn_def.name;
 
-  sym->scope_push();
+  ctx->sym->push();
   for (int i = 0; i < n->fn_def.param_count; i++) {
     if (!n->fn_def.params[i].type) n->fn_def.params[i].type = new TypeInfo(UNKNOWN, NULL);
     
-    if (!sym->declare(n->fn_def.params[i].name, &n->isglobal,
+    if (!ctx->sym->declare(n->fn_def.params[i].name, &n->isglobal,
        n->fn_def.params[i].type, nullptr, true))
       panic( n->loc, SEM_DUP_PARAM,
             n->fn_def.params[i].name);
@@ -102,7 +102,7 @@ TypeInfo* Semantic::fn(ASTNode *n) {
   currFnRet = saved_current_fn_ret_type;
   isInFn = saved_in_fn;
 
-  sym->scope_pop();
+  ctx->sym->pop();
   return nullptr;
 }
 
@@ -138,7 +138,7 @@ TypeInfo* Semantic::call(ASTNode *n) {
       it = NULL;
   }
 
-  FnSymbol_t *f = sym->fn_lookup(n->call.name);
+  FnSymbol *f = ctx->sym->fnFind(n->call.name);
   BuiltinFunction* b = BuiltinRegistry::instance().lookup(n->call.name);
 
   bool is_variadic_builtin = false;

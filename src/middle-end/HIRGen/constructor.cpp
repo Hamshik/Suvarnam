@@ -16,7 +16,7 @@ HIRNode *HIRGenerator::create_literal(SA_Value value, TypeInfo *type) {
   }
 
   HIRNode *node = new HIRNode(
-      semantic && semantic->isNumeric(base) ? ASTKind::AST_NUM :
+      ctx->semantic->isNumeric(base) ? ASTKind::AST_NUM :
       base == STRINGS ? ASTKind::AST_STR :
       base == CHARACTER ? ASTKind::AST_CHAR :
       base == BOOL ? ASTKind::AST_BOOL :
@@ -133,7 +133,7 @@ HIRNode *HIRGenerator::create_block(std::vector<HIRNode *> *statements) {
 // Helper: Lower a function definition/declaration
 HIRNode *HIRGenerator::create_fn_definition(ASTNode *node) {
   if (strcmp(node->fn_def.name, "main") == 0 &&
-      (!node->type || !semantic->isNumeric(node->type->base))) {
+      (!node->type || !ctx->semantic->isNumeric(node->type->base))) {
     panic(node->loc, SEM_RETURN_TYPE_MISMATCH,
           "main requires return stmt or mumeric return datatype");
   }

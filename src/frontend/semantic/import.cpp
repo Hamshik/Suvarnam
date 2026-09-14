@@ -1,17 +1,23 @@
 #include "semantic/import.hpp"
-#include "Parser.h"
-#include "Scanner.h"
 #include "SymbolTable/SymbolTable.hpp"
+#include "SymbolTable/SymbolTableInternal.hpp"
 #include "semantic/semantic.hpp"
 #include "shared/nodes.h"
 #include "shared/structs.h"
 #include "utils/error_handler/error.h"
-#include "SymbolTable/SymbolTableInternal.hpp"
+#include "Parser.h"
 
+Importer::Importer(FILE *source, CompilerContext *context)
+    : ctx(context), f(source) {
+  if (!ctx) {
+    content.reset(getFileContent(f));
+    ctx = new CompilerContext(this, *content);
+  } else
+    isFreshCtx = false;
+}
 
-std::optional<fs::path>
-Importer::resolve(const std::string &import_path,
-                        const fs::path &current_file_path) {
+std::optional<fs::path> Importer::resolve(const std::string &import_path,
+                                          const fs::path &current_file_path) {
   fs::path target(import_path);
 
   // 1. Absolute Path: If the import path is already absolute, canonicalize it
@@ -45,45 +51,39 @@ Importer::resolve(const std::string &import_path,
 extern ASTNode *root;
 static bool import_parse_failed = false;
 
-int Importer::restart(FILE *f, ASTNode* old_root) {
-    long saved_pos = ftell(f);
-    if (saved_pos < 0) saved_pos = 0;
-    rewind(f);
+std::istringstream *Importer::getFileContent(FILE *f) {
+  long saved_pos = ftell(f);
+  if (saved_pos < 0)
+    saved_pos = 0;
+  rewind(f);
 
-    std::string source;
-    char buffer[4096];
-    while (size_t nread = fread(buffer, 1, sizeof(buffer), f)) {
-        source.append(buffer, nread);
-    }
+  std::string source;
+  char buffer[4096];
+  while (size_t nread = fread(buffer, 1, sizeof(buffer), f)) {
+    source.append(buffer, nread);
+  }
 
-    if (ferror(f)) {
-        root = old_root;
-        if (saved_pos >= 0) fseek(f, saved_pos, SEEK_SET);
-        return -1;
-    }
+  if (ferror(f)) {
+    syserr("Fail to read the file");
+  }
 
-    if (saved_pos >= 0) fseek(f, saved_pos, SEEK_SET);
+  if (saved_pos >= 0)
+    fseek(f, saved_pos, SEEK_SET);
 
-    // Pass stream directly to Scanner instead of messing with std::cin
-    std::istringstream input(source);
-    Scanner scanner(input);
-    Parser parser(scanner);
-
-    return parser.parse();
+  std::istringstream *content = new std::istringstream(source);
+  return content;
 }
 
-ASTNode *Importer::parseFile(FILE *f) {
+ASTNode *Importer::parseFile() {
   if (!f)
     return nullptr;
 
   ASTNode *old_root = root; // save current AST
-  root = nullptr;             // reset for new parse
+  root = nullptr;           // reset for new parse
 
-  int parse_status = restart(f, old_root);
-
-  if (parse_status == 0 || !isError) {
+  if (ctx->parser->parse() == 0 || !isError) {
     ASTNode *new_root = root; // get parsed AST
-    root = old_root;            // restore old AST
+    root = old_root;          // restore old AST
     return new_root;
   }
 
@@ -91,24 +91,24 @@ ASTNode *Importer::parseFile(FILE *f) {
   return nullptr;
 }
 
-void Importer::ensureSemantic(ASTModule_t *m) {
+void Importer::ensureSemantic(ASTMod *m) {
   if (!m || m->semantic_done)
     return;
 
   m->semantic_done = true;
 }
 
-TypeInfo* Importer::handleImport(ASTNode *n) {
+TypeInfo *Importer::handleImport(ASTNode *n) {
   char *path = n->importNode.path;
   bool already_imported = false;
-  ASTModule_t *mod = sym->load_module(path, file->filename, this, already_imported);
+  ASTMod *mod = ctx->sym->loadMod(path, file->filename, already_imported);
   if (!mod) {
     panic(n->loc, SEM_IMPORT_FILE_NOT_FOUND, path);
     import_parse_failed = true;
     return nullptr;
   }
 
-  n->importNode.path = mod->path; // path is already resloved in load_module fn
+  n->importNode.path = mod->path; // path is already resloved in loadMod fn
 
   if (!mod->parsed) {
     import_parse_failed = true;

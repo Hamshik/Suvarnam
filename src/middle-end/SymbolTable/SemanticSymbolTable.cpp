@@ -14,7 +14,7 @@
 #include <filesystem>
 #include <memory>
 
-extern std::vector<char*> I_src;
+extern std::vector<char *> I_src;
 
 namespace {
 
@@ -25,15 +25,15 @@ void die_allocation(const char *what) {
 
 } // namespace
 
-SemanticScopeRecord *SemanticSymTable::scope_top() {
+SemanticScopeRecord *SemanticSymTable::top() {
   if (!scope_) {
     scope_ = new SemanticScopeRecord();
   }
   return scope_;
 }
 
-SemanticSymbolRecord *SemanticSymTable::semantic_find_global_symbol(const char *name) {
-  SemanticScopeRecord *global_scope = scope_top();
+SemanticSymbolRecord *SemanticSymTable::getTopScope(const char *name) {
+  SemanticScopeRecord *global_scope = top();
 
   while (global_scope && global_scope->parent != nullptr) {
     global_scope = global_scope->parent;
@@ -49,8 +49,8 @@ SemanticSymbolRecord *SemanticSymTable::semantic_find_global_symbol(const char *
   return nullptr;
 }
 
-SemanticSymbolRecord *SemanticSymTable::semantic_find_symbol(const char *name) {
-  for (SemanticScopeRecord *it = scope_top(); it; it = it->parent) {
+SemanticSymbolRecord *SemanticSymTable::findSym(const char *name) {
+  for (SemanticScopeRecord *it = top(); it; it = it->parent) {
     auto found = it->symbols.find(name);
     if (found != it->symbols.end()) {
       return &found->second;
@@ -60,12 +60,12 @@ SemanticSymbolRecord *SemanticSymTable::semantic_find_symbol(const char *name) {
 }
 
 TypeInfo *SemanticSymTable::lookup(const char *name) {
-  SemanticSymbolRecord *symbol = semantic_find_symbol(name);
+  SemanticSymbolRecord *symbol = findSym(name);
   return symbol ? symbol->type : nullptr;
 }
 
-SemanticScopeRecord *SemanticSymTable::get_global_scope() {
-  SemanticScopeRecord *scope = scope_top();
+SemanticScopeRecord *SemanticSymTable::getGlobScope() {
+  SemanticScopeRecord *scope = top();
   while (scope && scope->parent != nullptr) {
     scope = scope->parent;
   }
@@ -73,8 +73,8 @@ SemanticScopeRecord *SemanticSymTable::get_global_scope() {
 }
 
 bool SemanticSymTable::declare(const char *name, bool *isglobal, TypeInfo *type,
-                              ASTNode *node, bool is_mutable) {
-  SemanticScopeRecord *scope = *isglobal ? get_global_scope() : scope_top();
+                               ASTNode *node, bool is_mutable) {
+  SemanticScopeRecord *scope = *isglobal ? getGlobScope() : top();
   auto [it, inserted] = scope->symbols.try_emplace(name);
 
   if (!inserted) {
@@ -94,7 +94,7 @@ exitcode_t SemanticSymTable::exists(ASTNode *n) {
   if (n->kind != AST_VAR)
     return NOT_DECLARED;
 
-  SemanticSymbolRecord *symbol = semantic_find_symbol(n->var);
+  SemanticSymbolRecord *symbol = findSym(n->var);
   if (!symbol) {
     return NOT_DECLARED;
   }
@@ -102,9 +102,8 @@ exitcode_t SemanticSymTable::exists(ASTNode *n) {
   if (symbol->node_ptr->isglobal != n->isglobal)
     return NOT_DEC_AT_GLOB_SCOPE;
 
-  if (symbol->type != n->type &&
-      !(Semantic::isNumeric(symbol->type->base) &&
-        Semantic::isNumeric(n->type->base))) {
+  if (symbol->type != n->type && !(Semantic::isNumeric(symbol->type->base) &&
+                                   Semantic::isNumeric(n->type->base))) {
     return TYPE_MISMATCH;
   }
 
@@ -117,17 +116,17 @@ exitcode_t SemanticSymTable::exists(ASTNode *n) {
   return SUCCESS;
 }
 
-exitcode_t SemanticSymTable::assign_check(const char *name, bool isglobal,
-                                          DataTypes_t rhs_type,
-                                          DataTypes_t rhs_sub_type) {
-  SemanticSymbolRecord *symbol =
-      isglobal ? semantic_find_global_symbol(name) : semantic_find_symbol(name);
+exitcode_t SemanticSymTable::assignCheck(const char *name, bool isglobal,
+                                         DataTypes_t rhs_type,
+                                         DataTypes_t rhs_sub_type) {
+  SemanticSymbolRecord *symbol = isglobal ? getTopScope(name) : findSym(name);
   if (!symbol) {
     return NOT_DECLARED;
   }
 
   if (rhs_type != UNKNOWN && symbol->type->base != rhs_type &&
-      !Semantic::isNumeric(rhs_type) && !Semantic::isNumeric(symbol->type->base))
+      !Semantic::isNumeric(rhs_type) &&
+      !Semantic::isNumeric(symbol->type->base))
     return TYPE_MISMATCH;
 
   if (rhs_type == PTR && (symbol->type->base != rhs_sub_type))
@@ -139,37 +138,37 @@ exitcode_t SemanticSymTable::assign_check(const char *name, bool isglobal,
   return SUCCESS;
 }
 
-bool SemanticSymTable::is_mutable(const char *name) {
-  SemanticSymbolRecord *symbol = semantic_find_symbol(name);
+bool SemanticSymTable::isMut(const char *name) {
+  SemanticSymbolRecord *symbol = findSym(name);
   return symbol ? symbol->is_mutable : false;
 }
 
-void SemanticSymTable::scope_push() {
+void SemanticSymTable::push() {
   auto *scope = new SemanticScopeRecord();
-  scope->parent = scope_top();
+  scope->parent = top();
   scope_ = scope;
 }
 
-void SemanticSymTable::scope_pop() {
-  SemanticScopeRecord *top = scope_top();
-  if (!top->parent) {
-    top->symbols.clear();
+void SemanticSymTable::pop() {
+  SemanticScopeRecord *t = top();
+  if (!t->parent) {
+    t->symbols.clear();
     return;
   }
 
-  scope_ = top->parent;
-  delete top;
+  scope_ = t->parent;
+  delete t;
 }
 
-void SemanticSymTable::clear_symbols() { scope_top()->symbols.clear(); }
+void SemanticSymTable::clearSym() { top()->symbols.clear(); }
 
-bool SemanticSymTable::fn_declare(ASTNode *node_ptr) {
+bool SemanticSymTable::fnDeclare(ASTNode *node_ptr) {
   char *name = node_ptr->fn_def.name;
-  if (functions_.find(name) != functions_.end()) {
+  if (fns.find(name) != fns.end()) {
     return false;
   }
 
-  std::unique_ptr<FnSymbol_t> fn(new (std::nothrow) FnSymbol_t{});
+  std::unique_ptr<FnSymbol> fn(new (std::nothrow) FnSymbol{});
   if (!fn) {
     die_allocation("new");
   }
@@ -184,24 +183,24 @@ bool SemanticSymTable::fn_declare(ASTNode *node_ptr) {
   fn->isReturned = false;
   fn->node_ptr = node_ptr;
 
-  functions_.emplace(name, std::move(fn));
+  fns.emplace(name, std::move(fn));
   return true;
 }
 
-FnSymbol_t *SemanticSymTable::fn_lookup(const char *name) {
-  auto found = functions_.find(name);
-  return found == functions_.end() ? nullptr : found->second.get();
+FnSymbol *SemanticSymTable::fnFind(const char *name) {
+  auto found = fns.find(name);
+  return found == fns.end() ? nullptr : found->second.get();
 }
 
-void SemanticSymTable::clear_fns() {
-  for (auto &entry : functions_) {
+void SemanticSymTable::clearFns() {
+  for (auto &entry : fns) {
     free((void *)entry.second->name);
   }
-  functions_.clear();
+  fns.clear();
 }
 
-DataTypes_t SemanticSymTable::update_datatype(const char *name, DataTypes_t want) {
-  SemanticSymbolRecord *symbol = semantic_find_symbol(name);
+DataTypes_t SemanticSymTable::updateType(const char *name, DataTypes_t want) {
+  SemanticSymbolRecord *symbol = findSym(name);
   if (!symbol) {
     return UNKNOWN;
   }
@@ -210,15 +209,14 @@ DataTypes_t SemanticSymTable::update_datatype(const char *name, DataTypes_t want
   return symbol->type->base;
 }
 
-ASTModule_t *SemanticSymTable::get_module(const char *path) {
-  auto found = modules_.find(path);
-  return found == modules_.end() ? nullptr : found->second.get();
+ASTMod *SemanticSymTable::getMod(const char *path) {
+  auto found = mod.find(path);
+  return found == mod.end() ? nullptr : found->second.get();
 }
 
-ASTModule_t *SemanticSymTable::load_module(char *requested_path,
-                                          const char *importer_file_path,
-                                          Importer *g_resolver,
-                                          bool &already_imported) {
+ASTMod *SemanticSymTable::loadMod(char *requested_path,
+                                  const char *importer_file_path,
+                                  bool &already_imported) {
   already_imported = false;
   std::vector<fs::path> *import_vec = new std::vector<fs::path>{
       fs::path(requested_path), fs::path(importer_file_path)};
@@ -230,11 +228,11 @@ ASTModule_t *SemanticSymTable::load_module(char *requested_path,
   fs::path parent_path =
       importer_file_path ? fs::path(importer_file_path) : fs::current_path();
 
-  auto resolved_opt = g_resolver->resolve(requested_path, parent_path);
+  auto resolved_opt = importer->resolve(requested_path, parent_path);
   if (!resolved_opt &&
       std::string(requested_path).substr(strlen(requested_path) - 2) != ".sa") {
     resolved_opt =
-        g_resolver->resolve(std::string(requested_path) + ".sa", parent_path);
+        importer->resolve(std::string(requested_path) + ".sa", parent_path);
   }
 
   if (!resolved_opt) {
@@ -244,7 +242,7 @@ ASTModule_t *SemanticSymTable::load_module(char *requested_path,
 
   std::string canonical_path = resolved_opt->string();
 
-  ASTModule_t *existing = get_module(canonical_path.c_str());
+  ASTMod *existing = getMod(canonical_path.c_str());
   if (existing) {
     if (existing->state == MOD_LOADING) {
       panic((SA_Location){0}, SEM_IMPORT_FILE_NOT_FOUND,
@@ -255,7 +253,7 @@ ASTModule_t *SemanticSymTable::load_module(char *requested_path,
     return existing;
   }
 
-  std::unique_ptr<ASTModule_t> module(new (std::nothrow) ASTModule_t{});
+  std::unique_ptr<ASTMod> module(new (std::nothrow) ASTMod{});
   if (!module) {
     die_allocation("new");
   }
@@ -266,8 +264,8 @@ ASTModule_t *SemanticSymTable::load_module(char *requested_path,
   }
   module->state = MOD_LOADING;
 
-  ASTModule_t *raw = module.get();
-  modules_.emplace(canonical_path, std::move(module));
+  ASTMod *raw = module.get();
+  mod.emplace(canonical_path, std::move(module));
 
   FILE *source = fopen(canonical_path.c_str(), "r");
   if (!source) {
@@ -282,7 +280,9 @@ ASTModule_t *SemanticSymTable::load_module(char *requested_path,
     file->filename = raw->path;
   }
 
-  raw->ast = Importer::parseFile(source);
+  Importer* parser = new Importer(source, importer->getCtx());
+
+  raw->ast = parser->parseFile();
   raw->parsed = !isError;
 
   if (file) {
@@ -292,6 +292,7 @@ ASTModule_t *SemanticSymTable::load_module(char *requested_path,
   fclose(source);
 
   raw->state = MOD_LOADED;
+
 
   return raw;
 }

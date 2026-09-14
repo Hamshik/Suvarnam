@@ -140,7 +140,7 @@ TypedValue ast_eval(ASTNode *node) {
 
   case AST_IMPORT: {
     bool already_imported = false;
-    ASTModule_t *module =
+    ASTMod *module =
         SA_semantic_load_module((node->importNode.path), &already_imported);
     if (module && module->ast && !already_imported) {
       ast_eval(module->ast);

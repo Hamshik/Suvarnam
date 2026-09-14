@@ -22,11 +22,10 @@ class HIRGenerator {
   std::vector<HIRNode*> side_effect_buffer;
   size_t temporary_variable_counter = 0;
   std::unordered_set<std::string> current_params;
-  Semantic* semantic;
-  SemanticSymTable* sym;
+  CompilerContext* ctx;
 
 public:
-  explicit HIRGenerator(Semantic* semantic): semantic(semantic), sym(semantic->sym) {}
+  explicit HIRGenerator(CompilerContext* ctx): ctx(ctx) {}
 
   bool is_param(const std::string& name) const;
   
@@ -55,7 +54,7 @@ public:
                                  const std::vector<std::vector<HIRNode *>> &vararg_groups,
                                  const std::vector<TypeInfo *> &variadic_inner_types,
                                  std::vector<HIRNode *> *packed_varargs,
-                                 FnSymbol_t *fn_symbol,
+                                 FnSymbol *fn_symbol,
                                  size_t fixed_user_param_count);
 
 };

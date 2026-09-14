@@ -10,7 +10,7 @@ file_t *file{};
 
 int main(int argc, char **argv) {
 
-    file = new file_t();
+    file = new file_t;
     
     Options opts;
     if (!parse_arguments(argc, argv, &opts)) {
@@ -23,10 +23,13 @@ int main(int argc, char **argv) {
     error_fatal = false;
 
     int status = 0;
-    root = Importer::parseFile(file->source);
+    auto importer = new Importer(file->source);
+    importer->parseFile();
+    
     if (root && !isError)
-        status = compile_and_execute(root, &opts);
-
+        status = compile_and_execute(root, &opts, importer);
+    
+    Semantic::checkErr();
     if (file->source != stdin)
         fclose(file->source);
     if (opts.input_filename && file->filename && file->filename != opts.input_filename)

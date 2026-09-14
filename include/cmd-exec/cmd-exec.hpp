@@ -12,6 +12,8 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+class Importer;
+
 /*------------external fn declaration -----------------------------------*/
 void syserr(const char *);
 void panic(SA_Location, errc_t, const char *);
@@ -26,7 +28,7 @@ typedef struct {
 } Options;
 bool parse_arguments(int, char **, Options *);
 bool setup_input_file(const Options *, file_t *);
-int compile_and_execute(ASTNode *, const Options *);
+int compile_and_execute(ASTNode *, const Options *, Importer* import);
 void yyrestart(FILE *);
 void semantic_check(ASTNode *);
 void ast_free(ASTNode *);

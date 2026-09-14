@@ -81,7 +81,7 @@ HIRNode *HIRGenerator::generate(ASTNode *node) {
     m_node->name = strdup(node->importNode.path);
     m_node->type = node->type;
     m_node->loc = node->loc;
-    auto module = sym->get_module(node->importNode.path);
+    auto module = ctx->sym->getMod(node->importNode.path);
     
     HIRNode *imported_node = generate(module->ast);
     SA::HIR_SymbolTable::loadOrCreateMod(m_node->name, imported_node);

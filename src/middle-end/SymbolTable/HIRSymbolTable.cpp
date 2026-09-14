@@ -7,7 +7,7 @@
 #include <string>
 #include <unordered_map>
 
-std::unordered_map<std::string, std::unique_ptr<HIRModule_t>> hirMod{};
+std::unordered_map<std::string, std::unique_ptr<HIRMod>> hirMod{};
 
 void die_allocation(const char *what) {
   std::perror(what);
@@ -16,13 +16,13 @@ void die_allocation(const char *what) {
 
 namespace SA::HIR_SymbolTable {
 
-HIRModule_t* getMod(std::string path){
+HIRMod* getMod(std::string path){
   auto found = hirMod.find(path);
   return found == hirMod.end() ? nullptr : found->second.get();
 }
 
-HIRModule_t *loadOrCreateMod(const char *path, HIRNode* node) {
-  HIRModule_t *existing = getMod(path);
+HIRMod *loadOrCreateMod(const char *path, HIRNode* node) {
+  HIRMod *existing = getMod(path);
   if (existing) {
     if (existing->state == MOD_LOADING) {
       return nullptr;
@@ -31,7 +31,7 @@ HIRModule_t *loadOrCreateMod(const char *path, HIRNode* node) {
     return existing;
   }
 
-  std::unique_ptr<HIRModule_t> module(new (std::nothrow) HIRModule_t{});
+  std::unique_ptr<HIRMod> module(new (std::nothrow) HIRMod{});
   if (!module) {
     die_allocation("new");
   }
@@ -43,7 +43,7 @@ HIRModule_t *loadOrCreateMod(const char *path, HIRNode* node) {
 
   module->state = MOD_LOADING;
 
-  HIRModule_t *raw = module.get();
+  HIRMod *raw = module.get();
   hirMod.emplace(path, std::move(module));
 
   raw->hirNode = node;

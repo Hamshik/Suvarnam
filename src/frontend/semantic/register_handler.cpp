@@ -21,7 +21,7 @@ void Semantic::regGlobalVarAndFn(ASTNode *n) {
     const char *fn_name = n->fn_def.name;
 
     // Ensure the function isn't duplicated
-    if (sym->fn_lookup(fn_name) != nullptr) {
+    if (ctx->sym->fnFind(fn_name) != nullptr) {
       panic(n->loc, SEM_INTERNAL_ERROR, "Redefinition of function signature");
     }
 
@@ -40,7 +40,7 @@ void Semantic::regGlobalVarAndFn(ASTNode *n) {
     }
 
     // Build the signature representation and save it to the symbol registry
-    FnSymbol_t *f = (FnSymbol_t *)malloc(sizeof(FnSymbol_t));
+    FnSymbol *f = (FnSymbol *)malloc(sizeof(FnSymbol));
     f->name = strdup(fn_name);
     f->ret = n->type; // e.g., I32, VOID, PTR
     f->param_count = n->fn_def.param_count;
@@ -53,7 +53,7 @@ void Semantic::regGlobalVarAndFn(ASTNode *n) {
     }
 
     // Push into the global functional index map
-    sym->fn_declare(n);
+    ctx->sym->fnDeclare(n);
   }
 
   if (n->kind == AST_ASSIGN && n->assign.is_declaration) {

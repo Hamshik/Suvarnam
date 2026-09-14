@@ -14,6 +14,10 @@ class Scanner: public ScannerBase
 {
     ParserBase::STYPE_* val = nullptr;
     ParserBase::LTYPE_* loc = nullptr;
+    // The cursor is kept separately from `loc`: parser/AST locations use an
+    // inclusive end, while the cursor is the position immediately after the
+    // text consumed so far.
+    ParserBase::LTYPE_ cursor = {0};
     ParserBase::LTYPE_ openDelimPos = {0};
     bool lexErrPending = false;
     int braceDepth = 0;
@@ -45,8 +49,8 @@ class Scanner: public ScannerBase
                     static char* unescapeStr(const char *in, size_t in_len, size_t *out_len, int *err_index, const char **err_msg);
                     bool isSingleChar(const char *bytes, size_t len);
                     void updateLoc(const char *text, int len);
+                    ParserBase::LTYPE_ tokenLoc() const;
                     static int convetHexToInt(unsigned char c);
 };
 
 #endif // Scanner_H_INCLUDED_
-

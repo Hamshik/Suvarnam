@@ -9,14 +9,14 @@
 #include <string>
 #include <unordered_map>
 
-extern file_t* file;
+extern file_t *file;
 struct SemanticSymbolRecord {
-  TypeInfo* type = nullptr;
+  TypeInfo *type = nullptr;
   DataTypes_t max_type = UNKNOWN;
   DataTypes_t last_maxed_type = UNKNOWN;
   bool is_mutable = false;
   bool is_used = false;
-  ASTNode* node_ptr = nullptr;
+  ASTNode *node_ptr = nullptr;
 };
 
 struct SemanticScopeRecord {
@@ -25,116 +25,119 @@ struct SemanticScopeRecord {
 };
 
 class SemanticSymTable {
+
+  SemanticScopeRecord *top();
+  SemanticScopeRecord *getGlobScope();
+
+  SemanticScopeRecord *scope_ = new SemanticScopeRecord();
+  std::unordered_map<std::string, std::unique_ptr<FnSymbol>> fns;
+  std::unordered_map<std::string, std::unique_ptr<ASTMod>> mod;
+  Importer* importer;
+
 public:
-  SemanticSymTable() = default;
+  SemanticSymTable(Importer* importer): importer(importer){};
 
   TypeInfo *lookup(const char *);
   bool declare(const char *, bool *, TypeInfo *, ASTNode *, bool);
   exitcode_t exists(ASTNode *);
-  exitcode_t assign_check(const char *, bool, DataTypes_t, DataTypes_t);
-  bool is_mutable(const char *);
-  void scope_push();
-  void scope_pop();
-  void clear_symbols();
-  bool fn_declare(ASTNode *);
-  FnSymbol_t *fn_lookup(const char *);
-  void clear_fns();
-  DataTypes_t update_datatype(const char *, DataTypes_t);
-  ASTModule_t *get_module(const char *);
-  ASTModule_t *load_module(char *, const char *, Importer *, bool &);
-  SemanticSymbolRecord *semantic_find_symbol(const char *);
-  SemanticSymbolRecord *semantic_find_global_symbol(const char *);
-
-private:
-  SemanticScopeRecord *scope_top();
-  SemanticScopeRecord *get_global_scope();
-  SemanticScopeRecord *scope_ = new SemanticScopeRecord();
-  std::unordered_map<std::string, std::unique_ptr<FnSymbol_t>> functions_;
-    std::unordered_map<std::string, std::unique_ptr<ASTModule_t>> modules_;
+  exitcode_t assignCheck(const char *, bool, DataTypes_t, DataTypes_t);
+  bool isMut(const char *);
+  void push();
+  void pop();
+  void clearSym();
+  bool fnDeclare(ASTNode *);
+  FnSymbol *fnFind(const char *);
+  void clearFns();
+  DataTypes_t updateType(const char *, DataTypes_t);
+  ASTMod *getMod(const char *);
+  ASTMod *loadMod(char *, const char *, bool &);
+  SemanticSymbolRecord *findSym(const char *);
+  SemanticSymbolRecord *getTopScope(const char *);
 };
 
-namespace SA::Codegen{
+namespace SA::Codegen {
 class Scope {
 public:
-    std::unordered_map<std::string, llvm::Value*> symbols;
-    Scope* parent;
+  std::unordered_map<std::string, llvm::Value *> symbols;
+  Scope *parent;
 
-    Scope(Scope* parentScope = nullptr) : parent(parentScope) {}
+  Scope(Scope *parentScope = nullptr) : parent(parentScope) {}
 
-    // Find an existing variable by crawling up the scope chain
-    llvm::Value* lookup(const std::string& name) {
-        auto it = symbols.find(name);
-        if (it != symbols.end()) {
-            return it->second;
-        }
-        if (parent) {
-            return parent->lookup(name);
-        }
-        return nullptr;
+  // Find an existing variable by crawling up the scope chain
+  llvm::Value *lookup(const std::string &name) {
+    auto it = symbols.find(name);
+    if (it != symbols.end()) {
+      return it->second;
+    }
+    if (parent) {
+      return parent->lookup(name);
+    }
+    return nullptr;
+  }
+
+  //  FORCE LOCAL INSERTION (Crucial for declarations / loop iterator shadow)
+  void insert_local(const std::string &name, llvm::Value *val) {
+    symbols[name] = val;
+  }
+
+  ///  1. OVERLOAD FOR ASSIGNMENT & READ:/WRITE: env[name] = value
+  // If the variable isn't found locally, it automatically walks up the parents
+  llvm::Value *&operator[](const std::string &name) {
+    // First check if it exists locally in this current scope block
+    if (symbols.find(name) != symbols.end()) {
+      return symbols[name];
     }
 
-    //  FORCE LOCAL INSERTION (Crucial for declarations / loop iterator shadow)
-    void insert_local(const std::string& name, llvm::Value* val) {
-        symbols[name] = val;
+    // If not found locally, check if a parent frame owns it
+    if (parent) {
+      // Recursively evaluate the parent frame's bracket operator
+      return (*parent)[name];
     }
 
-    ///  1. OVERLOAD FOR ASSIGNMENT & READ:/WRITE: env[name] = value
-    // If the variable isn't found locally, it automatically walks up the parents
-    llvm::Value*& operator[](const std::string& name) {
-        // First check if it exists locally in this current scope block
-        if (symbols.find(name) != symbols.end()) {
-            return symbols[name];
-        }
-        
-        // If not found locally, check if a parent frame owns it
-        if (parent) {
-            // Recursively evaluate the parent frame's bracket operator
-            return (*parent)[name];
-        }
-        
-        // If nowhere in the scope tree hierarchy, instantiate it in the current local block
-        return symbols[name];
+    // If nowhere in the scope tree hierarchy, instantiate it in the current
+    // local block
+    return symbols[name];
+  }
+
+  //  2 CONST OVERLOAD FOR READ-ONLY: QUERIES
+  // Used when inspecting values safely without risk of inserting empty keys
+  llvm::Value *operator[](const std::string &name) const {
+    auto it = symbols.find(name);
+    if (it != symbols.end()) {
+      return it->second;
+    }
+    if (parent) {
+      return (*parent)[name];
+    }
+    return nullptr;
+  }
+
+  // Explicit helper method to check if a variable exists in the chain
+  bool has(const std::string &name) const {
+    if (symbols.find(name) != symbols.end())
+      return true;
+    if (parent)
+      return parent->has(name);
+    return false;
+  }
+
+  // 🎯 ADD THIS: Force search ONLY in the absolute topmost Global Scope
+  llvm::Value *lookup_global_only(const std::string &name) const {
+    const Scope *root = this;
+    while (root->parent != nullptr) {
+      root = root->parent;
     }
 
-    //  2 CONST OVERLOAD FOR READ-ONLY: QUERIES
-    // Used when inspecting values safely without risk of inserting empty keys
-    llvm::Value* operator[](const std::string& name) const {
-        auto it = symbols.find(name);
-        if (it != symbols.end()) {
-            return it->second;
-        }
-        if (parent) {
-            return (*parent)[name];
-        }
-        return nullptr;
+    auto it = root->symbols.find(name);
+    if (it != root->symbols.end()) {
+      return it->second;
     }
+    return nullptr; // Not found in global scope
+  }
 
-    // Explicit helper method to check if a variable exists in the chain
-    bool has(const std::string& name) const {
-        if (symbols.find(name) != symbols.end()) return true;
-        if (parent) return parent->has(name);
-        return false;
-    }
-
-    // 🎯 ADD THIS: Force search ONLY in the absolute topmost Global Scope
-    llvm::Value* lookup_global_only(const std::string& name) const {
-        const Scope* root = this;
-        while (root->parent != nullptr) {
-            root = root->parent;
-        }
-        
-        auto it = root->symbols.find(name);
-        if (it != root->symbols.end()) {
-            return it->second;
-        }
-        return nullptr; // Not found in global scope
-    }
-
-    // Helper to check if we currently represent the global scope layer
-    bool is_global_scope() const {
-        return parent == nullptr;
-    }
+  // Helper to check if we currently represent the global scope layer
+  bool is_global_scope() const { return parent == nullptr; }
 };
-}
+} // namespace SA::Codegen
 
 #endif

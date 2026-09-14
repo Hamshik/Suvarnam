@@ -12,7 +12,7 @@ extern file_t* file; // global file
 ASTNode* Semantic::getBaseVar(const char* name){
   if(!name) return nullptr;
 
-  auto symbol = sym->semantic_find_symbol(name);
+  auto symbol = ctx->sym->findSym(name);
   if(!symbol) return nullptr;
 
   if(symbol->node_ptr->kind == AST_UNOP && symbol->node_ptr->unop.op == OP_ADDR)
@@ -82,7 +82,7 @@ TypeInfo* Semantic::unop(ASTNode *n, TypeInfo* type) {
   if (!Semantic::isNumeric(t->base))
     panic(n->loc, SEM_UNARY_NEEDS_NUM, NULL);
 
-  if ((n->unop.op == OP_INC || n->unop.op == OP_DEC) && !sym->is_mutable(n->unop.operand->var))
+  if ((n->unop.op == OP_INC || n->unop.op == OP_DEC) && !ctx->sym->isMut(n->unop.operand->var))
     panic(n->loc, SEM_ASSIGN_IMMUTABLE, "cannot increment/decrement immutable variable");
 
   if (n->unop.op == OP_BITNOT && !Semantic::isInt(t->base)) {

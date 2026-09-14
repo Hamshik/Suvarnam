@@ -49,7 +49,7 @@
         return Parser::LEX_ERROR;
     }
 
-    VAL(node, new_str(s, *loc));
+    VAL(node, new_str(s, tokenLoc()));
     free(s);
     return Parser::STRING_LITERAL;
 }
@@ -78,7 +78,7 @@
         return Parser::LEX_ERROR;
     }
 
-    VAL(node, new_char_bytes(s, out_len, *loc));
+    VAL(node, new_char_bytes(s, out_len, tokenLoc()));
     free(s);
     return Parser::CHAR_LITERAL;
 }
@@ -92,14 +92,14 @@
 }
 
 [0-9]+(\.[0-9]+)? {
-    VAL(node, new_num(matched().c_str(), UNKNOWN, *loc));
+    VAL(node, new_num(matched().c_str(), UNKNOWN, tokenLoc()));
     return Parser::NUMBER;
 }
 
 \.[0-9]+ {
     char* buffer = (char*)calloc(1, length() + 2);
     snprintf(buffer, length() + 2, "0%s", matched().c_str());
-    VAL(node, new_num(buffer, UNKNOWN, *loc));
+    VAL(node, new_num(buffer, UNKNOWN, tokenLoc()));
     free(buffer);
     return Parser::NUMBER;
 }
@@ -156,10 +156,10 @@
             VAL(datatype, keyword->datatype);
             return keyword->token;
         }
-        VAL(node, new_bool(keyword->bool_value, *loc));
+        VAL(node, new_bool(keyword->bool_value, tokenLoc()));
         return keyword->token;
     }
-    VAL(node, new_var(matched().c_str(), UNKNOWN, *loc));
+    VAL(node, new_var(matched().c_str(), UNKNOWN, tokenLoc()));
     return Parser::IDENTIFIER;
 }
 

@@ -1,13 +1,15 @@
 #pragma once
 
 #include "enums.h"
+#include <cstddef>
+#include <sstream>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <stdbool.h>
 
 typedef struct file_t {
-    char* filename;
-    FILE* source;
+  char *filename;
+  FILE *source;
 } file_t;
 
 extern file_t *file;
@@ -24,92 +26,116 @@ typedef struct SA_Location {
   size_t first_pos; /* 0-based byte offset */
   size_t last_line;
   size_t last_column;
-  size_t last_pos;  /* 0-based byte offset */
+  size_t last_pos; /* 0-based byte offset */
 } SA_Location;
 
-typedef struct idx_expr{
-    struct ASTNode* expr_node; // for expr like [i[0] + 1] ect
-    int depth;  // to know how much use goes like this i[][][]...
-    bool isglobal;
-    struct idx_expr* next; // next of i[]of i[][]... <- this one
+typedef struct idx_expr {
+  struct ASTNode *expr_node; // for expr like [i[0] + 1] ect
+  int depth;                 // to know how much use goes like this i[][][]...
+  bool isglobal;
+  struct idx_expr *next; // next of i[]of i[][]... <- this one
 } idx_expr_t;
 
 typedef struct SA_Ptr {
-    size_t frame_id;
-    char *name;
+  size_t frame_id;
+  char *name;
 } SA_Ptr;
 
 typedef struct SA_Range {
-    int64_t start;
-    int64_t end;
-    int64_t step;
+  int64_t start;
+  int64_t end;
+  int64_t step;
 } SA_Range;
 
 typedef union {
-    /* signed numeric type */
-    int8_t i8;
-    short i16;
-    int i32;
-    long int i64;
-    __int128 i128;
+  /* signed numeric type */
+  int8_t i8;
+  short i16;
+  int i32;
+  long int i64;
+  __int128 i128;
 
-    float f32;
-    double f64;
-    long double f128;
+  float f32;
+  double f64;
+  long double f128;
 
-    /*unsigned numeric type*/
-    uint8_t u8;
-    uint16_t u16;
-    uint32_t u32;
-    uint64_t u64;
-    unsigned __int128 u128;
+  /*unsigned numeric type*/
+  uint8_t u8;
+  uint16_t u16;
+  uint32_t u32;
+  uint64_t u64;
+  unsigned __int128 u128;
 
-    SA_Ptr ptr;
-    SA_Range range;
+  SA_Ptr ptr;
+  SA_Range range;
 
-    bool bval;
-    char* chars;
+  bool bval;
+  char *chars;
 
-    void* raw;
+  void *raw;
 } SA_Value;
 
+typedef struct Types {
+  DataTypes_t base;    // e.g., LIST, PTR, INT
+  struct Types *inner; // Points to the next type (recursive)
+  size_t size;
+  bool ismut;
 
-typedef struct Types{
-    DataTypes_t base;        // e.g., LIST, PTR, INT
-    struct Types* inner;      // Points to the next type (recursive)
-    size_t size;
-    bool ismut;
-
-    Types(DataTypes_t base, Types* inner):base(base), inner(inner) {}
+  Types(DataTypes_t base, Types *inner) : base(base), inner(inner) {}
 } TypeInfo;
 
 typedef struct {
-    TypeInfo* type;
-    SA_Value val;
+  TypeInfo *type;
+  SA_Value val;
 } TypedValue;
 
 typedef struct Param {
-    char *name;
-    TypeInfo* type;
-    bool is_variadic;
+  char *name;
+  TypeInfo *type;
+  bool is_variadic;
 #ifdef __cplusplus
-    // Default constructor: safely zero out everything
-    Param() : name(nullptr), type(nullptr), is_variadic(false) {}
+  // Default constructor: safely zero out everything
+  Param() : name(nullptr), type(nullptr), is_variadic(false) {}
 
-    // TypeInfo constructor: ensure non-pointer fields aren't filled with junk data
-    Param(TypeInfo *type) : name(nullptr), type(type), is_variadic(false) {}
-    
-    // Variadic helper constructor (useful for built-ins like printf)
-    Param(bool variadic) : name(nullptr), type(nullptr), is_variadic(variadic) {}
-    
-    Param(bool variadic, TypeInfo* types) : name(nullptr), type(types), is_variadic(variadic) {}
+  // TypeInfo constructor: ensure non-pointer fields aren't filled with junk
+  // data
+  Param(TypeInfo *type) : name(nullptr), type(type), is_variadic(false) {}
+
+  // Variadic helper constructor (useful for built-ins like printf)
+  Param(bool variadic) : name(nullptr), type(nullptr), is_variadic(variadic) {}
+
+  Param(bool variadic, TypeInfo *types)
+      : name(nullptr), type(types), is_variadic(variadic) {}
 #endif
 } Param_t;
 
-
 typedef struct ParamList {
-    Param_t *params;
-    int count;
+  Param_t *params;
+  int count;
 } ParamList_t;
+
+class Semantic;
+class SemanticSymTable;
+class Scanner;
+class Parser;
+class Importer;
+
+class CompilerContext {
+public:
+  Semantic *semantic = nullptr;
+  SemanticSymTable *sym = nullptr;
+  // Pass stream directly to Scanner instead of messing with std::cin
+  std::istringstream& input;
+  Scanner *scanner;
+  Parser *parser;
+
+  explicit CompilerContext(
+    Importer* importer,
+    std::istringstream &input,
+    SemanticSymTable *sym = nullptr, Scanner *scanner = nullptr,
+    Parser *parser = nullptr, Semantic *semantic = nullptr
+  );
+  ~CompilerContext(); 
+};
 
 #include "nodes.h"

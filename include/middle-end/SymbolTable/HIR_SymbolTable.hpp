@@ -4,6 +4,6 @@
 #include <string>
 
 namespace SA::HIR_SymbolTable {
-HIRModule_t *loadOrCreateMod(const char *, HIRNode*);
-HIRModule_t *getMod(std::string);
+HIRMod *loadOrCreateMod(const char *, HIRNode*);
+HIRMod *getMod(std::string);
 }

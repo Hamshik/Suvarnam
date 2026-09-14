@@ -171,16 +171,19 @@ bool setup_input_file(const Options *opts, file_t *file) {
 
 /* Compile and execute the AST */
 
-int compile_and_execute(ASTNode *root, const Options *opts) {
+int compile_and_execute(ASTNode *root, const Options *opts, Importer* import) {
   error_fatal = false; /* collect semantic errors like Rust */
 
-  CompilerContext ctx;
-  ctx.semantic->main(root);
-  sym = ctx.symbols;
+  CompilerContext* ctx = import->getCtx();
+  ctx->semantic->main(root);
+
+  sym = std::move(ctx->sym);
+  delete import;
+
   error_fatal = true; /* runtime errors should still stop */
   char *ir_text = NULL;
 
-  HIRGenerator *mgen = new HIRGenerator(ctx.semantic);
+  HIRGenerator *mgen = new HIRGenerator(ctx);
   HIRNode *mast_root = mgen->generate(root);
   delete mgen;
 

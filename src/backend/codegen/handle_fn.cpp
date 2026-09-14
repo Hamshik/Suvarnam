@@ -17,7 +17,7 @@ extern SemanticSymTable* sym;
 // declaration in this module when necessary.
 static Function *get_or_create_symbol_prototype(const char *name, Module &mod,
                                                       LLVMContext &ctx) {
-  FnSymbol_t *symbol = sym->fn_lookup(name);
+  FnSymbol *symbol = sym->fnFind(name);
   if (!symbol)
     return nullptr;
 

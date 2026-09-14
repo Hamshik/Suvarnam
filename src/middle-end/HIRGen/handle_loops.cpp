@@ -12,7 +12,7 @@
 HIRNode *HIRGenerator::emit_MAST_for_range_loop(ASTNode *node) {
 
   ASTNode *range_node = node->fornode.iterable->kind == AST_VAR
-                              ? sym->semantic_find_symbol(
+                              ? ctx->sym->findSym(
                                     node->fornode.iterable->var)
                                     ->node_ptr
                               // to get ranges

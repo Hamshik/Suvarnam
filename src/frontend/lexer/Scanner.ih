@@ -1,63 +1,115 @@
 #include "Scanner.h"
 #include "utils/utf-8_lib/utf8/unchecked.hpp"
 
-Scanner::Scanner(std::istream &in, std::ostream &out, bool keepCwd) : ScannerBase(in, out, keepCwd) {}
-Scanner::Scanner(std::string const &infile, std::string const &outfile, bool keepCwd) : ScannerBase(infile, outfile, keepCwd) {}
+Scanner::Scanner(std::istream &in, std::ostream &out, bool keepCwd)
+    : ScannerBase(in, out, keepCwd) {}
+Scanner::Scanner(std::string const &infile, std::string const &outfile,
+                 bool keepCwd)
+    : ScannerBase(infile, outfile, keepCwd) {}
 
-int Scanner::lex(ParserBase::STYPE_* value, ParserBase::LTYPE_* location) {
-	val = value;
-	loc = location;
-	int token = lex_();
-	updateLoc(matched().c_str(), length());
-	return token;
+int Scanner::lex(ParserBase::STYPE_ *value, ParserBase::LTYPE_ *location) {
+  val = value;
+  loc = location;
+  int token = lex_();
+  // Lexer actions run inside lex_(), before this point.  Give both the
+  // parser and AST nodes an inclusive token span, then advance only cursor.
+  ParserBase::LTYPE_ token_loc = tokenLoc();
+  updateLoc(matched().c_str(), length());
+  *loc = token_loc;
+  return token;
 }
 
 inline void Scanner::preCode() {
-	if (!loc) return;
-	if (loc->last_line == 0) {
-		loc->last_line = 1;
-		loc->last_column = 1;
-	}
-	loc->first_line = loc->last_line;
-	loc->first_column = loc->last_column;
-	loc->first_pos = loc->last_pos;
+  if (!loc)
+    return;
+  if (cursor.last_line == 0) {
+    cursor.last_line = 1;
+    cursor.last_column = 1;
+  }
+  loc->first_line = cursor.last_line;
+  loc->first_column = cursor.last_column;
+  loc->first_pos = cursor.last_pos;
+  loc->last_line = loc->first_line;
+  loc->last_column = loc->first_column;
+  loc->last_pos = loc->first_pos;
 }
 
 inline void Scanner::postCode(PostEnum_ type) {
-	if (type == PostEnum_::WIP) updateLoc(matched().c_str(), length());
+  if (type == PostEnum_::WIP)
+    updateLoc(matched().c_str(), length());
 }
 
 inline void Scanner::print() { print_(); }
 void Scanner::lexMarkErr(void) { lexErrPending = true; }
-bool Scanner::lexTakeErr(void) { bool pending = lexErrPending; lexErrPending = false; return pending; }
+bool Scanner::lexTakeErr(void) {
+  bool pending = lexErrPending;
+  lexErrPending = false;
+  return pending;
+}
 
 int Scanner::convetHexToInt(unsigned char c) {
-	if (c >= '0' && c <= '9') return c - '0';
-	if (c >= 'a' && c <= 'f') return 10 + c - 'a';
-	if (c >= 'A' && c <= 'F') return 10 + c - 'A';
-	return -1;
+  if (c >= '0' && c <= '9')
+    return c - '0';
+  if (c >= 'a' && c <= 'f')
+    return 10 + c - 'a';
+  if (c >= 'A' && c <= 'F')
+    return 10 + c - 'A';
+  return -1;
 }
 
 void Scanner::updateLoc(const char *text, int len) {
-	if (!loc) return;
-	for (int index = 0; index < len; ++index) {
-		if (text[index] == '\n') { ++loc->last_line; loc->last_column = 1; }
-		else ++loc->last_column;
-		++loc->last_pos;
-	}
+  if (!loc || !text)
+    return;
+  for (int index = 0; index < len; ++index) {
+    if (text[index] == '\n') {
+      ++cursor.last_line;
+      cursor.last_column = 1;
+    } else
+      ++cursor.last_column;
+    ++cursor.last_pos;
+  }
+}
+
+ParserBase::LTYPE_ Scanner::tokenLoc() const {
+  ParserBase::LTYPE_ result = *loc;
+  const char *text = matched().c_str();
+  const int len = length();
+
+  if (!text || len <= 0)
+    return result;
+
+  size_t line = result.first_line;
+  size_t column = result.first_column;
+  size_t pos = result.first_pos;
+  for (int index = 0; index < len; ++index) {
+    result.last_line = line;
+    result.last_column = column;
+    result.last_pos = pos;
+    if (text[index] == '\n') {
+      ++line;
+      column = 1;
+    } else {
+      ++column;
+    }
+    ++pos;
+  }
+  return result;
 }
 
 bool Scanner::isSingleChar(const char *bytes, size_t len) {
-	if (!bytes || !len) return false;
-	const char *current = bytes;
-	const char *end = bytes + len;
-	if (utf8::find_invalid(current, end) != end) return false;
-	utf8::unchecked::next(current);
-	return current == end;
+  if (!bytes || !len)
+    return false;
+  const char *current = bytes;
+  const char *end = bytes + len;
+  if (utf8::find_invalid(current, end) != end)
+    return false;
+  utf8::unchecked::next(current);
+  return current == end;
 }
 
 const SA_Keyword *Scanner::findKeyword(const char *text, size_t len) {
-	if (!text) return nullptr;
-	const auto keyword = SA_keywords.find(std::string_view{text, len});
-	return keyword == SA_keywords.end() ? nullptr : &keyword->second;
+  if (!text)
+    return nullptr;
+  const auto keyword = SA_keywords.find(std::string_view{text, len});
+  return keyword == SA_keywords.end() ? nullptr : &keyword->second;
 }

@@ -51,7 +51,7 @@ size_t count_fixed_builtin_params(const char *name) {
 }
 
 // Collect inner types for variadic user parameters (in declaration order)
-std::vector<TypeInfo *> collect_variadic_inner_types(FnSymbol_t *fn,
+std::vector<TypeInfo *> collect_variadic_inner_types(FnSymbol *fn,
                                                          size_t fixed_user_param_count) {
   std::vector<TypeInfo *> res;
   if (!fn || !fn->params) return res;
@@ -119,7 +119,7 @@ void HIRGenerator::emit_varargs_to_call(HIRNode *call_node,
                                  const std::vector<std::vector<HIRNode *>> &vararg_groups,
                                  const std::vector<TypeInfo *> &variadic_inner_types,
                                  std::vector<HIRNode *> *packed_varargs,
-                                 FnSymbol_t *fn_symbol,
+                                 FnSymbol *fn_symbol,
                                  size_t fixed_user_param_count) {
   if (!call_node) return;
 
@@ -176,7 +176,7 @@ HIRNode *HIRGenerator::emit_call(ASTNode *node) {
 
   bool has_variadic_user_param = false;
   size_t fixed_user_param_count = 0;
-  FnSymbol_t *fn_symbol = sym->fn_lookup(node->call.name);
+  FnSymbol *fn_symbol = ctx->sym->fnFind(node->call.name);
   if (fn_symbol && fn_symbol->params) {
     for (int i = 0; i < fn_symbol->param_count; ++i) {
       if (fn_symbol->params[i].is_variadic) {
