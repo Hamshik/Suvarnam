@@ -120,25 +120,24 @@ bool Semantic::fnAlwaysReturns(ASTNode *body) {
 }
 
 CompilerContext::CompilerContext(
-  Importer* importer, std::istringstream &input,
+  std::istringstream &input,
   SemanticSymTable *sym, Scanner *scanner,
   Parser *parser, Semantic *semantic
-  SemanticSymTable *sym_, Scanner *scanner_,
-  Parser *parser_, Semantic *semantic_
-):input(input),
-  sym(sym ? sym : new SemanticSymTable(importer)),
-  semantic(semantic ? semantic : new Semantic(importer)),
+): input(input),
+  sym(sym ? sym : new SemanticSymTable()),
+  semantic(semantic ? semantic : new Semantic()),
   scanner(scanner ? scanner : new Scanner(input)),
-  parser(parser ? parser : new Parser(*scanner))
-  sym(sym_ ? sym_ : new SemanticSymTable(importer)),
-  semantic(semantic_ ? semantic_ : new Semantic(importer)),
-  scanner(scanner_ ? scanner_ : new Scanner(input)),
-  parser(parser_ ? parser_ : new Parser(*scanner))
+  parser(parser ? parser : new Parser(*this->scanner))
 {}
 
 CompilerContext::~CompilerContext(){
     delete semantic;
     delete parser;
     delete scanner;
-    delete sym;
+}
+
+void CompilerContext::setup(Importer* importer){
+  sym->setImporter(importer);
+  semantic->importer = importer;
+  semantic->ctx = this;
 }

@@ -35,7 +35,9 @@ class SemanticSymTable {
   Importer* importer;
 
 public:
-  SemanticSymTable(Importer* importer): importer(importer){};
+  SemanticSymTable() = default;
+
+  void setImporter(Importer* importer){ this->importer = importer; }
 
   TypeInfo *lookup(const char *);
   bool declare(const char *, bool *, TypeInfo *, ASTNode *, bool);

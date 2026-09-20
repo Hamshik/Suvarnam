@@ -11,7 +11,8 @@ Importer::Importer(FILE *source, CompilerContext *context)
     : ctx(context), f(source) {
   if (!ctx) {
     content.reset(getFileContent(f));
-    ctx = new CompilerContext(this, *content);
+    ctx = new CompilerContext(*content);
+
   } else
     isFreshCtx = false;
 }

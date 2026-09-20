@@ -130,12 +130,13 @@ public:
   Parser *parser;
 
   explicit CompilerContext(
-    Importer* importer,
     std::istringstream &input,
     SemanticSymTable *sym = nullptr, Scanner *scanner = nullptr,
     Parser *parser = nullptr, Semantic *semantic = nullptr
   );
-  ~CompilerContext(); 
+  ~CompilerContext();
+
+  void setup(Importer* importer);
 };
 
 #include "nodes.h"

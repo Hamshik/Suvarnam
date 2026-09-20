@@ -24,7 +24,8 @@ int main(int argc, char **argv) {
 
     int status = 0;
     auto importer = new Importer(file->source);
-    importer->parseFile();
+    importer->getCtx()->setup(importer);
+    root = importer->parseFile();
     
     if (root && !isError)
         status = compile_and_execute(root, &opts, importer);

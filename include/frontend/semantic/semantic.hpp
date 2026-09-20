@@ -75,8 +75,7 @@ public:
     return checkExpr(n, dummy);
   }
 
-  Semantic(Importer* importer)
-      : ctx(importer->getCtx()), importer(importer) {}
+  Semantic() = default;
 
   CompilerContext* ctx;
   Importer* importer;
