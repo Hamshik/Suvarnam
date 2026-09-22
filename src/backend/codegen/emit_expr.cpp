@@ -8,8 +8,7 @@ struct LoopContext {
 };
 extern std::vector<LoopContext> loopStack;
 
-llvm::Value *emit_expr(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
-                       IRBuilder<> &entryBuilder, Codegen::Scope &locals) {
+llvm::Value *IRGen::emitExpr(HIRNode *n, Codegen::Scope &locals) {
   if (!n)
     return nullptr;
   if (blockTerminated(b))
@@ -21,15 +20,15 @@ llvm::Value *emit_expr(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
     return nullptr;
 
   case AST_NUM:
-    return emit_number(n, ctx);
+    return emitNum(n);
   case AST_BOOL:
     return ConstantInt::get(llvm::Type::getInt1Ty(ctx), n->literals.val.bval ? 1 : 0);
 
   case AST_STR:
-    return emit_strs(n, ctx, b);
+    return emitStr(n);
 
   case AST_CHAR:
-    return emit_char(n, ctx, b);
+    return emitChar(n);
 
   case AST_VAR: {
     const char* varName = n->name ? n->name : "unnamed_tmp";
@@ -66,22 +65,22 @@ llvm::Value *emit_expr(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
   }
 
   case AST_UNOP:
-    return emit_unop(n, ctx, b, entryBuilder, locals); // Still recursive for operands
+    return emitUnop(n, locals);
 
   case AST_BINOP:
-    return emit_binop(n, ctx, b, entryBuilder, locals); // Still recursive for operands
+    return emitBinop(n, locals);
 
   case AST_ASSIGN:
-    return emit_assing(n, ctx, b, entryBuilder, locals);
+    return emitAssign(n, locals);
 
   case AST_CALL:
-    return emit_call(n, ctx, b, entryBuilder, locals);
+    return emitCall(n, locals);
 
   case AST_WHILE:
-    return emit_whileloop(n, ctx, b, entryBuilder, locals);
+    return emitWhileloop(n, locals);
 
   case AST_IF:
-    return emit_if(n, ctx, b, entryBuilder, locals);
+    return emitIf(n, locals);
 
   case AST_BLOCK: {
     // ITERATIVE processing of block statements
@@ -91,13 +90,13 @@ llvm::Value *emit_expr(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
         // we skip the rest of this specific block.
         if (blockTerminated(b)) break;
         
-        lastVal = emit_expr(stmt, ctx, b, entryBuilder, locals);
+        lastVal = emitExpr(stmt, locals);
     }
     return lastVal;
   }
 
   case AST_RETURN: {
-    llvm::Value *v = emit_expr(n->ret_stmt.value, ctx, b, entryBuilder, locals);
+    llvm::Value *v = emitExpr(n->ret_stmt.value, locals);
 
     if (!blockTerminated(b)) {
       if (v)
@@ -129,10 +128,10 @@ llvm::Value *emit_expr(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
   }
 
   case AST_LIST:
-    return generateList(n, ctx, b, entryBuilder, locals);
+    return generateList(n, locals);
 
   case AST_INDEX:
-    return generateListAccess(n, ctx, b, entryBuilder, locals);
+    return generateListAccess(n, locals);
 
   default:
     printf("Warning: Unhandled MAST node kind %d in codegen\n", n->kind);

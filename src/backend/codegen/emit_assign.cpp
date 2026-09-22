@@ -1,8 +1,7 @@
 #include "codegen/codegen.hpp"
 #include <llvm-22/llvm/IR/Instructions.h>
 
-llvm::Value *emit_assing(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
-                         IRBuilder<> &entryBuilder, Codegen::Scope &locals) {
+llvm::Value *IRGen::emitAssign(HIRNode *n, Codegen::Scope &locals) {
 
   HIRNode *lhs = n->assign.target;
   if (!lhs)
@@ -30,7 +29,7 @@ llvm::Value *emit_assing(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
   if (is_deref && inner_expression) {      
       // 🎯 THE FIX: Evaluate the sub-tree expression directly. 
       // This automatically unwinds any inner deref layers recursively using op_handler.cpp!
-      targetPtr = emit_expr(inner_expression, ctx, b, entryBuilder, locals);
+      targetPtr = emitExpr(inner_expression, locals);
   }
   
   /* -----------------------------------------------------------------
@@ -51,12 +50,12 @@ llvm::Value *emit_assing(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
                                           : GlobalValue::InternalLinkage;
 
           targetPtr =
-              new GlobalVariable(*m, ir_type(t, ctx), false, linkage,
-                                 Constant::getNullValue(ir_type(t, ctx)), name);
+              new GlobalVariable(*m, irType(t), false, linkage,
+                                 Constant::getNullValue(irType(t)), name);
         }
         locals.symbols[name] = targetPtr;
       } else if (b.GetInsertBlock() != nullptr) {
-        targetPtr = get_or_create_alloca(name, t, ctx, entryBuilder, locals);
+        targetPtr = getOrAddAlloca(name, t, locals);
         locals.symbols[name] = targetPtr;
       }
     } else {
@@ -69,7 +68,7 @@ llvm::Value *emit_assing(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
    * 3. ARRAY/LIST ELEMENT STORAGE
    * ----------------------------------------------------------------- */
   else if (lhs->kind == AST_INDEX) {
-    targetPtr = generateListElementPtr(lhs, ctx, b, entryBuilder, locals);
+    targetPtr = generateListElementPtr(lhs, locals);
   }
 
   if (!targetPtr) {
@@ -80,7 +79,7 @@ llvm::Value *emit_assing(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
   /* -----------------------------------------------------------------
    * 4. EVALUATE VALUE & EMIT STORE (2000)
    * ----------------------------------------------------------------- */
-  llvm::Value *rhs = emit_expr(n->assign.value, ctx, b, entryBuilder, locals);
+  llvm::Value *rhs = emitExpr(n->assign.value, locals);
   if (!rhs)
     return nullptr;
 
@@ -88,9 +87,9 @@ llvm::Value *emit_assing(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
   DataTypes_t t = n->type->base != UNKNOWN ? n->type->base : (lhs->type ? lhs->type->base : UNKNOWN);
 
   if (t == STRINGS) {
-    result = to_i8_ptr(result, b);
+    result = toI8Ptr(result);
   } else if (t == LIST) {
-    result = b.CreateBitCast(result, ir_type(LIST, ctx));
+    result = b.CreateBitCast(result, irType(LIST));
   }
 
   // This step creates the vital 'store i32 2000, ptr %targetPtr' instruction!
@@ -100,7 +99,7 @@ llvm::Value *emit_assing(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
 }
 
 
-void emit_global(HIRNode *n, Module &mod, LLVMContext &ctx) {
+void IRGen::emitGlobVar(HIRNode *n, Module &mod) {
   if (!n)
     return;
 
@@ -127,16 +126,14 @@ void emit_global(HIRNode *n, Module &mod, LLVMContext &ctx) {
       auto linkage = (name.find("__") == 0) ? GlobalValue::InternalLinkage
                                             : GlobalValue::ExternalLinkage;
 
-      new GlobalVariable(mod, ir_type(t, ctx), false, linkage,
-                         Constant::getNullValue(ir_type(t, ctx)), name);
+      new GlobalVariable(mod, irType(t), false, linkage,
+                         Constant::getNullValue(irType(t)), name);
     }
   }
 }
 
-AllocaInst *get_or_create_alloca(const std::string &name, DataTypes_t t,
-                                       LLVMContext &ctx,
-                                       IRBuilder<> &entryBuilder,
-                                       Codegen::Scope &locals) {
+AllocaInst *IRGen::getOrAddAlloca(const std::string &name, DataTypes_t t,
+                                  Codegen::Scope &locals) {
 
   // If it already exists on the stack, return it right away
   if (name[0] == '@')
@@ -159,7 +156,7 @@ AllocaInst *get_or_create_alloca(const std::string &name, DataTypes_t t,
   }
 
   // 3. Create the type and stack allocation safely at the top
-  llvm::Type *llvmTy = ir_type(t, ctx);
+  llvm::Type *llvmTy = irType(t);
   AllocaInst *allocaInst =
       entryBuilder.CreateAlloca(llvmTy, nullptr, name);
 

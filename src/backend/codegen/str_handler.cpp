@@ -32,7 +32,7 @@ uint32_t decode_utf8(const char *raw, size_t raw_len, size_t *byte_len,
   return cp;
 }
 
-llvm::Value *to_i8_ptr(llvm::Value *v, IRBuilder<> &b) {
+llvm::Value *IRGen::toI8Ptr(llvm::Value *v) {
   auto &ctx = b.getContext();
 
   auto *i8Ty = llvm::Type::getInt8Ty(ctx);
@@ -62,42 +62,38 @@ llvm::Value *to_i8_ptr(llvm::Value *v, IRBuilder<> &b) {
   return v;
 }
 
-llvm::Value *emit_char_to_string(llvm::Value *ch, LLVMContext &ctx, IRBuilder<> &b) {
-  // Use runtime `SA_encode_cp(uint32_t)` to encode the codepoint into a
-  // malloc'd UTF-8 C string. This correctly handles multi-byte characters
-  // (emojis, etc.) instead of truncating to a single byte.
-  auto m = b.GetInsertBlock()->getModule();
-
+llvm::Value *IRGen::emitCharToStr(llvm::Value *ch) {
   // Ensure encoder function exists with a parameter matching `ch`'s type
   llvm::Type *i8PtrTy = PointerType::getUnqual(ctx);
   llvm::Type *cpTy = ch->getType();
 
-  Function *encFn = m->getFunction("SA_encode_cp");
+  Function *encFn = mod.getFunction("SA_encode_cp");
   if (!encFn) {
     FunctionType *encTy = FunctionType::get(i8PtrTy, {cpTy}, false);
-    encFn = Function::Create(encTy, Function::ExternalLinkage, "SA_encode_cp", m);
+    encFn = Function::Create(encTy, Function::ExternalLinkage, "SA_encode_cp",
+                             &mod);
   }
 
   // If the existing declaration has a different param type, try to adapt.
   llvm::Value *arg = ch;
   if (encFn->getFunctionType()->getNumParams() >= 1) {
     llvm::Type *paramTy = encFn->getFunctionType()->getParamType(0);
-    if (arg->getType() != paramTy) {
-      if (arg->getType()->isIntegerTy() && paramTy->isIntegerTy()) {
-        unsigned srcBits = arg->getType()->getIntegerBitWidth();
-        unsigned dstBits = paramTy->getIntegerBitWidth();
-        if (srcBits > dstBits)
-          arg = b.CreateTrunc(arg, paramTy);
-        else if (srcBits < dstBits)
-          arg = b.CreateZExt(arg, paramTy);
-      }
-    }
+    if (arg->getType() == paramTy)
+      goto ret;
+    if (!(arg->getType()->isIntegerTy() && paramTy->isIntegerTy()))
+      goto ret;
+    unsigned srcBits = arg->getType()->getIntegerBitWidth();
+    unsigned dstBits = paramTy->getIntegerBitWidth();
+    if (srcBits > dstBits)
+      arg = b.CreateTrunc(arg, paramTy);
+    else if (srcBits < dstBits)
+      arg = b.CreateZExt(arg, paramTy);
   }
-
+ret:
   return b.CreateCall(encFn, {arg});
 }
 
-llvm::Value *emit_char(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b) {
+llvm::Value *IRGen::emitChar(HIRNode *n) {
   if (!n->literals.val.chars) {
     panic(n->loc, INVAILD_UTF8_CHAR, nullptr);
     return nullptr;
@@ -111,20 +107,24 @@ llvm::Value *emit_char(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b) {
   if (raw_len == 0 && n->literals.val.chars)
     raw_len = std::strlen(n->literals.val.chars);
 
-  uint32_t codepoint =
-      decode_utf8(n->literals.val.chars, raw_len, &len, &err);
+  uint32_t codepoint = decode_utf8(n->literals.val.chars, raw_len, &len, &err);
 
   // Error Handling
   if (err != Utf8Error::None) {
     const char *msg = nullptr;
     switch (err) {
-      case Utf8Error::MultiCharacter:
-        msg = "Character literal must be a single UTF-8 character (e.g., 'a' "
+    case Utf8Error::MultiCharacter:
+      msg = "Character literal must be a single UTF-8 character (e.g., 'a' "
             "or 'π')";
-        break;
-      case Utf8Error::Empty:       msg = "Character literal cannot be empty"; break;
-      case Utf8Error::InvalidUtf8: msg = n->literals.val.chars; break;
-      default: break;
+      break;
+    case Utf8Error::Empty:
+      msg = "Character literal cannot be empty";
+      break;
+    case Utf8Error::InvalidUtf8:
+      msg = n->literals.val.chars;
+      break;
+    default:
+      break;
     }
 
     panic(n->loc, INVAILD_UTF8_CHAR, msg ? msg : "unknown");
@@ -132,10 +132,10 @@ llvm::Value *emit_char(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b) {
   }
 
   // This now receives a single uint32_t, which LLVM ConstantInt accepts
-  return ConstantInt::get(ir_type(CHARACTER, ctx), codepoint);
+  return ConstantInt::get(irType(CHARACTER), codepoint);
 }
 
-llvm::Value *emit_strs(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b) {
+llvm::Value *IRGen::emitStr(HIRNode *n) {
   auto module = b.GetInsertBlock()->getModule();
 
   const char *data = n->literals.val.chars ? n->literals.val.chars : "";
@@ -152,8 +152,7 @@ llvm::Value *emit_strs(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b) {
   std::string name = "strlit." + std::to_string(id++);
 
   auto global = new GlobalVariable(*module, strConst->getType(), true,
-                                         GlobalValue::PrivateLinkage,
-                                         strConst, name);
+                                   GlobalValue::PrivateLinkage, strConst, name);
 
   // ✅ Correct GEP: from pointer, NOT array type
   llvm::Value *zero = ConstantInt::get(llvm::Type::getInt32Ty(ctx), 0);

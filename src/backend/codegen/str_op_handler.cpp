@@ -1,7 +1,7 @@
 #include "codegen/codegen.hpp"
 
-llvm::Value *emit_mul_strs(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
-                        IRBuilder<> &entryBuilder, Codegen::Scope &locals, llvm::Value *L, llvm::Value *R)
+llvm::Value *IRGen::emitMulStrs(HIRNode *n, Codegen::Scope &locals,
+                                llvm::Value *L, llvm::Value *R)
 {
   llvm::Type *i8Ptr = PointerType::getUnqual(ctx);
   llvm::Type *i64Ty = llvm::Type::getInt64Ty(ctx);
@@ -38,8 +38,8 @@ llvm::Value *emit_mul_strs(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
   return b.CreateCall(mulFn, {strVal, countVal});
 }
 
-llvm::Value *emit_add_strs(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
-    IRBuilder<> &entryBuilder, Codegen::Scope &locals, llvm::Value *L, llvm::Value *R)
+llvm::Value *IRGen::emitConcat(HIRNode *n, Codegen::Scope &locals,
+                               llvm::Value *L, llvm::Value *R)
 {
     Module *module = b.GetInsertBlock()->getModule();
     llvm::Type *i8Ty = llvm::Type::getInt8Ty(ctx);

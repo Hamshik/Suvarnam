@@ -11,8 +11,7 @@ struct LoopContext {
 std::vector<LoopContext> loopStack;
 
 
-llvm::Value *emit_whileloop(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
-                            IRBuilder<> &entryBuilder, Codegen::Scope &locals) {
+llvm::Value *IRGen::emitWhileloop(HIRNode *n, Codegen::Scope &locals) {
   Function *fn = b.GetInsertBlock()->getParent();
 
   BasicBlock *condBB = BasicBlock::Create(ctx, "while.cond", fn);
@@ -31,7 +30,7 @@ llvm::Value *emit_whileloop(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
   // --- 1. CONDITION BLOCK ---
   b.SetInsertPoint(condBB);
   llvm::Value *condV =
-      emit_expr(n->while_loop.condition, ctx, b, entryBuilder, loopBodyScope);
+      emitExpr(n->while_loop.condition, loopBodyScope);
   if (!condV) {
     condV = ConstantInt::getTrue(ctx);
   }
@@ -39,7 +38,7 @@ llvm::Value *emit_whileloop(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
 
   // --- 2. BODY BLOCK ---
   b.SetInsertPoint(bodyBB);
-  emit_expr(n->while_loop.body, ctx, b, entryBuilder, loopBodyScope);
+  emitExpr(n->while_loop.body, loopBodyScope);
 
   if (!blockTerminated(b))
     b.CreateBr(exprBB);
@@ -47,7 +46,7 @@ llvm::Value *emit_whileloop(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
   // --- 3. CONTINUATION EXPRESSION BLOCK (: (expr) execution step) ---
   b.SetInsertPoint(exprBB);
   if (n->while_loop.expr) {
-    emit_expr(n->while_loop.expr, ctx, b, entryBuilder, loopBodyScope);
+    emitExpr(n->while_loop.expr, loopBodyScope);
   }
 
   if (!blockTerminated(b))

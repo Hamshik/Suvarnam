@@ -70,7 +70,7 @@ bool is_float_dtype(DataTypes_t t) {
   }
 }
 
-llvm::Type *ir_type(DataTypes_t t, LLVMContext &ctx) {
+llvm::Type *IRGen::irType(DataTypes_t t) {
   switch (t) {
   case I8:
   case U8:
@@ -117,7 +117,7 @@ llvm::Type *ir_type(DataTypes_t t, LLVMContext &ctx) {
   }
 }
 
-llvm::Value *emit_number(HIRNode *n, LLVMContext &ctx) {
+llvm::Value *IRGen::emitNum(HIRNode *n) {
   switch (n->type->base) {
   case I8:
     return ConstantInt::get(llvm::Type::getInt8Ty(ctx),
@@ -175,27 +175,22 @@ llvm::Value *emit_number(HIRNode *n, LLVMContext &ctx) {
   }
 }
 
-Function *get_malloc_fn(Module &m, LLVMContext &ctx) {
-  Function *mallocFn = m.getFunction("malloc");
+Function *IRGen::getMallocFn() {
+  LLVMContext &ctx = mod.getContext();
+  Function *mallocFn = mod.getFunction("malloc");
   if (!mallocFn) {
     llvm::Type *i8Ptr = PointerType::getUnqual(ctx);
     llvm::Type *i64 = llvm::Type::getInt64Ty(ctx);
     FunctionType *mallocTy = FunctionType::get(i8Ptr, {i64}, false);
-    mallocFn = Function::Create(mallocTy, Function::ExternalLinkage, "malloc", m);
+    mallocFn = Function::Create(mallocTy, Function::ExternalLinkage, "malloc", mod);
   }
   return mallocFn;
 }
 
-
-bool blockTerminated(IRBuilder<> &b) {
-  return b.GetInsertBlock()->getTerminator() != nullptr;
-}
-
-llvm::Value *emit_if(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
-                     IRBuilder<> &entryBuilder, Codegen::Scope &locals) {
+llvm::Value *IRGen::emitIf(HIRNode *n, Codegen::Scope &locals) {
 
   // 1. Emit condition
-  llvm::Value *condV = emit_expr(n->if_stmt.condition, ctx, b, entryBuilder, locals);
+  llvm::Value *condV = emitExpr(n->if_stmt.condition, locals);
   if (!condV) {
       // Stop the layout corruption immediately!
       condV = ConstantInt::getFalse(ctx);
@@ -224,7 +219,7 @@ llvm::Value *emit_if(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
 
   // ---- THEN BLOCK ----
   b.SetInsertPoint(thenBB);
-  emit_expr(n->if_stmt.then_branch, ctx, b, entryBuilder, locals);
+  emitExpr(n->if_stmt.then_branch, locals);
 
   if (!blockTerminated(b))
     b.CreateBr(mergeBB);
@@ -236,7 +231,7 @@ llvm::Value *emit_if(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
     fn->insert(fn->end(), elseBB);
     b.SetInsertPoint(elseBB);
 
-    emit_expr(n->if_stmt.else_branch, ctx, b, entryBuilder, locals);
+    emitExpr(n->if_stmt.else_branch, locals);
 
     if (!blockTerminated(b))
       b.CreateBr(mergeBB);

@@ -13,7 +13,7 @@ std::vector<std::string> ir_out;
 
 /* ===================== TARGET SETUP ===================== */
 
-static TargetMachine *setup_target(Module &mod) {
+TargetMachine *IRGen::setupTarget() {
   InitializeNativeTarget();
   InitializeNativeTargetAsmPrinter();
   InitializeNativeTargetAsmParser();
@@ -39,19 +39,18 @@ static TargetMachine *setup_target(Module &mod) {
   return tm;
 }
 
-void pre_declare_all_user_functions(HIRNode *n, Module &mod,
-                                    LLVMContext &ctx) {
+void IRGen::preDecAllUserFns(HIRNode *n) {
   if (!n || !n->block_stmts)
     return;
 
   for (auto stmt : *n->block_stmts) {
     // Capture user function definitions and build empty declarations
     if (stmt->kind == AST_FN) {
-      get_or_create_prototype(stmt, mod, ctx);
+      getOrAddPrototypes(stmt, mod);
     } else if (stmt->kind == AST_IMPORT) {
       auto imported_mod = SA::HIR_SymbolTable::getMod(stmt->name);
       if (imported_mod && imported_mod->hirNode) {
-        pre_declare_all_user_functions(imported_mod->hirNode, mod, ctx);
+        preDecAllUserFns(imported_mod->hirNode);
       }
     }
   }
@@ -59,7 +58,7 @@ void pre_declare_all_user_functions(HIRNode *n, Module &mod,
 
 /* ===================== AST EMISSION ===================== */
 
-static void emit_functions(HIRNode *root, Module &mod, LLVMContext &ctx) {
+void IRGen::emitFns(HIRNode *root, Module &) {
   std::unordered_set<std::string> visited_modules;
 
   std::function<void(HIRNode *)> walk = [&](HIRNode *n) {
@@ -71,23 +70,23 @@ static void emit_functions(HIRNode *root, Module &mod, LLVMContext &ctx) {
           walk(stmt);
       }
     } else if (n->kind == AST_FN) {
-      emit_function(n, mod, ctx);
+      emitFn(n, mod);
     }
   };
 
   walk(root);
 }
 
-static Function *emit_init(HIRNode *root, Module &mod, LLVMContext &ctx) {
+Function *IRGen::emitInitFn(HIRNode *root) {
   FunctionType *ft = FunctionType::get(llvm::Type::getVoidTy(ctx), false);
   Function *initFn =
       Function::Create(ft, Function::InternalLinkage, "init", mod);
 
   BasicBlock *bb = BasicBlock::Create(ctx, "entry", initFn);
-  IRBuilder<> b(bb);
-  IRBuilder<> entryB(bb, bb->begin());
+  b.SetInsertPoint(bb);
+  entryBuilder.SetInsertPoint(bb, bb->begin());
+  locals = Codegen::Scope();
 
-  Codegen::Scope locals;
   std::unordered_set<std::string> visited_modules;
 
   std::function<void(HIRNode *)> emit_nonfn = [&](HIRNode *n) {
@@ -97,7 +96,7 @@ static Function *emit_init(HIRNode *root, Module &mod, LLVMContext &ctx) {
       for (auto stmt : *n->block_stmts) {
         if (stmt->kind == AST_FN)
           continue;
-        emit_expr(stmt, ctx, b, entryB, locals);
+        emitExpr(stmt, locals);
       }
     }
   };
@@ -112,7 +111,7 @@ static Function *emit_init(HIRNode *root, Module &mod, LLVMContext &ctx) {
 
 /* ===================== ENTRYPOINT ===================== */
 
-static bool emit_entry(Module &mod, LLVMContext &ctx, Function *initFn) {
+bool IRGen::emitEntryFn(Function *initFn) {
   Function *userMain = mod.getFunction("main");
   if (!userMain) {
     std::cerr << "No user main function found\n";
@@ -151,7 +150,7 @@ static bool emit_entry(Module &mod, LLVMContext &ctx, Function *initFn) {
 
 /* ===================== IR OUTPUT ===================== */
 
-static bool emit_ir(Module &mod, const char *path, char **out) {
+bool IRGen::emitIR(const char *path, char **out) {
   std::string ir;
   raw_string_ostream os(ir);
   mod.print(os, nullptr);
@@ -175,7 +174,7 @@ static bool emit_ir(Module &mod, const char *path, char **out) {
   return true;
 }
 
-void pre_declare_import_stmts(HIRNode *root, Module &mod, LLVMContext &ctx) {
+void IRGen::preDecImportStmts(HIRNode *root) {
   if (!root || !root->block_stmts)
     return;
 
@@ -199,22 +198,20 @@ void pre_declare_import_stmts(HIRNode *root, Module &mod, LLVMContext &ctx) {
 
 /* ===================== MAIN CODEGEN ===================== */
 
-int codegen(HIRNode *root, const char *ll_path, char **out_ir_str, bool is_main_module) {
-  LLVMContext ctx;
-  Module mod("SA_Module", ctx);
+int IRGen::main(HIRNode *root, const char *ll_path, char **out_ir_str, bool is_main_module) {
 
-  if (!setup_target(mod))
+  if (!setupTarget())
     return 1;
 
-  pre_declare_import_stmts(root, mod, ctx);
-  pre_declare_all_user_functions(root, mod, ctx);
-  emit_global(root, mod, ctx);
-  emit_functions(root, mod, ctx);
+  preDecImportStmts(root);
+  preDecAllUserFns(root);
+  emitGlobVar(root, mod);
+  emitFns(root, mod);
 
-  Function *initFn = emit_init(root, mod, ctx);
+  Function *initFn = emitInitFn(root);
 
   if (is_main_module) {
-    if (!emit_entry(mod, ctx, initFn))
+    if (!emitEntryFn(initFn))
       return 1;
   }
 
@@ -226,7 +223,7 @@ int codegen(HIRNode *root, const char *ll_path, char **out_ir_str, bool is_main_
               << errOS.str() << "\n";
   }
 
-  if (!emit_ir(mod, ll_path, out_ir_str))
+  if (!emitIR(ll_path, out_ir_str))
     return 1;
 
   if (is_main_module) {
@@ -236,4 +233,9 @@ int codegen(HIRNode *root, const char *ll_path, char **out_ir_str, bool is_main_
   }
 
   return 0;
+}
+
+int codegen(HIRNode *root, const char *ll_path, char **out_ir_str, bool is_main_module) {
+  IRGen irGen;
+  return irGen.main(root, ll_path, out_ir_str, is_main_module);
 }

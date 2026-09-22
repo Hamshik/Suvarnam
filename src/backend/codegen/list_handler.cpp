@@ -1,5 +1,5 @@
-#include "codegen/codegen.hpp"
 #include "SymbolTable/BuiltinRegistry.hpp"
+#include "codegen/codegen.hpp"
 #include "shared/enums.h"
 #include <cstddef>
 #include <iostream>
@@ -7,68 +7,48 @@
 #include <llvm-22/llvm/Support/Alignment.h>
 
 // Forward declare the helper
-Function *get_malloc_fn(Module &m, LLVMContext &ctx);
 TypeInfo *get_AST_ret(TypeInfo *t, size_t depth);
 static size_t idx = 0;
 
-FunctionCallee get_builtin_llvm_fn(const char* name, Module &m, LLVMContext &ctx) {
-    BuiltinFunction* builtin = BuiltinRegistry::instance().lookup(name);
-    if (!builtin) return {nullptr, nullptr};
+FunctionCallee IRGen::getBuiltinFn(const char *name, Module &m) {
+  BuiltinFunction *builtin = BuiltinRegistry::instance().lookup(name);
+  if (!builtin)
+    return {nullptr, nullptr};
 
-    // If already cached in this module (simplified cache logic)
-    if (Function* existing = m.getFunction(name)) {
-        return {existing->getFunctionType(), existing};
-    }
-
-    // Construct the LLVM signature from our metadata
-   llvm::Type* retTy = ir_type(builtin->return_type->base, ctx);
-std::vector<llvm::Type*> argTys;
-bool isVarArg = false;
-
-for (auto* pt : builtin->param_types) {
-  // Check for the start of variadic arguments
-  if (pt->type->base == UNKNOWN) {
-    isVarArg = true;
-    break; // Stop processing fixed arguments. Everything from here is vararg.
+  // If already cached in this module (simplified cache logic)
+  if (Function *existing = m.getFunction(name)) {
+    return {existing->getFunctionType(), existing};
   }
 
-  // Map LIST to generic Pointer for external C calls
-  if (pt->type->base == LIST) {
-    argTys.push_back(PointerType::getUnqual(ctx));
-  } else {
-    argTys.push_back(ir_type(pt->type->base, ctx));
-  }
-}
+  // Construct the LLVM signature from our metadata
+  llvm::Type *retTy = irType(builtin->return_type->base);
+  std::vector<llvm::Type *> argTys;
+  bool isVarArg = false;
 
-// Create the function type
-// The third argument 'true' tells LLVM this function accepts variable arguments (...)
-FunctionType* funcTy = FunctionType::get(retTy, argTys, isVarArg);   
-
-    return m.getOrInsertFunction(name, funcTy);
-}
-
-void emit_list_print_call(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b, IRBuilder<> &entryBuilder, Codegen::Scope &locals) {
-    Module *m = b.GetInsertBlock()->getModule();
-    
-    // 1. Get the function reference from the registry
-    FunctionCallee printFn = get_builtin_llvm_fn("SA_print_list", *m, ctx);
-
-    if (!printFn.getCallee()) {
-        return; // Handle error
+  for (auto *pt : builtin->param_types) {
+    // Check for the start of variadic arguments
+    if (pt->type->base == UNKNOWN) {
+      isVarArg = true;
+      break; // Stop processing fixed arguments. Everything from here is vararg.
     }
 
-    // 2. Get the list pointer (the '473480416' address)
-    llvm::Value *listPtr = emit_expr(n, ctx, b, entryBuilder, locals);
+    // Map LIST to generic Pointer for external C calls
+    if (pt->type->base == LIST) {
+      argTys.push_back(PointerType::getUnqual(ctx));
+    } else {
+      argTys.push_back(irType(pt->type->base));
+    }
+  }
 
-    // 3. Get the size (from your AST metadata)
-    llvm::Value *listSize = b.getInt32(n->type->size);
+  // Create the function type
+  // The third argument 'true' tells LLVM this function accepts variable
+  // arguments (...)
+  FunctionType *funcTy = FunctionType::get(retTy, argTys, isVarArg);
 
-    // 4. Generate the call: SA_print_list(listPtr, listSize)
-    b.CreateCall(printFn, {listPtr, listSize});
+  return m.getOrInsertFunction(name, funcTy);
 }
 
-llvm::Value *generateList(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
-                          IRBuilder<> &entryBuilder, Codegen::Scope &locals) {
+llvm::Value *IRGen::generateList(HIRNode *n, Codegen::Scope &locals) {
   if (!n->type || !n->type->inner) {
     std::cerr
         << "Codegen Error: List type or inner element type is missing at line "
@@ -76,7 +56,7 @@ llvm::Value *generateList(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
     return nullptr;
   }
 
-  llvm::Type *elemType = ir_type(n->type->inner->base, ctx);
+  llvm::Type *elemType = irType(n->type->inner->base);
 
   if (!elemType) {
     std::cerr << "Warning: invalid element type at line "
@@ -101,18 +81,19 @@ llvm::Value *generateList(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
   if (currentFn && currentFn->getName() == "init") {
     const DataLayout &DL = m->getDataLayout();
     uint64_t totalSize = n->type->size * DL.getTypeAllocSize(elemType);
-    Function *mallocFn = get_malloc_fn(*m, ctx);
+    Function *mallocFn = getMallocFn();
     allocatedPtr = b.CreateCall(mallocFn, {b.getInt64(totalSize)}, "list_heap");
     typedPtr = b.CreateBitCast(allocatedPtr, PointerType::getUnqual(ctx));
   } else {
-    allocatedPtr = entryBuilder.CreateAlloca(arrayType, nullptr, "list_stack_alloc");
+    allocatedPtr =
+        entryBuilder.CreateAlloca(arrayType, nullptr, "list_stack_alloc");
     typedPtr = b.CreateInBoundsGEP(arrayType, allocatedPtr,
                                    {b.getInt32(0), b.getInt32(0)});
   }
 
   for (uint32_t index = 0; index < n->element.elements->size(); ++index) {
     HIRNode *exprNode = (*n->element.elements)[index];
-    llvm::Value *elementVal = emit_expr(exprNode, ctx, b, entryBuilder, locals);
+    llvm::Value *elementVal = emitExpr(exprNode, locals);
 
     // Calculate element address using typedPtr
     llvm::Value *elementAddr =
@@ -121,33 +102,35 @@ llvm::Value *generateList(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
   }
 
   // Return as generic pointer (i8*)
-  return b.CreateBitCast(typedPtr, ir_type(LIST, ctx));
+  return b.CreateBitCast(typedPtr, irType(LIST));
 }
 
-llvm::Value *generateListElementPtr(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
-                                  IRBuilder<> &entryBuilder, Codegen::Scope &locals) {
-  llvm::Value *currentPtr = emit_expr(n->index.target, ctx, b, entryBuilder, locals);
+llvm::Value *IRGen::generateListElementPtr(HIRNode *n,
+                                           Codegen::Scope &locals) {
+  llvm::Value *currentPtr =
+      emitExpr(n->index.target, locals);
   TypeInfo *current_type_data = n->index.target->type; // semantic type metadata
-  std::vector<HIRNode*> &indices = *n->index.idx;
+  std::vector<HIRNode *> &indices = *n->index.idx;
 
   if (current_type_data && current_type_data->base == PTR) {
-    currentPtr = b.CreateLoad(PointerType::getUnqual(ctx), currentPtr,
-                             "implicit_load");
+    currentPtr =
+        b.CreateLoad(PointerType::getUnqual(ctx), currentPtr, "implicit_load");
     current_type_data = current_type_data->inner;
   }
 
   for (size_t i = 0; i < indices.size(); ++i) {
-    HIRNode* idx_expr_node = indices[i];
+    HIRNode *idx_expr_node = indices[i];
     if (!current_type_data || current_type_data->base != LIST) {
       std::cerr << "Codegen Error: Attempted to index a non-list type!"
                 << std::endl;
       return nullptr;
     }
 
-    llvm::Value *indexVal = emit_expr(idx_expr_node, ctx, b, entryBuilder, locals);
+    llvm::Value *indexVal =
+        emitExpr(idx_expr_node, locals);
 
     TypeInfo *inner_type = current_type_data->inner;
-    llvm::Type *llvmElemType = ir_type(inner_type->base, ctx);
+    llvm::Type *llvmElemType = irType(inner_type->base);
 
     llvm::Value *typedPtr =
         b.CreateBitCast(currentPtr, PointerType::getUnqual(ctx));
@@ -170,13 +153,14 @@ llvm::Value *generateListElementPtr(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b
   return currentPtr;
 }
 
-llvm::Value *generateListAccess(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
-                               IRBuilder<> &entryBuilder, Codegen::Scope &locals) {
-  llvm::Value *elementAddr = generateListElementPtr(n, ctx, b, entryBuilder, locals);
+llvm::Value *IRGen::generateListAccess(HIRNode *n,
+                                       Codegen::Scope &locals) {
+  llvm::Value *elementAddr =
+      generateListElementPtr(n, locals);
   if (!elementAddr)
     return nullptr;
 
-  llvm::Type *elementType = ir_type(n->type->base, ctx);
+  llvm::Type *elementType = irType(n->type->base);
 
   if (elementType->isVoidTy()) {
     fprintf(stderr, "Error: Invalid element type at line %zu\n",

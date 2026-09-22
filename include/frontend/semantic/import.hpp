@@ -16,14 +16,10 @@ private:
   std::vector<fs::path> *include_paths; // e.g., stdlib paths, -I flags
   CompilerContext* ctx;
   std::unique_ptr<std::istringstream> content;
-  bool isFreshCtx = true;
   FILE* f;
 
 public:
   explicit Importer(FILE* f, CompilerContext* ctx = nullptr);
-  ~Importer(){
-    if(isFreshCtx) delete ctx;
-  }
 
   CompilerContext* getCtx(){ return ctx; }
 

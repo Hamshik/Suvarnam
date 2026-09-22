@@ -1,22 +1,17 @@
 #include "codegen/codegen.hpp"
 #include "SymbolTable/BuiltinRegistry.hpp"
 #include <cstring>
-
-
 #include "codegen/codegen.hpp"
 #include "SymbolTable/BuiltinRegistry.hpp"
-#include "semantic/import.hpp"
 #include <cstring>
 
-FunctionCallee get_builtin_llvm_fn(const char* name, Module &m, LLVMContext &ctx);
 extern SemanticSymTable* sym;
 
 // A module compiled independently does not contain the LLVM definition for a
 // function supplied by an import.  The semantic symbol table is the shared
 // source of truth for those signatures, so use it to materialize an external
 // declaration in this module when necessary.
-static Function *get_or_create_symbol_prototype(const char *name, Module &mod,
-                                                      LLVMContext &ctx) {
+Function *IRGen::getOrAddSymPrototype(const char *name) {
   FnSymbol *symbol = sym->fnFind(name);
   if (!symbol)
     return nullptr;
@@ -26,10 +21,10 @@ static Function *get_or_create_symbol_prototype(const char *name, Module &mod,
   for (int i = 0; i < symbol->param_count; ++i) {
     if (!symbol->params || !symbol->params[i].type)
       return nullptr;
-    params.push_back(ir_type(symbol->params[i].type->base, ctx));
+    params.push_back(irType(symbol->params[i].type->base));
   }
 
-  llvm::Type *return_type = symbol->ret ? ir_type(symbol->ret->base, ctx)
+  llvm::Type *return_type = symbol->ret ? irType(symbol->ret->base)
                                   : llvm::Type::getInt32Ty(ctx);
   if (symbol->ret && return_type->isVoidTy() && symbol->ret->base == UNKNOWN)
     return_type = llvm::Type::getInt32Ty(ctx);
@@ -38,13 +33,12 @@ static Function *get_or_create_symbol_prototype(const char *name, Module &mod,
   return Function::Create(type, Function::ExternalLinkage, name, mod);
 }
 
-Function *get_or_create_prototype(HIRNode *fn_ast, Module &mod,
-                                       LLVMContext &ctx) {
+Function *IRGen::getOrAddPrototypes(HIRNode *fn_ast, Module &mod) {
   std::vector<llvm::Type *> params;
   for (auto* p : *fn_ast->fn.params) {
-    params.push_back(ir_type(p->type->base, ctx));
+    params.push_back(irType(p->type->base));
   }
-  llvm::Type *retTy = ir_type(fn_ast->type->base, ctx);
+  llvm::Type *retTy = irType(fn_ast->type->base);
   if (retTy->isVoidTy() && fn_ast->type->base == UNKNOWN)
     retTy = llvm::Type::getInt32Ty(ctx);
   FunctionType *ft = FunctionType::get(retTy, params, false);
@@ -56,17 +50,16 @@ Function *get_or_create_prototype(HIRNode *fn_ast, Module &mod,
   return fn;
 }
 
-void emit_function(HIRNode *fn_ast, Module &mod, LLVMContext &ctx) {
-  Function *fn = get_or_create_prototype(fn_ast, mod, ctx);
+void IRGen::emitFn(HIRNode *fn_ast, Module &mod) {
+  Function *fn = getOrAddPrototypes(fn_ast, mod);
   if (!fn)
     return;
     
   BasicBlock *entry = BasicBlock::Create(ctx, "entry", fn);
-  IRBuilder<> b(entry);
+  b.SetInsertPoint(entry);
   
   // 🎯 FIX: Force entryBuilder to point directly to the beginning of the entry block.
   // This guarantees that any alloca instruction is injected at the very top of main().
-  IRBuilder<> entryBuilder(ctx);
   entryBuilder.SetInsertPoint(entry, entry->begin());
   
   Codegen::Scope locals;
@@ -86,7 +79,7 @@ void emit_function(HIRNode *fn_ast, Module &mod, LLVMContext &ctx) {
 
   for(auto stmt : *fn_ast->fn.body)
     // Process function body block
-    emit_expr(stmt, ctx, b, entryBuilder, locals);
+    emitExpr(stmt, locals);
 
   // Fallback return if block isn't explicitly terminated
   if (!blockTerminated(b)) {
@@ -117,8 +110,7 @@ static bool is_variadic_builtin_call(const HIRNode *n) {
   return false;
 }
 
-llvm::Value *emit_call(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
-                       IRBuilder<> &entryBuilder, Codegen::Scope &locals) {
+llvm::Value *IRGen::emitCall(HIRNode *n, Codegen::Scope &locals) {
 
   argvec args;
 
@@ -127,7 +119,7 @@ llvm::Value *emit_call(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
     for (HIRNode *arg_node : *n->call.args) {
       if (is_variadic_builtin_call(n) && arg_node && arg_node->kind == AST_LIST) {
         for (HIRNode *packed_arg : *arg_node->element.elements) {
-          llvm::Value *v = emit_expr(packed_arg, ctx, b, entryBuilder, locals);
+          llvm::Value *v = emitExpr(packed_arg, locals);
           if (!v)
             v = ConstantInt::get(llvm::Type::getInt32Ty(ctx), 0);
           args.push_back(v);
@@ -135,7 +127,7 @@ llvm::Value *emit_call(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
         continue;
       }
 
-      llvm::Value *v = emit_expr(arg_node, ctx, b, entryBuilder, locals);
+      llvm::Value *v = emitExpr(arg_node, locals);
       if (!v)
         v = ConstantInt::get(llvm::Type::getInt32Ty(ctx), 0);
       args.push_back(v);
@@ -162,11 +154,11 @@ llvm::Value *emit_call(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
   // Find the function (either builtin or user-defined)
   FunctionCallee callee;
   if (BuiltinRegistry::instance().lookup(fname)) {
-    callee = get_builtin_llvm_fn(fname, *m, ctx);
+    callee = getBuiltinFn(fname, *m);
   } else {
     callee = m->getFunction(fname);
     if (!callee.getCallee())
-      callee = get_or_create_symbol_prototype(fname, *m, ctx);
+      callee = getOrAddSymPrototype(fname);
   }
 
   if (!callee.getCallee()) {

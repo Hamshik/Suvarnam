@@ -1,20 +1,16 @@
 #include "semantic/import.hpp"
+#include "Parser.h"
 #include "SymbolTable/SymbolTable.hpp"
 #include "SymbolTable/SymbolTableInternal.hpp"
 #include "semantic/semantic.hpp"
 #include "shared/nodes.h"
 #include "shared/structs.h"
 #include "utils/error_handler/error.h"
-#include "Parser.h"
 
 Importer::Importer(FILE *source, CompilerContext *context)
     : ctx(context), f(source) {
-  if (!ctx) {
-    content.reset(getFileContent(f));
-    ctx = new CompilerContext(*content);
-
-  } else
-    isFreshCtx = false;
+  content.reset(getFileContent(f));
+  ctx = new CompilerContext(*content);
 }
 
 std::optional<fs::path> Importer::resolve(const std::string &import_path,

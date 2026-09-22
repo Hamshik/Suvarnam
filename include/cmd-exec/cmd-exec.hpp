@@ -23,7 +23,7 @@ char *logf_msg(const char *, ...);
 typedef struct {
     const char *input_filename;
     char* bin_output_path;
-    bool emit_ir;
+    bool emitIR;
     char* ir_output_path;
 } Options;
 bool parse_arguments(int, char **, Options *);

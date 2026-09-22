@@ -1,16 +1,9 @@
 #include "codegen/codegen.hpp"
 #include "shared/enums.h"
 
-llvm::Value *emit_mul_strs(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
-                        IRBuilder<> &entryBuilder, Codegen::Scope &locals, llvm::Value *L, llvm::Value *R);
-
-llvm::Value *emit_add_strs(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
-                        IRBuilder<> &entryBuilder, Codegen::Scope &locals, llvm::Value *L, llvm::Value *R);
-
-llvm::Value *emit_binop(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
-                        IRBuilder<> &entryBuilder, Codegen::Scope &locals) {
-  llvm::Value *L = emit_expr(n->binary.left, ctx, b, entryBuilder, locals);
-  llvm::Value *R = emit_expr(n->binary.right, ctx, b, entryBuilder, locals);
+llvm::Value *IRGen::emitBinop(HIRNode *n, Codegen::Scope &locals) {
+  llvm::Value *L = emitExpr(n->binary.left, locals);
+  llvm::Value *R = emitExpr(n->binary.right, locals);
   if (!L || !R)
     return nullptr;
 
@@ -22,7 +15,7 @@ llvm::Value *emit_binop(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
   switch (n->binary.op) {
 
   case OP_ADD: {
-    if (n->type->base == STRINGS) return emit_add_strs(n, ctx, b, entryBuilder, locals, L, R);
+    if (n->type->base == STRINGS) return emitConcat(n, locals, L, R);
 
     return is_float ? b.CreateFAdd(L, R) : b.CreateAdd(L, R);
   }
@@ -31,7 +24,7 @@ llvm::Value *emit_binop(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
     return is_float ? b.CreateFSub(L, R) : b.CreateSub(L, R);
 
   case OP_MUL:
-    if (n->type->base == STRINGS) return emit_mul_strs(n, ctx, b, entryBuilder, locals, L, R);
+    if (n->type->base == STRINGS) return emitMulStrs(n, locals, L, R);
     return is_float ? b.CreateFMul(L, R) : b.CreateMul(L, R);
 
   case OP_DIV:
@@ -102,13 +95,13 @@ llvm::Value *emit_binop(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
 #define num_inc_OR_dec(LLVM_OPCODE, node, builder)                             \
   do {                                                                         \
     /* Convert your custom frontend TypeInfo* to an actual llvm::Type* */        \
-    llvm::Type* llvmTy = ir_type((node)->type->base, ctx);                     \
+    llvm::Type* llvmTy = irType((node)->type->base);                          \
                                                                                \
     /* 1. Extract the name string into a local macro variable for legibility */\
     const char* var_name = (node)->binary.left->name;                          \
                                                                                \
     /* 2. Lookup or create a local stack allocation (Must be a pointer!) */    \
-    llvm::Value *val = get_or_create_alloca(var_name, (node)->type->base, ctx, builder, locals); \
+    llvm::Value *val = getOrAddAlloca(var_name, (node)->type->base, locals); \
                                                                                \
     /* 3. If local lookup fails (null), fall back to looking up the global */  \
     llvm::Value *varPtr = val ? val : (builder).GetInsertBlock()->getModule()  \
@@ -139,9 +132,8 @@ llvm::Value *emit_binop(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
   } while (0)
 
 
-llvm::Value *emit_unop(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
-                       IRBuilder<> &entryBuilder, Codegen::Scope &locals) {
-  llvm::Value *opnd = emit_expr(n->binary.left, ctx, b, entryBuilder, locals);
+llvm::Value *IRGen::emitUnop(HIRNode *n, Codegen::Scope &locals) {
+  llvm::Value *opnd = emitExpr(n->binary.left, locals);
   if (!opnd)
     return nullptr;
 
@@ -162,7 +154,7 @@ llvm::Value *emit_unop(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
     const char* var_name = n->binary.left->name;
     
     // Look up the raw variable pointer (the alloca or global variable address)
-    llvm::Value *varPtr = get_or_create_alloca(var_name, n->type->base, ctx, b, locals);
+    llvm::Value *varPtr = getOrAddAlloca(var_name, n->type->base, locals);
     if (!varPtr) {
         varPtr = b.GetInsertBlock()->getModule()->getGlobalVariable(var_name, true);
     }
@@ -173,7 +165,7 @@ llvm::Value *emit_unop(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
 
   case OP_DEREF: {
     // 1. Evaluate the inner expression recursively.
-    llvm::Value *ptr_val = emit_expr(n->binary.left, ctx, b, entryBuilder, locals);
+    llvm::Value *ptr_val = emitExpr(n->binary.left, locals);
     if (!ptr_val) return nullptr;
 
     // 2. 🎯 THE LLVM 22 OPAQUE POINTER FIX: 
@@ -181,7 +173,7 @@ llvm::Value *emit_unop(HIRNode *n, LLVMContext &ctx, IRBuilder<> &b,
     // use b.getPtrTy() directly to maintain perfect opaque pointer stability.
     llvm::Type *targetTy = (n->type && n->type->base == PTR) 
                            ? b.getPtrTy() 
-                           : ir_type(n->type->base, ctx);
+                           : irType(n->type->base);
 
     // 3. Emit the explicit element load instruction
     return b.CreateLoad(targetTy, ptr_val, "deref_val");

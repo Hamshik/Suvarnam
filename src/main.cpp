@@ -30,10 +30,10 @@ int main(int argc, char **argv) {
     if (root && !isError)
         status = compile_and_execute(root, &opts, importer);
     
-    Semantic::checkErr();
     if (file->source != stdin)
         fclose(file->source);
     if (opts.input_filename && file->filename && file->filename != opts.input_filename)
         free(file->filename);
+
     return status;
 }

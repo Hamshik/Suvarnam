@@ -88,7 +88,7 @@ bool parse_arguments(int argc, char **argv, Options *opts) {
   // Set defaults
   opts->input_filename = NULL;
   opts->bin_output_path = (char *)"SA.bin";
-  opts->emit_ir = false;
+  opts->emitIR = false;
   opts->ir_output_path = (char *)"out.ll";
 
   int i = 1;
@@ -111,7 +111,7 @@ bool parse_arguments(int argc, char **argv, Options *opts) {
       }
     } else if (strcmp(argv[i], "--emit-ir") == 0) {
       if (i + 1 < argc) {
-        opts->emit_ir = true;
+        opts->emitIR = true;
         opts->ir_output_path = argv[i + 1];
         i += 2;
       } else {
@@ -142,7 +142,7 @@ bool parse_arguments(int argc, char **argv, Options *opts) {
     }
   }
 
-  if (opts->emit_ir) {
+  if (opts->emitIR) {
     char resolved[PATH_MAX];
     if (realpath(opts->ir_output_path, resolved)) {
       opts->ir_output_path = strdup(resolved);
@@ -183,6 +183,8 @@ int compile_and_execute(ASTNode *root, const Options *opts, Importer* import) {
   error_fatal = true; /* runtime errors should still stop */
   char *ir_text = NULL;
 
+  Semantic::checkErr();
+
   HIRGenerator *mgen = new HIRGenerator(ctx);
   HIRNode *mast_root = mgen->generate(root);
   delete mgen;
@@ -192,7 +194,7 @@ int compile_and_execute(ASTNode *root, const Options *opts, Importer* import) {
 
   ir_out.clear();
 
-  const char *main_ir_path = (opts->emit_ir && opts->ir_output_path)
+  const char *main_ir_path = (opts->emitIR && opts->ir_output_path)
                                  ? opts->ir_output_path
                                  : "/tmp/temp_suvarnam_main.ll";
 
@@ -203,7 +205,7 @@ int compile_and_execute(ASTNode *root, const Options *opts, Importer* import) {
 
   ast_free(root);
 
-  if (opts->emit_ir && opts->ir_output_path) {
+  if (opts->emitIR && opts->ir_output_path) {
     FILE *irf = fopen(opts->ir_output_path, "w");
     if (irf) {
       fputs(ir_text ? ir_text : "", irf);
@@ -224,7 +226,7 @@ int compile_and_execute(ASTNode *root, const Options *opts, Importer* import) {
   std::vector<std::string> object_paths;
   std::string main_obj_path = make_object_path(main_ir_path);
   if (!compile_ir_to_object(main_ir_path, main_obj_path)) {
-    if (!opts->emit_ir)
+    if (!opts->emitIR)
       unlink(main_ir_path);
     return 1;
   }
@@ -233,7 +235,7 @@ int compile_and_execute(ASTNode *root, const Options *opts, Importer* import) {
   for (const auto &import_ir : ir_out) {
     std::string import_obj_path = make_object_path(import_ir);
     if (!compile_ir_to_object(import_ir, import_obj_path)) {
-      if (!opts->emit_ir)
+      if (!opts->emitIR)
         unlink(main_ir_path);
       return 1;
     }
@@ -264,7 +266,7 @@ int compile_and_execute(ASTNode *root, const Options *opts, Importer* import) {
 
   int link_res = run_exec(link_argv[0], link_argv.data());
 
-  if (!opts->emit_ir)
+  if (!opts->emitIR)
     unlink(main_ir_path);
 
   // Clean up object files
