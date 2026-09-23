@@ -11,7 +11,7 @@ extern std::vector<LoopContext> loopStack;
 llvm::Value *IRGen::emitExpr(HIRNode *n, Codegen::Scope &locals) {
   if (!n)
     return nullptr;
-  if (blockTerminated(b))
+  if (blockTerminated())
     return nullptr;
 
   switch (n->kind) {
@@ -25,10 +25,10 @@ llvm::Value *IRGen::emitExpr(HIRNode *n, Codegen::Scope &locals) {
     return ConstantInt::get(llvm::Type::getInt1Ty(ctx), n->literals.val.bval ? 1 : 0);
 
   case AST_STR:
-    return emitStr(n);
+    return strHelper.emitStr(n);
 
   case AST_CHAR:
-    return emitChar(n);
+    return strHelper.emitChar(n);
 
   case AST_VAR: {
     const char* varName = n->name ? n->name : "unnamed_tmp";
@@ -74,7 +74,7 @@ llvm::Value *IRGen::emitExpr(HIRNode *n, Codegen::Scope &locals) {
     return emitAssign(n, locals);
 
   case AST_CALL:
-    return emitCall(n, locals);
+    return fnHelper.emitCall(n, locals);
 
   case AST_WHILE:
     return emitWhileloop(n, locals);
@@ -88,7 +88,7 @@ llvm::Value *IRGen::emitExpr(HIRNode *n, Codegen::Scope &locals) {
     for (auto stmt : *n->block_stmts) {
         // If the current instruction stream is truly terminated (e.g., a return),
         // we skip the rest of this specific block.
-        if (blockTerminated(b)) break;
+        if (blockTerminated()) break;
         
         lastVal = emitExpr(stmt, locals);
     }
@@ -98,7 +98,7 @@ llvm::Value *IRGen::emitExpr(HIRNode *n, Codegen::Scope &locals) {
   case AST_RETURN: {
     llvm::Value *v = emitExpr(n->ret_stmt.value, locals);
 
-    if (!blockTerminated(b)) {
+    if (!blockTerminated()) {
       if (v)
         b.CreateRet(v);
       else

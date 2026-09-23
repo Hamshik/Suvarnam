@@ -45,22 +45,65 @@ bool is_unsigned_dtype(DataTypes_t);
 bool is_float_dtype(DataTypes_t);
 __int128 parse_i128(const char *, int *);
 __int128 parse_i128(const char *, int *);
-bool blockTerminated(IRBuilder<> &);
-uint32_t decode_utf8(const char *, size_t, size_t *, Utf8Error *);
+
+class IRGen;
+
+class FnHelper {
+  Module &mod;
+  LLVMContext &ctx;
+  IRBuilder<> &b;
+  IRBuilder<> &entryBuilder;
+  IRGen &irGen;
+
+public:
+  FnHelper(IRGen &irGen);
+
+  FunctionCallee getBuiltinFn(const char *);
+  void preDecAllUserFns(HIRNode *);
+  Function *emitInitFn(HIRNode *);
+  Function *getOrAddSymPrototype(const char *);
+  bool emitEntryFn(Function *);
+  Function *getMallocFn();
+  llvm::Value *emitCall(HIRNode *, Codegen::Scope &);
+  Function *getOrAddPrototypes(HIRNode *);
+  void emitFn(HIRNode *);
+  void emitFns(HIRNode *);
+};
+
+class StrHelper {
+  Module &mod;
+  LLVMContext &ctx;
+  IRBuilder<> &b;
+  IRBuilder<> &entryBuilder;
+  IRGen &irGen;
+
+public:
+  llvm::Value *emitCharToStr(llvm::Value *);
+  uint32_t decodeUTF8(const char *raw, size_t raw_len, size_t *byte_len,
+                      Utf8Error *error);
+
+  llvm::Value *toI8Ptr(llvm::Value *);
+  llvm::Value *emitChar(HIRNode *);
+  llvm::Value *emitStr(HIRNode *);
+  StrHelper(IRGen &irGen);
+  llvm::Value *emitMulStrs(HIRNode *, Codegen::Scope &, llvm::Value *,
+                           llvm::Value *);
+  llvm::Value *emitConcat(HIRNode *, Codegen::Scope &, llvm::Value *,
+                          llvm::Value *);
+};
 
 class IRGen {
-protected:
+public:
   LLVMContext ctx;
   Module mod;
   IRBuilder<> b;
   IRBuilder<> entryBuilder;
   Codegen::Scope locals;
+  FnHelper fnHelper;
+  StrHelper strHelper;
 
   llvm::Type *irType(DataTypes_t);
-  Function *getOrAddPrototypes(HIRNode *, Module &);
-  void emitFn(HIRNode *, Module &);
-  void emitFns(HIRNode *, Module &);
-  void emitGlobVar(HIRNode *, Module &);
+  void emitGlobVar(HIRNode *);
 
   llvm::Value *emitExpr(HIRNode *, Codegen::Scope &);
   AllocaInst *getOrAddAlloca(const std::string &, DataTypes_t,
@@ -71,39 +114,24 @@ protected:
   llvm::Value *emitBinop(HIRNode *, Codegen::Scope &);
   llvm::Value *emitUnop(HIRNode *, Codegen::Scope &);
   llvm::Value *emitAssign(HIRNode *, Codegen::Scope &);
-  llvm::Value *emitCall(HIRNode *, Codegen::Scope &);
   llvm::Value *emitIf(HIRNode *, Codegen::Scope &);
 
   llvm::Value *generateList(HIRNode *, Codegen::Scope &);
   llvm::Value *generateListAccess(HIRNode *, Codegen::Scope &);
   llvm::Value *generateListElementPtr(HIRNode *, Codegen::Scope &);
-  llvm::Value *toI8Ptr(llvm::Value *);
-  llvm::Value *emitChar(HIRNode *);
-  llvm::Value *emitStr(HIRNode *);
   llvm::Value *emitRange(HIRNode *, Codegen::Scope &);
 
-  bool blockTerminated(IRBuilder<> &b) {
+  bool blockTerminated() {
     return b.GetInsertBlock()->getTerminator() != nullptr;
   }
 
-  FunctionCallee getBuiltinFn(const char *, Module &);
-
-  llvm::Value *emitMulStrs(HIRNode *, Codegen::Scope &, llvm::Value *,
-                           llvm::Value *);
-
-  llvm::Value *emitConcat(HIRNode *, Codegen::Scope &, llvm::Value *,
-                          llvm::Value *);
-
-  void preDecAllUserFns(HIRNode *);
-  Function *emitInitFn(HIRNode *);
-  Function *getOrAddSymPrototype(const char *);
   TargetMachine *setupTarget();
-  bool emitEntryFn(Function *);
   bool emitIR(const char *, char **);
   void preDecImportStmts(HIRNode *);
-  Function *getMallocFn();
-  llvm::Value *emitCharToStr(llvm::Value *);
+
 public:
-  IRGen() : mod("SA_Module", ctx), b(ctx), entryBuilder(ctx) {}
+  IRGen()
+      : mod("SA_Module", ctx), b(ctx), entryBuilder(ctx), strHelper(*this),
+        fnHelper(*this) {}
   int main(HIRNode *, const char *, char **, bool);
 };

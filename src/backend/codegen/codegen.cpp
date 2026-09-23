@@ -39,14 +39,14 @@ TargetMachine *IRGen::setupTarget() {
   return tm;
 }
 
-void IRGen::preDecAllUserFns(HIRNode *n) {
+void FnHelper::preDecAllUserFns(HIRNode *n) {
   if (!n || !n->block_stmts)
     return;
 
   for (auto stmt : *n->block_stmts) {
     // Capture user function definitions and build empty declarations
     if (stmt->kind == AST_FN) {
-      getOrAddPrototypes(stmt, mod);
+      getOrAddPrototypes(stmt);
     } else if (stmt->kind == AST_IMPORT) {
       auto imported_mod = SA::HIR_SymbolTable::getMod(stmt->name);
       if (imported_mod && imported_mod->hirNode) {
@@ -58,7 +58,7 @@ void IRGen::preDecAllUserFns(HIRNode *n) {
 
 /* ===================== AST EMISSION ===================== */
 
-void IRGen::emitFns(HIRNode *root, Module &) {
+void FnHelper::emitFns(HIRNode *root) {
   std::unordered_set<std::string> visited_modules;
 
   std::function<void(HIRNode *)> walk = [&](HIRNode *n) {
@@ -70,14 +70,14 @@ void IRGen::emitFns(HIRNode *root, Module &) {
           walk(stmt);
       }
     } else if (n->kind == AST_FN) {
-      emitFn(n, mod);
+      emitFn(n);
     }
   };
 
   walk(root);
 }
 
-Function *IRGen::emitInitFn(HIRNode *root) {
+Function *FnHelper::emitInitFn(HIRNode *root) {
   FunctionType *ft = FunctionType::get(llvm::Type::getVoidTy(ctx), false);
   Function *initFn =
       Function::Create(ft, Function::InternalLinkage, "init", mod);
@@ -85,7 +85,7 @@ Function *IRGen::emitInitFn(HIRNode *root) {
   BasicBlock *bb = BasicBlock::Create(ctx, "entry", initFn);
   b.SetInsertPoint(bb);
   entryBuilder.SetInsertPoint(bb, bb->begin());
-  locals = Codegen::Scope();
+  irGen.locals = Codegen::Scope();
 
   std::unordered_set<std::string> visited_modules;
 
@@ -96,7 +96,7 @@ Function *IRGen::emitInitFn(HIRNode *root) {
       for (auto stmt : *n->block_stmts) {
         if (stmt->kind == AST_FN)
           continue;
-        emitExpr(stmt, locals);
+        irGen.emitExpr(stmt, irGen.locals);
       }
     }
   };
@@ -111,7 +111,7 @@ Function *IRGen::emitInitFn(HIRNode *root) {
 
 /* ===================== ENTRYPOINT ===================== */
 
-bool IRGen::emitEntryFn(Function *initFn) {
+bool FnHelper::emitEntryFn(Function *initFn) {
   Function *userMain = mod.getFunction("main");
   if (!userMain) {
     std::cerr << "No user main function found\n";
@@ -204,14 +204,14 @@ int IRGen::main(HIRNode *root, const char *ll_path, char **out_ir_str, bool is_m
     return 1;
 
   preDecImportStmts(root);
-  preDecAllUserFns(root);
-  emitGlobVar(root, mod);
-  emitFns(root, mod);
+  fnHelper.preDecAllUserFns(root);
+  emitGlobVar(root);
+  fnHelper.emitFns(root);
 
-  Function *initFn = emitInitFn(root);
+  Function *initFn = fnHelper.emitInitFn(root);
 
   if (is_main_module) {
-    if (!emitEntryFn(initFn))
+    if (!fnHelper.emitEntryFn(initFn))
       return 1;
   }
 

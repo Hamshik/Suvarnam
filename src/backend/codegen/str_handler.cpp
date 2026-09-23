@@ -2,7 +2,11 @@
 #include "utils/utf-8_lib/utf8/unchecked.hpp"
 #include <cstring>
 
-uint32_t decode_utf8(const char *raw, size_t raw_len, size_t *byte_len,
+StrHelper::StrHelper(IRGen &irGen)
+    : mod(irGen.mod), ctx(irGen.ctx), b(irGen.b),
+      entryBuilder(irGen.entryBuilder), irGen(irGen) {}
+
+uint32_t StrHelper::decodeUTF8(const char *raw, size_t raw_len, size_t *byte_len,
                      Utf8Error *error) {
   if (!raw || raw_len == 0) {
     *error = Utf8Error::Empty;
@@ -32,7 +36,7 @@ uint32_t decode_utf8(const char *raw, size_t raw_len, size_t *byte_len,
   return cp;
 }
 
-llvm::Value *IRGen::toI8Ptr(llvm::Value *v) {
+llvm::Value *StrHelper::toI8Ptr(llvm::Value *v) {
   auto &ctx = b.getContext();
 
   auto *i8Ty = llvm::Type::getInt8Ty(ctx);
@@ -62,7 +66,7 @@ llvm::Value *IRGen::toI8Ptr(llvm::Value *v) {
   return v;
 }
 
-llvm::Value *IRGen::emitCharToStr(llvm::Value *ch) {
+llvm::Value *StrHelper::emitCharToStr(llvm::Value *ch) {
   // Ensure encoder function exists with a parameter matching `ch`'s type
   llvm::Type *i8PtrTy = PointerType::getUnqual(ctx);
   llvm::Type *cpTy = ch->getType();
@@ -93,7 +97,7 @@ ret:
   return b.CreateCall(encFn, {arg});
 }
 
-llvm::Value *IRGen::emitChar(HIRNode *n) {
+llvm::Value *StrHelper::emitChar(HIRNode *n) {
   if (!n->literals.val.chars) {
     panic(n->loc, INVAILD_UTF8_CHAR, nullptr);
     return nullptr;
@@ -107,7 +111,7 @@ llvm::Value *IRGen::emitChar(HIRNode *n) {
   if (raw_len == 0 && n->literals.val.chars)
     raw_len = std::strlen(n->literals.val.chars);
 
-  uint32_t codepoint = decode_utf8(n->literals.val.chars, raw_len, &len, &err);
+  uint32_t codepoint = decodeUTF8(n->literals.val.chars, raw_len, &len, &err);
 
   // Error Handling
   if (err != Utf8Error::None) {
@@ -132,10 +136,10 @@ llvm::Value *IRGen::emitChar(HIRNode *n) {
   }
 
   // This now receives a single uint32_t, which LLVM ConstantInt accepts
-  return ConstantInt::get(irType(CHARACTER), codepoint);
+  return ConstantInt::get(irGen.irType(CHARACTER), codepoint);
 }
 
-llvm::Value *IRGen::emitStr(HIRNode *n) {
+llvm::Value *StrHelper::emitStr(HIRNode *n) {
   auto module = b.GetInsertBlock()->getModule();
 
   const char *data = n->literals.val.chars ? n->literals.val.chars : "";

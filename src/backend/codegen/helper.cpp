@@ -175,7 +175,7 @@ llvm::Value *IRGen::emitNum(HIRNode *n) {
   }
 }
 
-Function *IRGen::getMallocFn() {
+Function *FnHelper::getMallocFn() {
   LLVMContext &ctx = mod.getContext();
   Function *mallocFn = mod.getFunction("malloc");
   if (!mallocFn) {
@@ -221,7 +221,7 @@ llvm::Value *IRGen::emitIf(HIRNode *n, Codegen::Scope &locals) {
   b.SetInsertPoint(thenBB);
   emitExpr(n->if_stmt.then_branch, locals);
 
-  if (!blockTerminated(b))
+  if (!blockTerminated())
     b.CreateBr(mergeBB);
 
   thenBB = b.GetInsertBlock(); // update
@@ -233,7 +233,7 @@ llvm::Value *IRGen::emitIf(HIRNode *n, Codegen::Scope &locals) {
 
     emitExpr(n->if_stmt.else_branch, locals);
 
-    if (!blockTerminated(b))
+    if (!blockTerminated())
       b.CreateBr(mergeBB);
 
     elseBB = b.GetInsertBlock();

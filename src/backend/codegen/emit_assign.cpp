@@ -86,11 +86,10 @@ llvm::Value *IRGen::emitAssign(HIRNode *n, Codegen::Scope &locals) {
   llvm::Value *result = rhs;
   DataTypes_t t = n->type->base != UNKNOWN ? n->type->base : (lhs->type ? lhs->type->base : UNKNOWN);
 
-  if (t == STRINGS) {
-    result = toI8Ptr(result);
-  } else if (t == LIST) {
+  if (t == STRINGS)
+    result = strHelper.toI8Ptr(result);
+  else if (t == LIST)
     result = b.CreateBitCast(result, irType(LIST));
-  }
 
   // This step creates the vital 'store i32 2000, ptr %targetPtr' instruction!
   b.CreateStore(result, targetPtr);
@@ -99,7 +98,7 @@ llvm::Value *IRGen::emitAssign(HIRNode *n, Codegen::Scope &locals) {
 }
 
 
-void IRGen::emitGlobVar(HIRNode *n, Module &mod) {
+void IRGen::emitGlobVar(HIRNode *n) {
   if (!n)
     return;
 

@@ -1,6 +1,6 @@
 #include "codegen/codegen.hpp"
 
-llvm::Value *IRGen::emitMulStrs(HIRNode *n, Codegen::Scope &locals,
+llvm::Value *StrHelper::emitMulStrs(HIRNode *n, Codegen::Scope &locals,
                                 llvm::Value *L, llvm::Value *R)
 {
   llvm::Type *i8Ptr = PointerType::getUnqual(ctx);
@@ -38,7 +38,7 @@ llvm::Value *IRGen::emitMulStrs(HIRNode *n, Codegen::Scope &locals,
   return b.CreateCall(mulFn, {strVal, countVal});
 }
 
-llvm::Value *IRGen::emitConcat(HIRNode *n, Codegen::Scope &locals,
+llvm::Value *StrHelper::emitConcat(HIRNode *n, Codegen::Scope &locals,
                                llvm::Value *L, llvm::Value *R)
 {
     Module *module = b.GetInsertBlock()->getModule();

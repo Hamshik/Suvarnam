@@ -10,18 +10,18 @@
 TypeInfo *get_AST_ret(TypeInfo *t, size_t depth);
 static size_t idx = 0;
 
-FunctionCallee IRGen::getBuiltinFn(const char *name, Module &m) {
+FunctionCallee FnHelper::getBuiltinFn(const char *name) {
   BuiltinFunction *builtin = BuiltinRegistry::instance().lookup(name);
   if (!builtin)
     return {nullptr, nullptr};
 
   // If already cached in this module (simplified cache logic)
-  if (Function *existing = m.getFunction(name)) {
+  if (Function *existing = mod.getFunction(name)) {
     return {existing->getFunctionType(), existing};
   }
 
   // Construct the LLVM signature from our metadata
-  llvm::Type *retTy = irType(builtin->return_type->base);
+  llvm::Type *retTy = irGen.irType(builtin->return_type->base);
   std::vector<llvm::Type *> argTys;
   bool isVarArg = false;
 
@@ -36,7 +36,7 @@ FunctionCallee IRGen::getBuiltinFn(const char *name, Module &m) {
     if (pt->type->base == LIST) {
       argTys.push_back(PointerType::getUnqual(ctx));
     } else {
-      argTys.push_back(irType(pt->type->base));
+      argTys.push_back(irGen.irType(pt->type->base));
     }
   }
 
@@ -45,7 +45,7 @@ FunctionCallee IRGen::getBuiltinFn(const char *name, Module &m) {
   // arguments (...)
   FunctionType *funcTy = FunctionType::get(retTy, argTys, isVarArg);
 
-  return m.getOrInsertFunction(name, funcTy);
+  return mod.getOrInsertFunction(name, funcTy);
 }
 
 llvm::Value *IRGen::generateList(HIRNode *n, Codegen::Scope &locals) {
@@ -81,7 +81,7 @@ llvm::Value *IRGen::generateList(HIRNode *n, Codegen::Scope &locals) {
   if (currentFn && currentFn->getName() == "init") {
     const DataLayout &DL = m->getDataLayout();
     uint64_t totalSize = n->type->size * DL.getTypeAllocSize(elemType);
-    Function *mallocFn = getMallocFn();
+    Function *mallocFn = fnHelper.getMallocFn();
     allocatedPtr = b.CreateCall(mallocFn, {b.getInt64(totalSize)}, "list_heap");
     typedPtr = b.CreateBitCast(allocatedPtr, PointerType::getUnqual(ctx));
   } else {

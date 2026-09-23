@@ -1,5 +1,5 @@
 fn i32 main() {
-    var global = 100;
+    var mut global = 100;
     global = 10;
 
     printf("%d\n", global);

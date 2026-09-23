@@ -15,7 +15,7 @@ llvm::Value *IRGen::emitBinop(HIRNode *n, Codegen::Scope &locals) {
   switch (n->binary.op) {
 
   case OP_ADD: {
-    if (n->type->base == STRINGS) return emitConcat(n, locals, L, R);
+    if (n->type->base == STRINGS) return strHelper.emitConcat(n, locals, L, R);
 
     return is_float ? b.CreateFAdd(L, R) : b.CreateAdd(L, R);
   }
@@ -24,7 +24,7 @@ llvm::Value *IRGen::emitBinop(HIRNode *n, Codegen::Scope &locals) {
     return is_float ? b.CreateFSub(L, R) : b.CreateSub(L, R);
 
   case OP_MUL:
-    if (n->type->base == STRINGS) return emitMulStrs(n, locals, L, R);
+    if (n->type->base == STRINGS) return strHelper.emitMulStrs(n, locals, L, R);
     return is_float ? b.CreateFMul(L, R) : b.CreateMul(L, R);
 
   case OP_DIV:

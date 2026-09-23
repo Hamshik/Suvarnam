@@ -40,7 +40,7 @@ llvm::Value *IRGen::emitWhileloop(HIRNode *n, Codegen::Scope &locals) {
   b.SetInsertPoint(bodyBB);
   emitExpr(n->while_loop.body, loopBodyScope);
 
-  if (!blockTerminated(b))
+  if (!blockTerminated())
     b.CreateBr(exprBB);
 
   // --- 3. CONTINUATION EXPRESSION BLOCK (: (expr) execution step) ---
@@ -49,7 +49,7 @@ llvm::Value *IRGen::emitWhileloop(HIRNode *n, Codegen::Scope &locals) {
     emitExpr(n->while_loop.expr, loopBodyScope);
   }
 
-  if (!blockTerminated(b))
+  if (!blockTerminated())
     b.CreateBr(condBB);
 
   // --- 4. AFTER BLOCK ---
