@@ -2,11 +2,11 @@
 #include "shared/enums.h"
 #include <string.h>
 
-TypedValue handle_num(ASTNode *node, TypedValue v) {
+SA::TypedVal handle_num(ASTNode *node, SA::TypedVal v) {
   if (!node || !node->literal.raw) {
-    panic( node ? node->loc : (SA_Location){0}, RT_NUM_LITERAL_UNSUPPORTED,
+    panic( node ? node->loc : (SA::Location){0}, RT_NUM_LITERAL_UNSUPPORTED,
           "Numeric literal missing raw string value");
-    return (TypedValue){0};
+    return (SA::TypedVal){0};
   }
   
   DataTypes_t base = node->type ? node->type->base : UNKNOWN;
@@ -34,7 +34,7 @@ TypedValue handle_num(ASTNode *node, TypedValue v) {
     if (!ok) {
       panic( node->loc, RT_NUM_LITERAL_UNSUPPORTED,
             NULL);
-      return (TypedValue){0};
+      return (SA::TypedVal){0};
     }
     break;
   }
@@ -56,7 +56,7 @@ TypedValue handle_num(ASTNode *node, TypedValue v) {
     if (!ok) {
       panic( node->loc, RT_NUM_LITERAL_UNSUPPORTED,
             NULL);
-      return (TypedValue){0};
+      return (SA::TypedVal){0};
     }
     break;
   }
@@ -81,7 +81,7 @@ TypedValue handle_num(ASTNode *node, TypedValue v) {
   default:
     panic( node->loc, RT_NUM_LITERAL_UNSUPPORTED,
           NULL);
-    return (TypedValue){0};
+    return (SA::TypedVal){0};
   }
 
   // Ensure we return a valid type object. If the node had no type,
@@ -89,7 +89,7 @@ TypedValue handle_num(ASTNode *node, TypedValue v) {
   if (node->type && node->type->base != UNKNOWN) {
       v.type = node->type;
   } else {
-      v.type = new TypeInfo(base, NULL);
+      v.type = new SA::Type(base, NULL);
   }
 
   return v;

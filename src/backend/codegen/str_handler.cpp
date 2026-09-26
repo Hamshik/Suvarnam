@@ -98,7 +98,7 @@ ret:
 }
 
 llvm::Value *StrHelper::emitChar(HIRNode *n) {
-  if (!n->literals.val.chars) {
+  if (!n->val.chars) {
     panic(n->loc, INVAILD_UTF8_CHAR, nullptr);
     return nullptr;
   }
@@ -108,10 +108,10 @@ llvm::Value *StrHelper::emitChar(HIRNode *n) {
   // Ensure we pass the actual byte length of the literal to the decoder.
   // `n->type->size` may be 0 or incorrect; fall back to strlen when needed.
   size_t raw_len = n->type->size;
-  if (raw_len == 0 && n->literals.val.chars)
-    raw_len = std::strlen(n->literals.val.chars);
+  if (raw_len == 0 && n->val.chars)
+    raw_len = std::strlen(n->val.chars);
 
-  uint32_t codepoint = decodeUTF8(n->literals.val.chars, raw_len, &len, &err);
+  uint32_t codepoint = decodeUTF8(n->val.chars, raw_len, &len, &err);
 
   // Error Handling
   if (err != Utf8Error::None) {
@@ -125,7 +125,7 @@ llvm::Value *StrHelper::emitChar(HIRNode *n) {
       msg = "Character literal cannot be empty";
       break;
     case Utf8Error::InvalidUtf8:
-      msg = n->literals.val.chars;
+      msg = n->val.chars;
       break;
     default:
       break;
@@ -142,7 +142,7 @@ llvm::Value *StrHelper::emitChar(HIRNode *n) {
 llvm::Value *StrHelper::emitStr(HIRNode *n) {
   auto module = b.GetInsertBlock()->getModule();
 
-  const char *data = n->literals.val.chars ? n->literals.val.chars : "";
+  const char *data = n->val.chars ? n->val.chars : "";
   size_t len = n->type->size;
 
   if (len == 0)

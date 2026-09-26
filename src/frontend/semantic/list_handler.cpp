@@ -13,9 +13,9 @@ static bool is_float(ASTNode *n) {
   return false;
 }
 
-static bool typesMatch(TypeInfo *lhs, TypeInfo *rhs) {
-  TypeInfo *l = lhs;
-  TypeInfo *r = rhs;
+static bool typesMatch(SA::Type *lhs, SA::Type *rhs) {
+  SA::Type *l = lhs;
+  SA::Type *r = rhs;
 
   while (l != nullptr && r != nullptr) {
     // 1. If base types differ (e.g., LIST vs I32) or are both numeric but different, they don't match
@@ -40,16 +40,16 @@ static bool typesMatch(TypeInfo *lhs, TypeInfo *rhs) {
   return l == r;
 }
 
-TypeInfo *Semantic::listHandle(ASTNode *n, TypeInfo *target_type) {
+SA::Type *Semantic::listHandle(ASTNode *n, SA::Type *target_type) {
   // 1. Guard: Ensure we are actually looking for a list
   if (!target_type || target_type->base == UNKNOWN) {
-    target_type = new TypeInfo(LIST, nullptr);
+    target_type = new SA::Type(LIST, nullptr);
   } else if (target_type->base != LIST) {
      return nullptr;
   }
 
   ASTNode *curr = n->list.elements;
-  TypeInfo *expected_inner = target_type->inner;
+  SA::Type *expected_inner = target_type->inner;
   size_t actual_count = 0;
 
   // 2. Iterate through the elements (AST_SEQ is a linked list)
@@ -66,7 +66,7 @@ TypeInfo *Semantic::listHandle(ASTNode *n, TypeInfo *target_type) {
         target_type->inner = expected_inner;
     }
 
-    TypeInfo *actual_element_type = checkExpr(element, expected_inner);
+    SA::Type *actual_element_type = checkExpr(element, expected_inner);
 
     // Use the iterative type matcher to ensure types align
     if (!typesMatch(expected_inner, actual_element_type)) {
@@ -111,10 +111,10 @@ TypeInfo *Semantic::listHandle(ASTNode *n, TypeInfo *target_type) {
   return target_type;
 }
 
-TypeInfo *Semantic::semanticIndexHandle(ASTNode *n) {
+SA::Type *Semantic::semanticIndexHandle(ASTNode *n) {
   // 1. Check the TARGET
   // We pass UNKNOWN because we don't know the required type yet
-  TypeInfo *target_base = checkExpr(n->index.target);
+  SA::Type *target_base = checkExpr(n->index.target);
   if (!target_base)
     return nullptr;
 
@@ -126,11 +126,11 @@ TypeInfo *Semantic::semanticIndexHandle(ASTNode *n) {
   }
 
   // Start with the head of the indexing list
-  idx_expr_t *current_idx = n->index.idx;
+  SA::idxExpr *current_idx = n->index.idx;
 
   while (current_idx != NULL && target_base != NULL) {
     // 1. Get the expression node for this specific dimension
-    ASTNode *expr = current_idx->expr_node;
+    ASTNode *expr = current_idx->exprNode;
 
     if (!expr) {
       // This is where you were seeing NULL because you were
@@ -142,9 +142,9 @@ TypeInfo *Semantic::semanticIndexHandle(ASTNode *n) {
     // We MUST NOT pass the list's inner type here, as indices are always integers.
     // If it's a literal number with no type yet, default it to I32.
     if (expr->kind == AST_NUM && (!expr->type || expr->type->base == UNKNOWN)) {
-        expr->type = new TypeInfo(I32, nullptr);
+        expr->type = new SA::Type(I32, nullptr);
     }
-    TypeInfo *idx_type = checkExpr(expr);
+    SA::Type *idx_type = checkExpr(expr);
 
     if (!idx_type || (idx_type->base != I32 && idx_type->base != I64)) {
       panic( expr->loc, SEM_INDEX_NOT_INT, NULL);
@@ -152,7 +152,7 @@ TypeInfo *Semantic::semanticIndexHandle(ASTNode *n) {
 
     // 3. Move to the next dimension in the linked list
     current_idx = current_idx->next;
-    target_base = target_base->inner ? target_base->inner : new TypeInfo(CHARACTER, nullptr);
+    target_base = target_base->inner ? target_base->inner : new SA::Type(CHARACTER, nullptr);
   }
 
   // 3. Resolve the element type
@@ -179,7 +179,7 @@ bool Semantic::isList(ASTNode *target) {
   return symbol->type && symbol->type->base == LIST;
 }
 
-TypeInfo* get_AST_ret(TypeInfo *t, size_t depth){
+SA::Type* get_AST_ret(SA::Type *t, size_t depth){
   if(!t) return nullptr;
 
   if(depth > 0)
@@ -191,12 +191,12 @@ TypeInfo* get_AST_ret(TypeInfo *t, size_t depth){
 
 }
 
-void Semantic::idxAssign(ASTNode *&n, ASTNode *&lhs, TypeInfo *&final_type) {
+void Semantic::idxAssign(ASTNode *&n, ASTNode *&lhs, SA::Type *&final_type) {
   if (!lhs || lhs->kind != AST_INDEX) return;
 
   // 1. Resolve the base type of the object being indexed
   // We pass final_type here in case the target itself needs inference
-  TypeInfo *current_type = checkExpr(lhs->index.target, final_type);
+  SA::Type *current_type = checkExpr(lhs->index.target, final_type);
 
   // 2. Mutability Check
   ASTNode *base = lhs->index.target;
@@ -213,22 +213,22 @@ void Semantic::idxAssign(ASTNode *&n, ASTNode *&lhs, TypeInfo *&final_type) {
   }
 
   // 3. Dimensions Check
-  idx_expr_t *curr_idx = lhs->index.idx;
+  SA::idxExpr *curr_idx = lhs->index.idx;
   while (curr_idx != nullptr) {
     if (!current_type || current_type->base != LIST) {
-      panic( curr_idx->expr_node->loc, SEM_ASSIGN_TYPE_MISMATCH,
+      panic( curr_idx->exprNode->loc, SEM_ASSIGN_TYPE_MISMATCH,
             "Indexing depth exceeds array dimensions");
       return;
     }
 
     // IMPORTANT: The index MUST be an integer. 
     // Ensure numeric literals used as indices default to I32.
-    if (curr_idx->expr_node->kind == AST_NUM && (!curr_idx->expr_node->type || curr_idx->expr_node->type->base == UNKNOWN))
-        curr_idx->expr_node->type = new TypeInfo(I32, nullptr);
-    TypeInfo *itype = checkExpr(curr_idx->expr_node); 
+    if (curr_idx->exprNode->kind == AST_NUM && (!curr_idx->exprNode->type || curr_idx->exprNode->type->base == UNKNOWN))
+        curr_idx->exprNode->type = new SA::Type(I32, nullptr);
+    SA::Type *itype = checkExpr(curr_idx->exprNode); 
 
-    if (!itype || !Semantic::isNumeric(itype->base) || is_float(curr_idx->expr_node)) {
-      panic( curr_idx->expr_node->loc, SEM_INDEX_NOT_INT, NULL);
+    if (!itype || !Semantic::isNumeric(itype->base) || is_float(curr_idx->exprNode)) {
+      panic( curr_idx->exprNode->loc, SEM_INDEX_NOT_INT, NULL);
       break;
     }
 

@@ -37,10 +37,10 @@
     if (!s) {
         int off = (err_i >= 0) ? err_i : 0;
         panic(
-            (SA_Location){
-                loc->first_line,
-                loc->first_column + 1 + off,
-                loc->first_pos + 1 + off,
+            (SA::Location){
+                loc->firstLn,
+                loc->firstCol + 1 + off,
+                loc->firstPos + 1 + off,
                 0,0,0
             },
             LEX_INVALID_ESCAPE,
@@ -65,10 +65,10 @@
     if (!s || out_len == 0) {
         int off = (err_i >= 0) ? err_i : 0;
         panic(
-            (SA_Location){
-                loc->first_line,
-                loc->first_column + 1 + off,
-                loc->first_pos + 1 + off,
+            (SA::Location){
+                loc->firstLn,
+                loc->firstCol + 1 + off,
+                loc->firstPos + 1 + off,
                 0,0,0
             },
             LEX_INVALID_ESCAPE,

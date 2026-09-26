@@ -7,6 +7,8 @@
 
 class Scanner;
 
+#define null(ty) static_cast<ty>(nullptr)
+
 class Parser: public ParserBase
 {
     Scanner& d_scanner;

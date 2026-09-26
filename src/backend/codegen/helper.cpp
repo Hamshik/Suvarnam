@@ -121,50 +121,50 @@ llvm::Value *IRGen::emitNum(HIRNode *n) {
   switch (n->type->base) {
   case I8:
     return ConstantInt::get(llvm::Type::getInt8Ty(ctx),
-                                 n->literals.val.i8, true);
+                                 n->val.i8, true);
   case I16:
     return ConstantInt::get(llvm::Type::getInt16Ty(ctx),
-                                 n->literals.val.i16, true);
+                                 n->val.i16, true);
   case I32:
     return ConstantInt::get(llvm::Type::getInt32Ty(ctx),
-                                 n->literals.val.i32, true);
+                                 n->val.i32, true);
   case I64:
     return ConstantInt::get(llvm::Type::getInt64Ty(ctx),
-                                 n->literals.val.i64, true);
+                                 n->val.i64, true);
   case I128: {
-    return ConstantInt::get(IntegerType::get(ctx, 128), n->literals.val.i128, true);
+    return ConstantInt::get(IntegerType::get(ctx, 128), n->val.i128, true);
   }
   case U8:
     return ConstantInt::get(llvm::Type::getInt8Ty(ctx),
-                                 n->literals.val.u8, false);
+                                 n->val.u8, false);
   case U16:
     return ConstantInt::get(llvm::Type::getInt16Ty(ctx),
-                                 n->literals.val.u16, false);
+                                 n->val.u16, false);
   case U32:
     return ConstantInt::get(llvm::Type::getInt32Ty(ctx),
-                                 n->literals.val.u32, false);
+                                 n->val.u32, false);
   case U64:
     return ConstantInt::get(llvm::Type::getInt64Ty(ctx),
-                                 n->literals.val.u64, false);
+                                 n->val.u64, false);
   case U128: 
-    return ConstantInt::get(IntegerType::get(ctx, 128), n->literals.val.u128);
+    return ConstantInt::get(IntegerType::get(ctx, 128), n->val.u128);
 
   case F32:
-    return ConstantFP::get(llvm::Type::getFloatTy(ctx), n->literals.val.f32);
+    return ConstantFP::get(llvm::Type::getFloatTy(ctx), n->val.f32);
   case F64:
     return ConstantFP::get(llvm::Type::getDoubleTy(ctx),
-                                n->literals.val.f64);
+                                n->val.f64);
   case F128:
     return ConstantFP::get(llvm::Type::getFP128Ty(ctx),
-                                n->literals.val.f128);
+                                n->val.f128);
   case UF32:
-    return ConstantFP::get(llvm::Type::getFloatTy(ctx), n->literals.val.f32);
+    return ConstantFP::get(llvm::Type::getFloatTy(ctx), n->val.f32);
   case UF64:
     return ConstantFP::get(llvm::Type::getDoubleTy(ctx),
-                                n->literals.val.f64);
+                                n->val.f64);
   case UF128:
     return ConstantFP::get(llvm::Type::getFP128Ty(ctx),
-                                n->literals.val.f128);
+                                n->val.f128);
                            
   default:
     char err_msg[128];

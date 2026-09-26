@@ -4,23 +4,23 @@
 
 #include <stdio.h>
 
-extern file_t* file;
+extern File* file;
 ASTNode *root = NULL; // This is the single correct place for the definition
 static int g_returning = 0;
-static TypedValue g_return_value = (TypedValue){0};
+static SA::TypedVal g_return_value = (SA::TypedVal){0};
 
-TypedValue ast_eval_main(ASTNode *root) {
+SA::TypedVal ast_eval_main(ASTNode *root) {
   SA_runtime_fn_clear();
   /* first pass: register all function definitions */
   if (root)
     ast_eval(root); /* ast_eval registers functions on AST_FN */
   ASTNode *main_fn = SA_runtime_fn_lookup("main");
   if (!main_fn) {
-    panic( (SA_Location){1, 1, 0, 0, 0, 0}, SEM_CALL_UNDEF_FN, "main");
-    return (TypedValue){0};
+    panic( (SA::Location){1, 1, 0, 0, 0, 0}, SEM_CALL_UNDEF_FN, "main");
+    return (SA::TypedVal){0};
   }
-  ASTNode *call = new_fn_call("main", NULL, (SA_Location){0});
-  TypedValue ret = ast_eval(call);
+  ASTNode *call = new_fn_call("main", NULL, (SA::Location){0});
+  SA::TypedVal ret = ast_eval(call);
   ast_free(call);
   return ret;
 }
@@ -33,10 +33,10 @@ static void fn_register_runtime(ASTNode *fn) {
   }
 }
 
-TypedValue ast_eval(ASTNode *node) {
+SA::TypedVal ast_eval(ASTNode *node) {
   if (!node)
-    return (TypedValue){0};
-  TypedValue v = {0};
+    return (SA::TypedVal){0};
+  SA::TypedVal v = {0};
 
   switch (node->kind) {
 
@@ -58,7 +58,7 @@ TypedValue ast_eval(ASTNode *node) {
     // If the node type is UNKNOWN, we should try to determine the type
     // from the environment lookup rather than just trusting node->type.
     v.type = (node->type && node->type->base != UNKNOWN) ? node->type
-                                                         : new TypeInfo(I32, NULL);
+                                                         : new SA::Type(I32, NULL);
     return v;
   case AST_BINOP:
     return eval_binop(node, v);
@@ -68,15 +68,15 @@ TypedValue ast_eval(ASTNode *node) {
 
   case AST_ASSIGN: {
     if (node->assign.op == OP_ASSIGN && node->assign.is_declaration) {
-      TypedValue rt0 = ast_eval(node->assign.rhs);
-      TypedValue rt = SA_cast_typed(rt0, node->type);
+      SA::TypedVal rt0 = ast_eval(node->assign.rhs);
+      SA::TypedVal rt = SA_cast_typed(rt0, node->type);
       SA_runtime_env_set_current(node->assign.lhs->var, &rt.val, node->type);
-      return (TypedValue){.val = rt.val, .type = node->type};
+      return (SA::TypedVal){.val = rt.val, .type = node->type};
     }
 
-    SA_Value val = eval_assign(node->assign.lhs, node->assign.rhs,
+    SA::Value val = eval_assign(node->assign.lhs, node->assign.rhs,
                               node->assign.op, node->type, node->loc);
-    return (TypedValue){.val = val, .type = node->type};
+    return (SA::TypedVal){.val = val, .type = node->type};
   }
 
   case AST_SEQ: {
@@ -88,24 +88,24 @@ TypedValue ast_eval(ASTNode *node) {
 
   case AST_IF:
     if (ast_eval(node->ifnode.cond).val.bval) {
-      TypedValue r = ast_eval(node->ifnode.then_branch);
+      SA::TypedVal r = ast_eval(node->ifnode.then_branch);
       if (g_returning)
         return g_return_value;
       return r;
     }
     if (node->ifnode.else_branch) {
-      TypedValue r = ast_eval(node->ifnode.else_branch);
+      SA::TypedVal r = ast_eval(node->ifnode.else_branch);
       if (g_returning)
         return g_return_value;
       return r;
     }
-    return (TypedValue){0};
+    return (SA::TypedVal){0};
 
   case AST_FOR:
     // return eval_for(node, g_returning, g_return_value);
 
   case AST_WHILE: {
-    TypedValue last = {0};
+    SA::TypedVal last = {0};
     while (ast_eval(node->whilenode.cond).val.bval) {
       last = ast_eval(node->whilenode.body);
       if (g_returning)
@@ -115,22 +115,22 @@ TypedValue ast_eval(ASTNode *node) {
   }
 
   case AST_BOOL:
-    return (TypedValue){.type = node->type,
+    return (SA::TypedVal){.type = node->type,
                         // Ensure raw is a valid pointer before dereferencing
                         .val =
                             (node->literal.raw && node->literal.raw[0] == 't')
-                                ? (SA_Value){.bval = true}
-                                : (SA_Value){.bval = false}};
+                                ? (SA::Value){.bval = true}
+                                : (SA::Value){.bval = false}};
 
   case AST_FN:
     fn_register_runtime(node);
-    return (TypedValue){0};
+    return (SA::TypedVal){0};
 
   case AST_CALL:
     return eval_call(node, g_returning, g_return_value);
 
   case AST_RETURN: {
-    TypedValue r = {.type = 0, .val = {0}};
+    SA::TypedVal r = {.type = 0, .val = {0}};
     if (node->ret_stmt.value)
       r = ast_eval(node->ret_stmt.value);
     g_return_value = r;
@@ -145,7 +145,7 @@ TypedValue ast_eval(ASTNode *node) {
     if (module && module->ast && !already_imported) {
       ast_eval(module->ast);
     }
-    return (TypedValue){
+    return (SA::TypedVal){
         0}; // handled in codegen and already integratted to the node
   }
 
@@ -153,7 +153,7 @@ TypedValue ast_eval(ASTNode *node) {
     v.type = node->type; // list[T]
 
     // Allocate space for the results
-    TypedValue *elements = calloc(node->list.count, sizeof(TypedValue));
+    SA::TypedVal *elements = calloc(node->list.count, sizeof(SA::TypedVal));
 
     // Eagerly evaluate every element now
     ASTNode *curr = node->list.elements;
@@ -174,15 +174,15 @@ TypedValue ast_eval(ASTNode *node) {
 
   case AST_INDEX: {
     // 1. Get the base object (e.g., the variable 'matrix')
-    TypedValue current_target = ast_eval(node->index.target);
+    SA::TypedVal current_target = ast_eval(node->index.target);
 
     // 2. Start at the head of your linked list of indices
-    idx_expr_t *current_idx_node = node->index.idx;
+    idxExpr *current_idx_node = node->index.idx;
 
     // 3. Traverse the dimensions
     while (current_idx_node != NULL) {
       // Evaluate the current index expression (e.g., the 'i' in [i])
-      TypedValue idx_val = ast_eval(current_idx_node->expr_node);
+      SA::TypedVal idx_val = ast_eval(current_idx_node->exprNode);
       int idx = idx_val.val.i32;
 
       // Safety check: ensure we are actually indexing a list
@@ -192,12 +192,12 @@ TypedValue ast_eval(ASTNode *node) {
       }
 
       // Access the internal array of TypedValues
-      TypedValue *elements = (TypedValue *)current_target.val.raw;
+      SA::TypedVal *elements = (SA::TypedVal *)current_target.val.raw;
 
       // Bounds checking would go here
 
       // 4. Update current_target to be the element we just found
-      // If this is a 2D array, the element is itself a LIST TypedValue
+      // If this is a 2D array, the element is itself a LIST SA::TypedVal
       current_target = elements[idx];
 
       // Move to the next dimension ([j])
@@ -209,7 +209,7 @@ TypedValue ast_eval(ASTNode *node) {
   }
 
   default:
-    panic( node ? node->loc : (SA_Location){0}, RT_UNKNOWN_AST, NULL);
-    return (TypedValue){0};
+    panic( node ? node->loc : (SA::Location){0}, RT_UNKNOWN_AST, NULL);
+    return (SA::TypedVal){0};
   }
 }

@@ -9,9 +9,9 @@
 
 /**
  * Callback type for the Interpreter.
- * Takes an array of TypedValue and the count, returns a TypedValue.
+ * Takes an array of SA::TypedVal and the count, returns a SA::TypedVal.
  */
-using InterpreterCallback = std::function<TypedValue(TypedValue*, int)>;
+using InterpreterCallback = std::function<SA::TypedVal(SA::TypedVal*, int)>;
 
 struct CStringLess {
     bool operator()(const char* a, const char* b) const {
@@ -21,8 +21,8 @@ struct CStringLess {
 
 struct BuiltinFunction {
     const char* name;
-    TypeInfo* return_type;
-    std::vector<Param_t*> param_types;
+    SA::Type* return_type;
+    std::vector<SA::Param*> param_types;
     
     // Interpreter implementation
     InterpreterCallback interpreter_impl;
@@ -38,7 +38,7 @@ public:
     static BuiltinRegistry& instance();
 
     // Maps a name to an implementation. Metadata is populated during bootstrap.
-    void register_builtin(const char*, TypeInfo*, std::vector<Param_t*>, InterpreterCallback);
+    void register_builtin(const char*, SA::Type*, std::vector<SA::Param*>, InterpreterCallback);
     BuiltinFunction* lookup(const char*);
     
     void bootstrap();

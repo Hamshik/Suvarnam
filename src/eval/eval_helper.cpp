@@ -56,7 +56,7 @@ DataTypes_t SA_promote_runtime(DataTypes_t a, DataTypes_t b) {
     return I8;
 }
 
-long double SA_as_f128( SA_Value v, DataTypes_t t) {
+long double SA_as_f128( SA::Value v, DataTypes_t t) {
     t = SA_norm(t);
     switch (t) {
         case F32: return (long double)v.f32;
@@ -77,7 +77,7 @@ long double SA_as_f128( SA_Value v, DataTypes_t t) {
     }
 }
 
-__int128 SA_as_i128( SA_Value v, DataTypes_t t) {
+__int128 SA_as_i128( SA::Value v, DataTypes_t t) {
     t = SA_norm(t);
     switch (t) {
         case I8: return (__int128)v.i8;
@@ -98,7 +98,7 @@ __int128 SA_as_i128( SA_Value v, DataTypes_t t) {
     }
 }
 
-unsigned __int128 SA_as_u128( SA_Value v, DataTypes_t t) {
+unsigned __int128 SA_as_u128( SA::Value v, DataTypes_t t) {
     t = SA_norm(t);
     switch (t) {
         case U8: return (unsigned __int128)v.u8;
@@ -118,8 +118,8 @@ unsigned __int128 SA_as_u128( SA_Value v, DataTypes_t t) {
     }
 }
 
-SA_Value SA_from_f128(long double x, DataTypes_t t) {
-   SA_Value out = {0};
+SA::Value SA_from_f128(long double x, DataTypes_t t) {
+   SA::Value out = {0};
     switch (t) {
         case F32:
         case UF32:
@@ -139,8 +139,8 @@ SA_Value SA_from_f128(long double x, DataTypes_t t) {
     return out;
 }
 
-SA_Value SA_from_i128(__int128 x, DataTypes_t t) {
-   SA_Value out = {0};
+SA::Value SA_from_i128(__int128 x, DataTypes_t t) {
+   SA::Value out = {0};
     switch (t) {
         case I8: out.i8 = (int8_t)x; break;
         case I16: out.i16 = (short)x; break;
@@ -152,8 +152,8 @@ SA_Value SA_from_i128(__int128 x, DataTypes_t t) {
     return out;
 }
 
-SA_Value SA_from_u128(unsigned __int128 x, DataTypes_t t) {
-   SA_Value out = {0};
+SA::Value SA_from_u128(unsigned __int128 x, DataTypes_t t) {
+   SA::Value out = {0};
     switch (t) {
         case U8: out.u8 = (uint8_t)x; break;
         case U16: out.u16 = (uint16_t)x; break;
@@ -165,32 +165,32 @@ SA_Value SA_from_u128(unsigned __int128 x, DataTypes_t t) {
     return out;
 }
 
-TypedValue SA_cast_typed(TypedValue v, TypeInfo* target) {
+SA::TypedVal SA_cast_typed(SA::TypedVal v, SA::Type* target) {
     if (v.type->base == target->base) return v;
 
     if (target->base == BOOL) {
         if (v.type->base == BOOL) return v;
-        return (TypedValue){.type = new TypeInfo(BOOL, NULL), 
-            .val = ( SA_Value){.bval = SA_as_f128(v.val, v.type->base) != 0.0L}};
+        return (SA::TypedVal){.type = new SA::Type(BOOL, NULL), 
+            .val = ( SA::Value){.bval = SA_as_f128(v.val, v.type->base) != 0.0L}};
     }
 
     if (SA_is_float(target->base)) {
         long double x = SA_as_f128(v.val, v.type->base);
-        return (TypedValue){.type = target, .val = SA_from_f128(x, target->base)};
+        return (SA::TypedVal){.type = target, .val = SA_from_f128(x, target->base)};
     }
     if (SA_is_unsigned_int(target->base)) {
         unsigned __int128 x = SA_as_u128(v.val, v.type->base);
-        return (TypedValue){.type = target, .val = SA_from_u128(x, target->base)};
+        return (SA::TypedVal){.type = target, .val = SA_from_u128(x, target->base)};
     }
     if (SA_is_signed_int(target->base)) {
         __int128 x = SA_as_i128(v.val, v.type->base);
-        return (TypedValue){.type = target, .val = SA_from_i128(x, target->base)};
+        return (SA::TypedVal){.type = target, .val = SA_from_i128(x, target->base)};
     }
 
     return v;
 }
 
-SA_Value SA_pow_i128(__int128 a, __int128 b) {
+SA::Value SA_pow_i128(__int128 a, __int128 b) {
     if (b < 0) DIE("negative exponent");
     unsigned __int128 exp = (unsigned __int128)b;
     __int128 base = a;
@@ -200,10 +200,10 @@ SA_Value SA_pow_i128(__int128 a, __int128 b) {
         exp >>= 1;
         if (exp) base *= base;
     }
-    return ( SA_Value){.i128 = result};
+    return ( SA::Value){.i128 = result};
 }
 
-SA_Value SA_pow_u128(unsigned __int128 a, unsigned __int128 b) {
+SA::Value SA_pow_u128(unsigned __int128 a, unsigned __int128 b) {
     unsigned __int128 exp = b;
     unsigned __int128 base = a;
     unsigned __int128 result = 1;
@@ -212,7 +212,7 @@ SA_Value SA_pow_u128(unsigned __int128 a, unsigned __int128 b) {
         exp >>= 1;
         if (exp) base *= base;
     }
-    return ( SA_Value){.u128 = result};
+    return ( SA::Value){.u128 = result};
 }
 
 OP_kind_t get_assign_op(OP_kind_t op) {

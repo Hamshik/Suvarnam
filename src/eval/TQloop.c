@@ -2,8 +2,8 @@
 // #include "shared/structs.h"
 // 
 
-// SA_Value default_step(DataTypes_t type) {
-//   SA_Value step = {0};
+// SA::Value default_step(DataTypes_t type) {
+//   SA::Value step = {0};
 //   switch (type) {
 //   case I8:
 //     step.i8 = 1;
@@ -57,7 +57,7 @@
 //   return step;
 // }
 
-// bool step_is_positive(DataTypes_t type, SA_Value step) {
+// bool step_is_positive(DataTypes_t type, SA::Value step) {
 //   switch (type) {
 //   case I8:
 //     return step.i8 > 0;
@@ -94,7 +94,7 @@
 //   }
 // }
 
-// bool step_is_zero(DataTypes_t type, SA_Value step) {
+// bool step_is_zero(DataTypes_t type, SA::Value step) {
 //   switch (type) {
 //   case I8:
 //     return step.i8 == 0;
@@ -131,8 +131,8 @@
 //   }
 // }
 
-// bool should_continue_for(DataTypes_t type, SA_Value cur, SA_Value end,
-//                          SA_Value step) {
+// bool should_continue_for(DataTypes_t type, SA::Value cur, SA::Value end,
+//                          SA::Value step) {
 //   if (step_is_positive(type, step)) {
 //     switch (type) {
 //     case I8:
@@ -206,8 +206,8 @@
 //   }
 // }
 
-// SA_Value add_step_for(DataTypes_t type, SA_Value cur, SA_Value step) {
-//   SA_Value next = cur;
+// SA::Value add_step_for(DataTypes_t type, SA::Value cur, SA::Value step) {
+//   SA::Value next = cur;
 //   switch (type) {
 //   case I8:
 //     next.i8 = (int8_t)(next.i8 + step.i8);
@@ -261,32 +261,32 @@
 //   return next;
 // }
 
-// TypedValue eval_for(ASTNode *node, bool g_returning, TypedValue g_return_value) {
+// SA::TypedVal eval_for(ASTNode *node, bool g_returning, SA::TypedVal g_return_value) {
 //   if (!node->fornode.init || node->fornode.init->kind != AST_ASSIGN ||
 //       node->fornode.init->assign.lhs->kind != AST_VAR ||
 //       node->fornode.init->assign.op != OP_ASSIGN) {
 //     panic( node->loc, RT_FOR_INIT_INVALID, NULL);
-//     return (TypedValue){0};
+//     return (SA::TypedVal){0};
 //   }
 
 //   ast_eval(node->fornode.init);
 //   DataTypes_t loop_type = node->fornode.init->type->base;
 //   const char *loop_name = node->fornode.init->assign.lhs->var;
 
-//   TypedValue endt = SA_cast_typed(ast_eval(node->fornode.end), node->fornode.init->type);
-//   SA_Value endv_cast = endt.val;
-//   TypedValue stept =
+//   SA::TypedVal endt = SA_cast_typed(ast_eval(node->fornode.end), node->fornode.init->type);
+//   SA::Value endv_cast = endt.val;
+//   SA::TypedVal stept =
 //       node->fornode.step
 //           ? SA_cast_typed(ast_eval(node->fornode.step), node->fornode.init->type)
-//           : (TypedValue){.type = node->fornode.init->type, .val = default_step(loop_type)};
-//   SA_Value stepv = stept.val;
+//           : (SA::TypedVal){.type = node->fornode.init->type, .val = default_step(loop_type)};
+//   SA::Value stepv = stept.val;
 
 //   if (step_is_zero(loop_type, stepv)) {
 //     panic( node->loc, RT_FOR_STEP_ZERO, NULL);
-//     return (TypedValue){0};
+//     return (SA::TypedVal){0};
 //   }
 
-//   TypedValue last = {0};
+//   SA::TypedVal last = {0};
 
 //   while (should_continue_for(
 //       loop_type,
@@ -295,8 +295,8 @@
 //     last = ast_eval(node->fornode.body);
 //     if (g_returning)
 //       return g_return_value;
-//     SA_Value cur = SA_runtime_env_get(loop_name, node->fornode.init->type, node->loc);
-//     SA_Value next = add_step_for(loop_type, cur, stepv);
+//     SA::Value cur = SA_runtime_env_get(loop_name, node->fornode.init->type, node->loc);
+//     SA::Value next = add_step_for(loop_type, cur, stepv);
 //     SA_runtime_env_set(loop_name, &next, node->fornode.init->type);
 //   }
 

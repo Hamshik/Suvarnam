@@ -8,7 +8,7 @@
 #include "Scanner.h"
 #include "Parser.h"
 
-extern file_t *file;
+extern File *file;
 
 typedef struct {
   bool always_return;
@@ -18,12 +18,12 @@ typedef struct {
 /* Helpers */
 void Semantic::typeError(ASTNode *n, const char *msg) {
   if (n && n->type)
-    n->type = new TypeInfo(UNKNOWN, NULL);
-  panic(n ? n->loc : (SA_Location){0}, SEM_BINOP_INVALID, msg ? msg : NULL);
+    n->type = new SA::Type(UNKNOWN, NULL);
+  panic(n ? n->loc : (SA::Location){0}, SEM_BINOP_INVALID, msg ? msg : NULL);
   return;
 }
 
-bool Semantic::typesAreEqual(TypeInfo *a, TypeInfo *b) {
+bool Semantic::typesAreEqual(SA::Type *a, SA::Type *b) {
   if (a == nullptr && b == nullptr)
     return true;
   if (!a || !b)
@@ -87,15 +87,11 @@ ReturnInfo analyze_returns(ASTNode *n) {
 
   case AST_IF: {
     ReturnInfo then_info = analyze_returns(n->ifnode.then_branch);
-    if (*n->ifnode.cond->literal.raw == 't')
-      return (ReturnInfo){true, true};
     if (!n->ifnode.else_branch)
       return (ReturnInfo){false, true};
     ReturnInfo else_info = analyze_returns(n->ifnode.else_branch);
     return (ReturnInfo){
-        *n->ifnode.cond->literal.raw == 'f'
-            ? else_info.always_return
-            : then_info.always_return && else_info.always_return,
+        then_info.always_return && else_info.always_return,
         then_info.always_fallthrough && else_info.always_fallthrough};
   }
 
@@ -119,7 +115,7 @@ bool Semantic::fnAlwaysReturns(ASTNode *body) {
   return analyze_returns(body).always_return;
 }
 
-CompilerContext::CompilerContext(
+SA::CompilerContext::CompilerContext(
   std::istringstream &input,
   SemanticSymTable *sym, Scanner *scanner,
   Parser *parser, Semantic *semantic
@@ -130,13 +126,13 @@ CompilerContext::CompilerContext(
   parser(parser ? parser : new Parser(*this->scanner))
 {}
 
-CompilerContext::~CompilerContext(){
+SA::CompilerContext::~CompilerContext(){
     delete semantic;
     delete parser;
     delete scanner;
 }
 
-void CompilerContext::setup(Importer* importer){
+void SA::CompilerContext::setup(Importer* importer){
   sym->setImporter(importer);
   semantic->importer = importer;
   semantic->ctx = this;

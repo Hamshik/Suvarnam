@@ -7,10 +7,10 @@
 #include "shared/structs.h"
 #include "utils/error_handler/error.h"
 
-Importer::Importer(FILE *source, CompilerContext *context)
+Importer::Importer(FILE *source, SA::CompilerContext *context)
     : ctx(context), f(source) {
   content.reset(getFileContent(f));
-  ctx = new CompilerContext(*content);
+  ctx = new SA::CompilerContext(*content);
 }
 
 std::optional<fs::path> Importer::resolve(const std::string &import_path,
@@ -78,7 +78,7 @@ ASTNode *Importer::parseFile() {
   ASTNode *old_root = root; // save current AST
   root = nullptr;           // reset for new parse
 
-  if (ctx->parser->parse() == 0 || !isError) {
+  if (ctx->parser->parse() == 0) {
     ASTNode *new_root = root; // get parsed AST
     root = old_root;          // restore old AST
     return new_root;
@@ -95,7 +95,7 @@ void Importer::ensureSemantic(ASTMod *m) {
   m->semantic_done = true;
 }
 
-TypeInfo *Importer::handleImport(ASTNode *n) {
+SA::Type *Importer::handleImport(ASTNode *n) {
   char *path = n->importNode.path;
   bool already_imported = false;
   ASTMod *mod = ctx->sym->loadMod(path, file->filename, already_imported);

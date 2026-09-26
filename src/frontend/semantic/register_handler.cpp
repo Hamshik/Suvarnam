@@ -40,14 +40,14 @@ void Semantic::regGlobalVarAndFn(ASTNode *n) {
     }
 
     // Build the signature representation and save it to the symbol registry
-    FnSymbol *f = (FnSymbol *)malloc(sizeof(FnSymbol));
+    FnSymbol *f = new FnSymbol;
     f->name = strdup(fn_name);
     f->ret = n->type; // e.g., I32, VOID, PTR
     f->param_count = n->fn_def.param_count;
 
     // Transfer parameter types to symbol record
-    f->params = (Param_t *)calloc((size_t)f->param_count, sizeof(Param_t));
-    Param_t *curr_p = n->fn_def.params;
+    f->params = (SA::Param *)calloc((size_t)f->param_count, sizeof(SA::Param));
+    SA::Param *curr_p = n->fn_def.params;
     for (int i = 0; i < f->param_count && curr_p; ++i) {
       f->params[i] = curr_p[i];
     }

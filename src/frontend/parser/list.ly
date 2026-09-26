@@ -1,22 +1,14 @@
 list_stmt:
-    LSQUARE opt_args RSQUARE    { $$ = new_list($2, @1); }
+    LBRACE args RBRACE       { $$ = new_list($2, @1); }
 ;
 
 indexing:
     LSQUARE expr RSQUARE
     {
-        idx_expr_t* idx_node = (idx_expr_t*)malloc(sizeof(idx_expr_t));
-        idx_node->expr_node = $2;
+        SA::idxExpr* idx_node = new SA::idxExpr;
+        idx_node->exprNode = $2;
         idx_node->depth = 1;
         idx_node->next = NULL;
-        $$ = idx_node;
-    }
-    | indexing LSQUARE expr RSQUARE
-    {
-        idx_expr_t* idx_node = (idx_expr_t*)malloc(sizeof(idx_expr_t));
-        idx_node->expr_node = $3;
-        idx_node->depth = $1->depth + 1;
-        idx_node->next = $1; 
         $$ = idx_node;
     }
 ;

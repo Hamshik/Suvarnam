@@ -103,8 +103,8 @@ static bool is_variadic_builtin_call(const HIRNode *n) {
     return false;
   }
 
-  for (auto *param_type : builtin->param_types) {
-    if (param_type && param_type->type->base == UNKNOWN) {
+  for (auto *param : builtin->param_types) {
+    if (param && param->type->base == UNKNOWN) {
       return true;
     }
   }
@@ -166,7 +166,7 @@ llvm::Value *FnHelper::emitCall(HIRNode *n, Codegen::Scope &locals) {
   if (!callee.getCallee()) {
     fprintf(stderr,
             "Codegen Error: Call to undefined function '%s' at line %zu\n",
-            fname, (size_t)n->loc.first_line);
+            fname, (size_t)n->loc.firstLn);
     return nullptr;
   }
 

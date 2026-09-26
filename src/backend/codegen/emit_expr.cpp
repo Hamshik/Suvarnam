@@ -22,7 +22,7 @@ llvm::Value *IRGen::emitExpr(HIRNode *n, Codegen::Scope &locals) {
   case AST_NUM:
     return emitNum(n);
   case AST_BOOL:
-    return ConstantInt::get(llvm::Type::getInt1Ty(ctx), n->literals.val.bval ? 1 : 0);
+    return ConstantInt::get(llvm::Type::getInt1Ty(ctx), n->val.bval ? 1 : 0);
 
   case AST_STR:
     return strHelper.emitStr(n);
@@ -60,7 +60,7 @@ llvm::Value *IRGen::emitExpr(HIRNode *n, Codegen::Scope &locals) {
     }
 
     fprintf(stderr, "Codegen Error: Undefined variable '%s' evaluated at runtime \
-      at line %zu col %zu\n", varName, n->loc.first_line, n->loc.first_column);
+      at line %zu col %zu\n", varName, n->loc.firstLn, n->loc.firstCol);
     return nullptr;
   }
 

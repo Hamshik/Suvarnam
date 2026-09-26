@@ -19,8 +19,8 @@ fn_def:
 opt_params:
     /* empty */                 
     { 
-        ParamList_t res{};
-        res.params = static_cast<Param_t*>(nullptr);
+        SA::ParamList res{};
+        res.params = static_cast<SA::Param*>(nullptr);
         res.count = 0;
         $$ = res; 
     }
@@ -29,9 +29,9 @@ opt_params:
 
 params:
     param {
-        ParamList_t res;
+        SA::ParamList res;
         res.count = 1;
-        res.params = (Param_t*)calloc(1, sizeof(Param_t));
+        res.params = (SA::Param*)calloc(1, sizeof(SA::Param));
         res.params[0].name = strdup($1->var);
         res.params[0].type = $1->type;
         res.params[0].is_variadic = $1->is_variadic;
@@ -39,9 +39,9 @@ params:
         $$ = res;
     }
   | param COMMA params {
-        ParamList_t res;
+        SA::ParamList res;
         res.count = $3.count + 1;
-        res.params = (Param_t*)calloc((size_t)res.count, sizeof(Param_t));
+        res.params = (SA::Param*)calloc((size_t)res.count, sizeof(SA::Param));
         res.params[0].name = strdup($1->var);
         res.params[0].type = $1->type;
         res.params[0].is_variadic = $1->is_variadic;
@@ -54,19 +54,19 @@ params:
 
 param:
     VAR MUT recursive_type param_tail {
-        $4->type = $4->is_variadic ? new TypeInfo(LIST, $3) : $3;
+        $4->type = $4->is_variadic ? new SA::Type(LIST, $3) : $3;
         $4->type->ismut = true;
         $4->ismut = true;
         $$ = $4;
     }
     | VAR recursive_type param_tail {
-        $3->type = $3->is_variadic ? new TypeInfo(LIST, $2) : $2;
+        $3->type = $3->is_variadic ? new SA::Type(LIST, $2) : $2;
         $3->type->ismut = false;
         $3->ismut = false;
         $$ = $3;
     }
     | recursive_type param_tail {
-        $2->type = $2->is_variadic ? new TypeInfo(LIST, $1) : $1;
+        $2->type = $2->is_variadic ? new SA::Type(LIST, $1) : $1;
         $2->type->ismut = false;
         $2->ismut = false;
         $$ = $2;
@@ -85,7 +85,7 @@ param_tail:
 ;
 
 return_stmt:
-    RETURN expr                 { $$ = new_return($2, @1); }
+    RETURN with_non_expr                 { $$ = new_return($2, @1); }
     | RETURN                    { $$ = new_return(NULL, @1); }
 ;
 
@@ -95,6 +95,6 @@ opt_args:
 ;
 
 args:
-    expr                        { $$ = $1; }
-    | expr COMMA args           { $$ = new_seq($1, $3); }
+    with_non_expr                        { $$ = $1; }
+    | with_non_expr COMMA args           { $$ = new_seq($1, $3); }
 ;

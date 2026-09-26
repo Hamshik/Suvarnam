@@ -30,7 +30,7 @@ HIRNode *HIRGenerator::emit_MAST_for_range_loop(ASTNode *node) {
   bool is_descending = false;
   if (start_val->kind == ASTKind::AST_NUM &&
       end_val->kind == ASTKind::AST_NUM) {
-    is_descending = start_val->literals.val.i64 > end_val->literals.val.i64;
+    is_descending = start_val->val.i64 > end_val->val.i64;
   }
 
   // Default the step value: 1 for ascending, -1 for descending
@@ -38,7 +38,7 @@ HIRNode *HIRGenerator::emit_MAST_for_range_loop(ASTNode *node) {
   if (range_node->range.step) {
     step_val = generate(range_node->range.step);
   } else {
-    SA_Value step_raw = {0};
+    SA::Value step_raw = {0};
     step_raw.i64 = is_descending ? -1 : 1;
     step_val = create_literal(step_raw, range_node->range.start->type);
   }
@@ -139,9 +139,9 @@ HIRNode *HIRGenerator::emit_MAST_for_loop(ASTNode *node) {
   const char *idx_var_name = strdup(idx_var_str.c_str());
   const char *arr_var_name = strdup(arr_var_str.c_str());
 
-  TypeInfo *int_type =
-      new TypeInfo(I64, nullptr); // Ensure 64-bit safe bounds index typing
-  TypeInfo *element_type = iterable->type->inner;
+  SA::Type *int_type =
+      new SA::Type(I64, nullptr); // Ensure 64-bit safe bounds index typing
+  SA::Type *element_type = iterable->type->inner;
 
   // ==========================================
   // 🎯 THE FIX: PRE-DECLARE ALL VARIABLES FIRST
@@ -156,7 +156,7 @@ HIRNode *HIRGenerator::emit_MAST_for_loop(ASTNode *node) {
   iterator_decl->assign.target->name = strdup(iterator_name);
   iterator_decl->assign.target->type = element_type;
   iterator_decl->assign.is_declaration = true; // FORCE declaration status!
-  iterator_decl->assign.value = create_literal((SA_Value){0}, element_type);
+  iterator_decl->assign.value = create_literal((SA::Value){0}, element_type);
   iterator_decl->type = element_type;
   iterator_decl->loc = node->loc;
   root_block->block_stmts->push_back(iterator_decl);
@@ -186,7 +186,7 @@ HIRNode *HIRGenerator::emit_MAST_for_loop(ASTNode *node) {
   root_block->block_stmts->push_back(arr_assign);
 
   // Setup counter tracking reference variables: __idx__0 = 0
-  HIRNode *zero_lit = create_literal((SA_Value){0}, int_type);
+  HIRNode *zero_lit = create_literal((SA::Value){0}, int_type);
   HIRNode *idx_target = new HIRNode(ASTKind::AST_VAR);
   idx_target->name = strdup(idx_var_name);
   idx_target->type = int_type;
@@ -214,7 +214,7 @@ HIRNode *HIRGenerator::emit_MAST_for_loop(ASTNode *node) {
     limit_node->type = int_type;
   } else {
     limit_node = create_literal(
-        (SA_Value){.i64 = (int64_t)iterable->type->size}, int_type);
+        (SA::Value){.i64 = (int64_t)iterable->type->size}, int_type);
   }
   while_node->while_loop.condition =
       create_binary_op(OP_kind::OP_LT, idx_id_cond, limit_node, int_type);
@@ -261,7 +261,7 @@ HIRNode *HIRGenerator::emit_MAST_for_loop(ASTNode *node) {
   idx_id_step->name = strdup(idx_var_name);
   idx_id_step->type = int_type;
 
-  HIRNode *one_lit = create_literal((SA_Value){1}, int_type);
+  HIRNode *one_lit = create_literal((SA::Value){1}, int_type);
   HIRNode *add_step_expr =
       create_binary_op(OP_kind::OP_ADD, idx_id_step, one_lit, int_type);
   HIRNode *idx_step_target = new HIRNode(ASTKind::AST_VAR);

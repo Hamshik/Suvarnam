@@ -7,7 +7,7 @@
 #include <cstddef>
 #include <string>
 
-extern file_t* file; // global file
+extern File* file; // global file
 
 ASTNode* Semantic::getBaseVar(const char* name){
   if(!name) return nullptr;
@@ -21,21 +21,21 @@ ASTNode* Semantic::getBaseVar(const char* name){
   return symbol->node_ptr;
 }
 
-TypeInfo* Semantic::unop(ASTNode *n, TypeInfo* type) {
+SA::Type* Semantic::unop(ASTNode *n, SA::Type* type) {
 
-  TypeInfo* t = checkExpr(n->unop.operand, type);
+  SA::Type* t = checkExpr(n->unop.operand, type);
 
   switch (n->unop.op) {
   case OP_NOT:
     if (t->base != BOOL)
       Semantic::typeError(n, "Operator ! expects bool");
-    n->type = new TypeInfo(BOOL, nullptr);
+    n->type = new SA::Type(BOOL, nullptr);
     return n->type;
 
   case OP_ADDR:{
-    TypeInfo *t = checkExpr(n->unop.operand, type);
+    SA::Type *t = checkExpr(n->unop.operand, type);
 
-    n->type = new TypeInfo(PTR, t);
+    n->type = new SA::Type(PTR, t);
     auto node = getBaseVar(n->unop.operand->var);
 
     std::string name = node->kind == AST_ASSIGN ? node->assign.lhs->var : node->var;
@@ -75,7 +75,7 @@ TypeInfo* Semantic::unop(ASTNode *n, TypeInfo* type) {
    */
   if (n->unop.operand && n->unop.operand->kind == AST_NUM &&
       n->unop.operand->type->base == UNKNOWN) {
-    n->unop.operand->type = new TypeInfo(I32, NULL);
+    n->unop.operand->type = new SA::Type(I32, NULL);
     t = n->unop.operand->type;
   }
 

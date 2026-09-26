@@ -16,7 +16,7 @@ class Importer;
 
 /*------------external fn declaration -----------------------------------*/
 void syserr(const char *);
-void panic(SA_Location, errc_t, const char *);
+void panic(SA::Location, errc_t, const char *);
 char *logf_msg(const char *, ...);
 
 /* Program options structure */
@@ -27,7 +27,7 @@ typedef struct {
     char* ir_output_path;
 } Options;
 bool parse_arguments(int, char **, Options *);
-bool setup_input_file(const Options *, file_t *);
+bool setup_input_file(const Options *, File *);
 int compile_and_execute(ASTNode *, const Options *, Importer* import);
 void yyrestart(FILE *);
 void semantic_check(ASTNode *);

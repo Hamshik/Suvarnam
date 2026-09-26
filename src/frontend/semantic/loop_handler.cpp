@@ -4,11 +4,11 @@
 #include "SymbolTable/SymbolTableInternal.hpp"
 
 
-TypedValue ast_eval(ASTNode *node) ;
+SA::TypedVal ast_eval(ASTNode *node) ;
 
-TypeInfo *Semantic::checkForLoop(ASTNode *n, TypeInfo *type) {
+SA::Type *Semantic::checkForLoop(ASTNode *n, SA::Type *type) {
   // 1. Check the iterable expression
-  TypeInfo *iterable_type = checkExpr(n->fornode.iterable);
+  SA::Type *iterable_type = checkExpr(n->fornode.iterable);
 
   // Ensure the iterable is a RANGE or LIST type
   if (!iterable_type ||
@@ -19,7 +19,7 @@ TypeInfo *Semantic::checkForLoop(ASTNode *n, TypeInfo *type) {
   }
 
   // The type of the iterator variable is the inner type of the iterable
-  TypeInfo *iterator_var_type = iterable_type->inner;
+  SA::Type *iterator_var_type = iterable_type->inner;
   if (!iterator_var_type) {
     panic(n->loc, SEM_INTERNAL_ERROR, "Iterable inner type is null");
     return nullptr;
@@ -52,11 +52,11 @@ TypeInfo *Semantic::checkForLoop(ASTNode *n, TypeInfo *type) {
   return nullptr;
 }
 
-TypeInfo *Semantic::checkRange(ASTNode *n, TypeInfo *type) {
+SA::Type *Semantic::checkRange(ASTNode *n, SA::Type *type) {
   // Check start, end, and step expressions
-  TypeInfo *start_t = checkExpr(n->range.start);
-  TypeInfo *end_t = checkExpr(n->range.end);
-  TypeInfo *step_t = nullptr;
+  SA::Type *start_t = checkExpr(n->range.start);
+  SA::Type *end_t = checkExpr(n->range.end);
+  SA::Type *step_t = nullptr;
 
   if (!Semantic::isNumeric(start_t->base)) {
     panic(n->range.start->loc, SEM_NUMOP_NEEDS_NUM,
@@ -90,12 +90,12 @@ TypeInfo *Semantic::checkRange(ASTNode *n, TypeInfo *type) {
 
   // The type of the range itself is a RANGE with the promoted numeric type as
   // its inner type
-  n->type = new TypeInfo(RANGE, new TypeInfo(promoted_base_type, nullptr));
+  n->type = new SA::Type(RANGE, new SA::Type(promoted_base_type, nullptr));
   return n->type;
 }
 
-TypeInfo *Semantic::checkWhileLoop(ASTNode *n, TypeInfo *type) {
-  TypeInfo *ct = checkExpr(n->whilenode.cond);
+SA::Type *Semantic::checkWhileLoop(ASTNode *n, SA::Type *type) {
+  SA::Type *ct = checkExpr(n->whilenode.cond);
   if (ct->base != BOOL)
     panic(n->loc, SEM_WHILE_COND_NOT_BOOL, NULL);
 
@@ -107,7 +107,7 @@ TypeInfo *Semantic::checkWhileLoop(ASTNode *n, TypeInfo *type) {
   return nullptr;
 }
 
-TypeInfo *Semantic::checkUncondBranch(ASTNode *n, TypeInfo *type) {
+SA::Type *Semantic::checkUncondBranch(ASTNode *n, SA::Type *type) {
   if (inLoop <= 0) {
     errc_t err = (n->kind == AST_BREAK) ? SEM_BREAK_OUTSIDE_LOOP
                                         : SEM_CONTINUE_OUTSIDE_LOOP;

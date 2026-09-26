@@ -8,7 +8,7 @@
 #include <cstdlib>
 #include <string.h>
 
-void Semantic::resloveNestedNumeric(ASTNode *n, TypeInfo *t) {
+void Semantic::resloveNestedNumeric(ASTNode *n, SA::Type *t) {
   if (!n || !t) return;
   if (n->kind == AST_NUM) {
     n->type = t; // Force literal to match target width
@@ -44,8 +44,8 @@ const char* Semantic::getSafeName(ASTNode *lhs) {
          : "unknown";
 }
 
-// 2. RESPONSIBILITY: Handle TypeInfo Inference and Symbol Registration
- void Semantic::processDecl(ASTNode *n, TypeInfo *&lhs_t, TypeInfo *rhs_t) {
+// 2. RESPONSIBILITY: Handle SA::Type Inference and Symbol Registration
+ void Semantic::processDecl(ASTNode *n, SA::Type *&lhs_t, SA::Type *rhs_t) {
   ASTNode *rhs = n->assign.rhs;
   const char *var_name = getSafeName(n->assign.lhs);
 
@@ -55,9 +55,9 @@ const char* Semantic::getSafeName(ASTNode *lhs) {
   }
 
   if (n->kind == AST_STR && !n->type)
-    n->type = new TypeInfo(STRINGS, NULL);
+    n->type = new SA::Type(STRINGS, NULL);
   if (n->kind == AST_CHAR && !n->type)
-    n->type = new TypeInfo(CHARACTER, NULL);
+    n->type = new SA::Type(CHARACTER, NULL);
 
   if (lhs_t->base != UNKNOWN && Semantic::isNumeric(lhs_t->base) && rhs && rhs->kind == AST_NUM) {
       if (!Semantic::literalFitsType(rhs, lhs_t->base) ||
@@ -116,8 +116,8 @@ bool Semantic::verifyExprPathIsMut(ASTNode *n) {
     return false;
 }
 
-// 3. RESPONSIBILITY: Final TypeInfo & Pointer Consistency
-void Semantic::validateAssign(ASTNode *n, TypeInfo *lhs_t, TypeInfo *rhs_t) {
+// 3. RESPONSIBILITY: Final SA::Type & Pointer Consistency
+void Semantic::validateAssign(ASTNode *n, SA::Type *lhs_t, SA::Type *rhs_t) {
 
   if (lhs_t == rhs_t) return;
 
@@ -137,8 +137,8 @@ void Semantic::validateAssign(ASTNode *n, TypeInfo *lhs_t, TypeInfo *rhs_t) {
   }
 
   if (lhs_t->base == LIST && rhs_t->base == LIST) {
-    TypeInfo *l_curr = lhs_t;
-    TypeInfo *r_curr = rhs_t;
+    SA::Type *l_curr = lhs_t;
+    SA::Type *r_curr = rhs_t;
 
     while (l_curr->base == LIST && r_curr->base == LIST) {
       if (l_curr->size != r_curr->size) {
@@ -162,13 +162,13 @@ void Semantic::validateAssign(ASTNode *n, TypeInfo *lhs_t, TypeInfo *rhs_t) {
 }
 
 // 1. FIXED RESPONSIBILITY: Safely look up exactly what container type LHS is targeting
-void Semantic::resolveTargetType(ASTNode *n, TypeInfo *&type) {
+void Semantic::resolveTargetType(ASTNode *n, SA::Type *&type) {
   ASTNode *lhs = n->assign.lhs;
 
   if (lhs->kind == AST_VAR) {
     const char* name = lhs->var ? lhs->var : lhs->var;
     if (n->assign.is_declaration) {
-      if(!n->type) n->type = new TypeInfo(UNKNOWN, NULL);
+      if(!n->type) n->type = new SA::Type(UNKNOWN, NULL);
       type = n->type;
     } else {
       type = ctx->sym->lookup(name);
@@ -182,7 +182,7 @@ void Semantic::resolveTargetType(ASTNode *n, TypeInfo *&type) {
     }
     
     // Let your expression checker evaluate the full deref chain (e.g. **i2)
-    TypeInfo *resolved_lhs_type = checkExpr(lhs);
+    SA::Type *resolved_lhs_type = checkExpr(lhs);
     if (resolved_lhs_type) {
       type = resolved_lhs_type; // This will correctly resolve to STRINGS
     } else {
@@ -199,8 +199,8 @@ void Semantic::resolveTargetType(ASTNode *n, TypeInfo *&type) {
 }
 
 // 4. MAIN ORCHESTRATOR
-TypeInfo *Semantic::assign(ASTNode *n, TypeInfo *type) {
-  TypeInfo *lhs_t = nullptr;
+SA::Type *Semantic::assign(ASTNode *n, SA::Type *type) {
+  SA::Type *lhs_t = nullptr;
 
   if(n->isglobal && !globalVarAllowed)
     panic(n->assign.lhs->loc, SEM_AT_SYM_IS_NOT_ALLOWED, getSafeName(n->assign.lhs));
@@ -213,7 +213,7 @@ TypeInfo *Semantic::assign(ASTNode *n, TypeInfo *type) {
   }
 
   // Resolves to STRINGS correctly
-  TypeInfo *rhs_t = checkExpr(n->assign.rhs, lhs_t);
+  SA::Type *rhs_t = checkExpr(n->assign.rhs, lhs_t);
 
   if (!lhs_t || !rhs_t)
     return nullptr;
@@ -242,7 +242,7 @@ TypeInfo *Semantic::assign(ASTNode *n, TypeInfo *type) {
       
       // 1. Verify mutability of the root variable holding the pointer chain
       if (!ctx->sym->isMut(base_var_name)) {
-          SA_Location target_loc = base ? base->loc : n->assign.lhs->loc;
+          SA::Location target_loc = base ? base->loc : n->assign.lhs->loc;
           panic(target_loc, SEM_ASSIGN_IMMUTABLE, base_var_name);
       }
 
@@ -254,14 +254,14 @@ TypeInfo *Semantic::assign(ASTNode *n, TypeInfo *type) {
 
     // Path C: Array element modification
     if (n->assign.lhs->kind == AST_INDEX) {
-      idx_expr_t *curr_idx = n->assign.lhs->index.idx;
+      SA::idxExpr *curr_idx = n->assign.lhs->index.idx;
       if (!curr_idx) panic(n->loc, SEM_INTERNAL_ERROR, "Array access missing index structure");
 
       while (curr_idx != nullptr) {
-        if (!curr_idx->expr_node) panic(n->loc, SEM_INTERNAL_ERROR, "Empty expression node in index");
-        TypeInfo *itype = checkExpr(curr_idx->expr_node);
+        if (!curr_idx->exprNode) panic(n->loc, SEM_INTERNAL_ERROR, "Empty expression node in index");
+        SA::Type *itype = checkExpr(curr_idx->exprNode);
         if (!itype || (itype->base != I32 && itype->base != I64)) {
-          panic(curr_idx->expr_node->loc, SEM_INDEX_NOT_INT, "List index must be an integer");
+          panic(curr_idx->exprNode->loc, SEM_INDEX_NOT_INT, "List index must be an integer");
         }
         curr_idx = curr_idx->next;
       }

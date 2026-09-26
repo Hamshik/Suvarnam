@@ -59,7 +59,7 @@ SemanticSymbolRecord *SemanticSymTable::findSym(const char *name) {
   return nullptr;
 }
 
-TypeInfo *SemanticSymTable::lookup(const char *name) {
+SA::Type *SemanticSymTable::lookup(const char *name) {
   SemanticSymbolRecord *symbol = findSym(name);
   return symbol ? symbol->type : nullptr;
 }
@@ -72,7 +72,7 @@ SemanticScopeRecord *SemanticSymTable::getGlobScope() {
   return scope;
 }
 
-bool SemanticSymTable::declare(const char *name, bool *isglobal, TypeInfo *type,
+bool SemanticSymTable::declare(const char *name, bool *isglobal, SA::Type *type,
                                ASTNode *node, bool is_mutable) {
   SemanticScopeRecord *scope = *isglobal ? getGlobScope() : top();
   auto [it, inserted] = scope->symbols.try_emplace(name);
@@ -87,6 +87,7 @@ bool SemanticSymTable::declare(const char *name, bool *isglobal, TypeInfo *type,
   it->second.is_mutable = is_mutable;
   it->second.is_used = false;
   it->second.node_ptr = node;
+  it->second.isGlobal = *isglobal;
   return true;
 }
 
@@ -99,7 +100,7 @@ exitcode_t SemanticSymTable::exists(ASTNode *n) {
     return NOT_DECLARED;
   }
 
-  if (symbol->node_ptr->isglobal != n->isglobal)
+  if (symbol->isGlobal != n->isglobal)
     return NOT_DEC_AT_GLOB_SCOPE;
 
   if (symbol->type != n->type && !(Semantic::isNumeric(symbol->type->base) &&
@@ -236,7 +237,7 @@ ASTMod *SemanticSymTable::loadMod(char *requested_path,
   }
 
   if (!resolved_opt) {
-    panic((SA_Location){0}, SEM_IMPORT_FILE_NOT_FOUND, requested_path);
+    panic((SA::Location){0}, SEM_IMPORT_FILE_NOT_FOUND, requested_path);
     return nullptr;
   }
 
@@ -245,7 +246,7 @@ ASTMod *SemanticSymTable::loadMod(char *requested_path,
   ASTMod *existing = getMod(canonical_path.c_str());
   if (existing) {
     if (existing->state == MOD_LOADING) {
-      panic((SA_Location){0}, SEM_IMPORT_FILE_NOT_FOUND,
+      panic((SA::Location){0}, SEM_IMPORT_FILE_NOT_FOUND,
             canonical_path.c_str());
       return nullptr;
     }
@@ -269,7 +270,7 @@ ASTMod *SemanticSymTable::loadMod(char *requested_path,
 
   FILE *source = fopen(canonical_path.c_str(), "r");
   if (!source) {
-    panic((SA_Location){0}, SEM_IMPORT_FILE_NOT_FOUND, canonical_path.c_str());
+    panic((SA::Location){0}, SEM_IMPORT_FILE_NOT_FOUND, canonical_path.c_str());
     return nullptr;
   }
 

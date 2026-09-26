@@ -94,7 +94,7 @@ llvm::Value *IRGen::emitBinop(HIRNode *n, Codegen::Scope &locals) {
 
 #define num_inc_OR_dec(LLVM_OPCODE, node, builder)                             \
   do {                                                                         \
-    /* Convert your custom frontend TypeInfo* to an actual llvm::Type* */        \
+    /* Convert your custom frontend SA::Type* to an actual llvm::Type* */        \
     llvm::Type* llvmTy = irType((node)->type->base);                          \
                                                                                \
     /* 1. Extract the name string into a local macro variable for legibility */\
@@ -112,7 +112,7 @@ llvm::Value *IRGen::emitBinop(HIRNode *n, Codegen::Scope &locals) {
         return nullptr;                                                        \
     }                                                                          \
                                                                                \
-    /* 4. Load the OLD value from memory using the converted LLVM TypeInfo */      \
+    /* 4. Load the OLD value from memory using the converted LLVM SA::Type */      \
     llvm::Value *oldVal =                                                      \
         (builder).CreateLoad(llvmTy, varPtr, "old_val");                       \
                                                                                \

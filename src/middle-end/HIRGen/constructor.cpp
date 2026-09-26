@@ -8,7 +8,7 @@
 #include <cstring>
 
 // Helper: Generate an Integer Literal
-HIRNode *HIRGenerator::create_literal(SA_Value value, TypeInfo *type) {
+HIRNode *HIRGenerator::create_literal(SA::Value value, SA::Type *type) {
   DataTypes_t base = type ? type->base : UNKNOWN;
 
   if (base == UNKNOWN || base == VOID) {
@@ -23,8 +23,8 @@ HIRNode *HIRGenerator::create_literal(SA_Value value, TypeInfo *type) {
       ASTKind::AST_NUM
   );
 
-  node->literals.val = value;
-  node->type = type ? type : new TypeInfo(base, nullptr);
+  node->val = value;
+  node->type = type ? type : new SA::Type(base, nullptr);
   if (node->type && node->type->base == UNKNOWN)
     node->type->base = base;
   return node;
@@ -32,7 +32,7 @@ HIRNode *HIRGenerator::create_literal(SA_Value value, TypeInfo *type) {
 
 // Helper: Generate a Binary Operation
 HIRNode *HIRGenerator::create_binary_op(OP_kind_t op, HIRNode *left, HIRNode *right,
-                           TypeInfo *result_type) {
+                           SA::Type *result_type) {
   HIRNode *node = new HIRNode(ASTKind::AST_BINOP);
   node->binary.op = op;
   node->binary.left = left;
@@ -141,12 +141,12 @@ HIRNode *HIRGenerator::create_fn_definition(ASTNode *node) {
   HIRNode *fn_node = new HIRNode(ASTKind::AST_FN);
 
   // Allocate the vectors now that they are pointers
-  fn_node->fn.params = new std::vector<Param_t*>();
+  fn_node->fn.params = new std::vector<SA::Param*>();
   fn_node->fn.body = new std::vector<HIRNode*>();
 
   fn_node->fn.name = strdup(node->fn_def.name);
   fn_node->type = node->type ? node->type : 
-      new TypeInfo(VOID, nullptr); // Function return type
+      new SA::Type(VOID, nullptr); // Function return type
   fn_node->fn.param_count = node->fn_def.param_count;
   fn_node->loc = node->loc;
 
@@ -154,15 +154,15 @@ HIRNode *HIRGenerator::create_fn_definition(ASTNode *node) {
 
   // 1. Flatten Parameters: Convert frontend array to mid-end vector
   for (int i = 0; i < node->fn_def.param_count; i++) {
-    Param_t* p = new Param_t();
+    SA::Param* p = new SA::Param();
     p->name = strdup(node->fn_def.params[i].name);
     p->type = node->fn_def.params[i].type;
     p->is_variadic = node->fn_def.params[i].is_variadic;
     current_params.insert(p->name);
     if (p->is_variadic && p->type && p->type->base == LIST) {
       p->type->size = 0;
-      auto int_arg = new Param_t();
-      int_arg->type = new TypeInfo(I64, nullptr);
+      auto int_arg = new SA::Param();
+      int_arg->type = new SA::Type(I64, nullptr);
       std::string count_name = std::string(p->name) + "\003_count";
       int_arg->name = strdup(count_name.c_str()); 
       current_params.insert(count_name);
@@ -182,7 +182,7 @@ HIRNode *HIRGenerator::create_fn_definition(ASTNode *node) {
 }
 
 // Helper: Generate a variable declaration
-HIRNode *HIRGenerator::create_declaration(const char *name, HIRNode *init, TypeInfo *type) {
+HIRNode *HIRGenerator::create_declaration(const char *name, HIRNode *init, SA::Type *type) {
   HIRNode *node = new HIRNode(ASTKind::AST_DECL);
   node->decl.decl_name = strdup(name);
   node->decl.init_value = init;
@@ -192,7 +192,7 @@ HIRNode *HIRGenerator::create_declaration(const char *name, HIRNode *init, TypeI
 
 // Helper: Generate a Function Call
 HIRNode *HIRGenerator::create_call(const char *fn_name, std::vector<HIRNode *> *args,
-                      TypeInfo *ret_type) {
+                      SA::Type *ret_type) {
   HIRNode *node = new HIRNode(ASTKind::AST_CALL);
   node->call.target_fn = strdup(fn_name);
   node->call.args = args;

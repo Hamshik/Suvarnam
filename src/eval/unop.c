@@ -2,42 +2,42 @@
 #include "eval/eval.h"
 #include "shared/enums.h"
 
-TypedValue eval_unop(ASTNode *node) {
+SA::TypedVal eval_unop(ASTNode *node) {
   if (node->unop.op == OP_ADDR) {
     if (!node->unop.operand || node->unop.operand->kind != AST_VAR) {
       panic( node->loc, RT_UNKNOWN_AST,
             "address-of requires a variable");
-      return (TypedValue){0};
+      return (SA::TypedVal){0};
     }
     int fid = SA_runtime_env_frame_id_of(node->unop.operand->var, node->loc);
-    SA_Value pv = {0};
+    SA::Value pv = {0};
     pv.ptr.frame_id = fid;
     pv.ptr.name = node->unop.operand->var;
-    return (TypedValue){.type = SA_semantic_lookup(node->unop.operand->var), .val = pv};
+    return (SA::TypedVal){.type = SA_semantic_lookup(node->unop.operand->var), .val = pv};
   }
 
   if (node->unop.op == OP_DEREF) {
-    TypedValue pv = ast_eval(node->unop.operand);
+    SA::TypedVal pv = ast_eval(node->unop.operand);
     if (pv.type->base != PTR || pv.val.ptr.name == NULL) {
       panic( node->loc, RT_DANGLING_PTR, NULL);
-      return (TypedValue){0};
+      return (SA::TypedVal){0};
     }
-    TypedValue *ref = SA_runtime_env_get_ref_at(
+    SA::TypedVal *ref = SA_runtime_env_get_ref_at(
         pv.val.ptr.frame_id, pv.val.ptr.name, node->loc);
     if (!ref)
-      return (TypedValue){0};
-    return (TypedValue){.type = ref->type, .val = ref->val};
+      return (SA::TypedVal){0};
+    return (SA::TypedVal){.type = ref->type, .val = ref->val};
   }
 
-  TypedValue r = ast_eval(node->unop.operand);
-  TypedValue casted =
+  SA::TypedVal r = ast_eval(node->unop.operand);
+  SA::TypedVal casted =
       SA_cast_typed(r, node->type);
-  TypedValue out = {.type = casted.type, .val = {0}};
+  SA::TypedVal out = {.type = casted.type, .val = {0}};
   do_unop_operation(&out.val, &casted.val, node->type->base, node->unop.op);
   return out;
 }
 
-void do_unop_operation(SA_Value *result, SA_Value *operand, DataTypes_t datatype,
+void do_unop_operation(SA::Value *result, SA::Value *operand, DataTypes_t datatype,
                        OP_kind_t op) {
   switch (datatype) {
   case I8:

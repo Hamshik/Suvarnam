@@ -9,7 +9,7 @@ char* _SA_concat(char* a, char* b) {
     size_t lenA = strlen(a);
     size_t lenB = strlen(b);
 
-    char* res = (char*)malloc(lenA + lenB + 1);
+    char* res = new char[lenA + lenB + 1];
 
     memcpy(res, a, lenA);
     memcpy(res + lenA, b, lenB);
@@ -108,7 +108,7 @@ char* SA_encode_cp(uint32_t cp) {
     len = 4;
   }
 
-  char *out = (char *)malloc(len + 1);
+  char *out = new char(len + 1);
   if (!out) return NULL;
   memcpy(out, buf, len);
   out[len] = '\0';

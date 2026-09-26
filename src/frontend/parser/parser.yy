@@ -1,28 +1,28 @@
 %filenames Parser
 %baseclass-preinclude "frontend/parser/parser_includes.hpp"
-%ltype SA_Location
+%ltype SA::Location
 
 %polymorphic
     node: ASTNode*;
     datatype: DataTypes_t;
-    paramlist: ParamList_t;
-    idx_epr: idx_expr_t*;
-    type: TypeInfo*;
+    paramlist: SA::ParamList;
+    idx_epr: SA::idxExpr*;
+    type: SA::Type*;
     size: size_t;
     op: OP_kind_t;
 
 %token LEX_ERROR
-%token LBRACE RBRACE SEMICOLON COLON IN COMMA DOT_DOT ELLIPSIS
+%token LBRACE RBRACE SEMICOLON COLON IN COMMA ELLIPSIS
 %token IF FOR WHILE MUT VAR FN RETURN IMPORT
-%token CONTINUE BREAK NOT BITNOT SET
+%token CONTINUE BREAK NOT BITNOT
 
 %token <datatype> DATATYPES
 %token <node> IDENTIFIER NUMBER STRING_LITERAL BOOL_LITERAL CHAR_LITERAL
 
 %type <op> assign_op
 %type <node>  top_level_stmts block if_stmt for_stmt while_stmt import_stmt expr_stmts
-%type <node>  fn_def param param_tail return_stmt opt_args args list_stmt expr_stmt top_level_stmt index_stmt fn_block_t
-%type <node>  lvalue import_list expr assignment program range expr_assign
+%type <node>  fn_def param param_tail return_stmt opt_args args list_stmt with_non_expr expr_stmt top_level_stmt index_stmt fn_block_t
+%type <node>  assign_expr import_list expr assignment program range
 %type <paramlist> opt_params params
 %type <type>  recursive_type
 %type <size>  opt_list_size
@@ -41,10 +41,11 @@
 %left STAR SLASH MOD
 %right POWER
 %left INC DEC
-%left LSQUARE RSQUARE
 %left LPAREN RPAREN
+%left LSQUARE RSQUARE
 %nonassoc LOWER_THAN_ELSE
 %nonassoc ELSE
+%nonassoc DOT_DOT
 
 %start program
 
@@ -60,9 +61,10 @@
 program:
     import_list top_level_stmts
     {
-        if (!$1) root = $2;
-        else if (!$2) root = $1;
-        else root = new_seq($1, $2);
+        if (!$1) $$ = $2;
+        else if (!$2) $$ = $1;
+        else $$ = new_seq($1, $2);
+        root = $$;
     }
 ;
 
@@ -72,7 +74,7 @@ top_level_stmt:
 ;
 
 top_level_stmts:
-    /* empty */                 { $$ = static_cast<ASTNode *>(nullptr); }
+    /* empty */                 { $$ = null(ASTNode*); }
     | top_level_stmt top_level_stmts
     {
         if (!$1) $$ = $2;
@@ -83,35 +85,32 @@ top_level_stmts:
 
 expr_stmt:
     assignment SEMICOLON        { $$ = $1; }
-    | assignment error SEMICOLON { panic(SA_loc_after(@1), PARSE_MISSING_SEMI, NULL); $$ = static_cast<ASTNode *>(nullptr); }
-    | expr SEMICOLON            { $$ = $1; }
-    | expr error SEMICOLON      { panic(SA_loc_after(@1), PARSE_MISSING_SEMI, NULL); $$ = static_cast<ASTNode *>(nullptr); }
+    | assignment error SEMICOLON { panic(SA_loc_after(@1), PARSE_MISSING_SEMI, NULL); $$ = null(ASTNode*); }
+    | with_non_expr SEMICOLON            { $$ = $1; }
+    | with_non_expr error SEMICOLON      { panic(SA_loc_after(@1), PARSE_MISSING_SEMI, NULL); $$ = null(ASTNode*); }
     | block                     { $$ = $1; }
     | return_stmt SEMICOLON     { $$ = $1; }
-    | return_stmt error SEMICOLON { panic(SA_loc_after(@1), PARSE_MISSING_SEMI, NULL); $$ = static_cast<ASTNode *>(nullptr); }
-    | LEX_ERROR SEMICOLON       { scanner.lexTakeErr(); $$ = static_cast<ASTNode *>(nullptr); }
-    | LEX_ERROR                 { scanner.lexTakeErr(); $$ = static_cast<ASTNode *>(nullptr); }
-    | error SEMICOLON           { panic(@1, PARSE_SYNTAX, NULL); $$ = static_cast<ASTNode *>(nullptr); }
+    | return_stmt error SEMICOLON { panic(SA_loc_after(@1), PARSE_MISSING_SEMI, NULL); $$ = null(ASTNode*); }
+    | LEX_ERROR SEMICOLON       { scanner.lexTakeErr(); $$ = null(ASTNode*); }
+    | LEX_ERROR                 { scanner.lexTakeErr(); $$ = null(ASTNode*); }
+    | error SEMICOLON           { panic(@1, PARSE_SYNTAX, NULL); $$ = null(ASTNode*); }
     | if_stmt                   { $$ = $1; }
     | for_stmt                  { $$ = $1; }
     | while_stmt                { $$ = $1; }
     | CONTINUE SEMICOLON        { $$ = new_continue(@1); }
     | BREAK SEMICOLON           { $$ = new_break(@1); }
-    /* declaring assign here, to reduce the ambiguity */
-    | lvalue assign_op expr SEMICOLON {
-        OP_kind_t op = $2;
-        $$ = new_assign($1, $3, nullptr, false, @1, op);
-    }
+    /* Keep assignment operators out of expr to avoid assignment ambiguity. */
+    | assign_expr SEMICOLON       { $$ = $1; }
 
     | error {
         if (!scanner.lexTakeErr()) panic(@1, PARSE_SYNTAX, ErrMsg);
-        if(isError) ABORT();
-        else ACCEPT();
+        ABORT();
+        $$ = null(ASTNode*);
     }
 ;
 
 import_list:
-    /* empty */                 { $$ = static_cast<ASTNode *>(nullptr); }
+    /* empty */                 { $$ = null(ASTNode*); }
     | import_stmt SEMICOLON import_list
       {
           if (!$3) $$ = $1;
@@ -120,7 +119,7 @@ import_list:
 ;
 
 expr_stmts:
-    /* empty */                 { $$ = static_cast<ASTNode *>(nullptr); }
+    /* empty */                 { $$ = null(ASTNode*); }
     | expr_stmt expr_stmts
     {
         if (!$1) $$ = $2;
@@ -141,25 +140,25 @@ block:
 ;
 
 if_stmt:
-    IF LPAREN expr RPAREN expr_stmt %prec LOWER_THAN_ELSE
+    IF LPAREN with_non_expr RPAREN expr_stmt %prec LOWER_THAN_ELSE
         { $$ = new_if($3, $5, NULL, @1); }
-    | IF LPAREN expr RPAREN expr_stmt ELSE expr_stmt
+    | IF LPAREN with_non_expr RPAREN expr_stmt ELSE expr_stmt
         { $$ = new_if($3, $5, $7, @1); }
 ;
 
 recursive_type:
     DATATYPES {
-        $$ = new TypeInfo($1, static_cast<TypeInfo*>(nullptr)); 
+        $$ = new SA::Type($1, null(SA::Type*)); 
     }
     | recursive_type LSQUARE opt_list_size RSQUARE {
-        $$ = new TypeInfo(LIST, $1);
+        $$ = new SA::Type(LIST, $1);
         $$->size = $3; 
     }
     | recursive_type AMP %prec AMP {
-        $$ = new TypeInfo(PTR, $1);
+        $$ = new SA::Type(PTR, $1);
     }
     | recursive_type AND %prec AMP {
-        TypeInfo* first_ptr = new TypeInfo(PTR, $1);
-        $$ = new TypeInfo(PTR, first_ptr);
+        SA::Type* first_ptr = new SA::Type(PTR, $1);
+        $$ = new SA::Type(PTR, first_ptr);
     }
 ;

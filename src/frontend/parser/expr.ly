@@ -1,3 +1,8 @@
+with_non_expr:
+    range                      { $$ = $1; }
+    | expr                     { $$ = $1; }
+;
+
 expr:
     NUMBER                      { $$ = $1; }
     | IDENTIFIER                { $$ = $1; }
@@ -60,5 +65,4 @@ expr:
 
     | list_stmt                  { $$ = $1; } 
     | index_stmt                 { $$ = $1; $$->isglobal = $1->isglobal;}
-    | LBRACE range RBRACE        { $$ = $2; }
 ;

@@ -33,7 +33,7 @@ void Semantic::main(ASTNode *root) {
 
 /* Main recursive checker */
 
-TypeInfo *Semantic::checkExpr(ASTNode *n, TypeInfo *&type) {
+SA::Type *Semantic::checkExpr(ASTNode *n, SA::Type *&type) {
   if (!n)
     return nullptr;
 
@@ -45,13 +45,13 @@ TypeInfo *Semantic::checkExpr(ASTNode *n, TypeInfo *&type) {
 
   case AST_STR:
     if (!n->type || n->type->base == UNKNOWN)
-      n->type = new TypeInfo(STRINGS, NULL);
+      n->type = new SA::Type(STRINGS, NULL);
     n->type->size = n->literal.len;
     return n->type;
 
   case AST_CHAR:
     if (!n->type || n->type->base == UNKNOWN)
-      n->type = new TypeInfo(CHARACTER, NULL);
+      n->type = new SA::Type(CHARACTER, NULL);
     n->type->size = n->literal.len;
     return n->type;
 
@@ -95,7 +95,7 @@ TypeInfo *Semantic::checkExpr(ASTNode *n, TypeInfo *&type) {
     return checkExpr(n->seq.b, type);
 
   case AST_IF: {
-    TypeInfo *ct = checkExpr(n->ifnode.cond);
+    SA::Type *ct = checkExpr(n->ifnode.cond);
     if (ct->base != BOOL)
       panic(n->loc, SEM_IF_COND_NOT_BOOL, NULL);
 
@@ -134,7 +134,7 @@ TypeInfo *Semantic::checkExpr(ASTNode *n, TypeInfo *&type) {
     return importer->handleImport(n);
 
   case AST_LIST: {
-    TypeInfo *inferred_list_type = listHandle(n, type);
+    SA::Type *inferred_list_type = listHandle(n, type);
     if (type && type->base == UNKNOWN)
       type = inferred_list_type; // Update the passed-in reference
     return inferred_list_type;

@@ -97,7 +97,7 @@ bool Semantic::isSignedNumeric(DataTypes_t t) {
   return Semantic::isNumeric(t) && !Semantic::isUnsignedNumeric(t);
 }
 
-TypeInfo *Semantic::handleNum(ASTNode *n, TypeInfo *&type) {
+SA::Type *Semantic::handleNum(ASTNode *n, SA::Type *&type) {
   if (!n->type || n->type->base == UNKNOWN) {
     if (type && type->base != UNKNOWN) {
       // If the hint is a container, the number needs the inner type
@@ -113,7 +113,7 @@ TypeInfo *Semantic::handleNum(ASTNode *n, TypeInfo *&type) {
   // Default inference if no hint was provided or hint resulted in UNKNOWN
   if (!n->type || n->type->base == UNKNOWN) {
     bool is_f = n->literal.raw && strchr(n->literal.raw, '.') != NULL;
-    n->type = new TypeInfo(is_f ? F32 : I32, nullptr);
+    n->type = new SA::Type(is_f ? F32 : I32, nullptr);
   }
 
   if (!Semantic::isNumeric(n->type->base))

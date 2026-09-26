@@ -6,9 +6,9 @@
 
 class HIRNode {
     public:
-    ASTKind kind;
-    TypeInfo *type;      // Every mid-end node is strictly typed
-    SA_Location loc;
+    ASTKind_t kind;
+    SA::Type *type;      // Every mid-end node is strictly typed
+    SA::Location loc;
     bool isglobal;
 
     // Tracks sequential statements inside a MASTKind::BLOCK node.
@@ -24,10 +24,8 @@ class HIRNode {
             const char *decl_name;
             HIRNode *init_value; // Can be nullptr
         } decl;
-
-        struct {
-            SA_Value val;
-        } literals;
+        
+        SA::Value val;
 
         // Assignment (e.g., i = i + 1)
         struct {
@@ -77,7 +75,7 @@ class HIRNode {
 
         struct {
             std::vector<HIRNode*>* body;
-            std::vector<Param_t*>* params;
+            std::vector<SA::Param*>* params;
             size_t param_count;
             const char* name;
         } fn;
@@ -86,6 +84,6 @@ class HIRNode {
     }; 
 
     // Clean Constructor Initialization Tracker
-    HIRNode(ASTKind k) : kind(k), type(nullptr), isglobal(false) {
+    HIRNode(ASTKind_t k) : kind(k), type(nullptr), isglobal(false) {
     }
 };

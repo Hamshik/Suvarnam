@@ -7,7 +7,7 @@
 #include <llvm-22/llvm/Support/Alignment.h>
 
 // Forward declare the helper
-TypeInfo *get_AST_ret(TypeInfo *t, size_t depth);
+SA::Type *get_AST_ret(SA::Type *t, size_t depth);
 static size_t idx = 0;
 
 FunctionCallee FnHelper::getBuiltinFn(const char *name) {
@@ -52,7 +52,7 @@ llvm::Value *IRGen::generateList(HIRNode *n, Codegen::Scope &locals) {
   if (!n->type || !n->type->inner) {
     std::cerr
         << "Codegen Error: List type or inner element type is missing at line "
-        << (size_t)n->loc.first_line << std::endl;
+        << (size_t)n->loc.firstLn << std::endl;
     return nullptr;
   }
 
@@ -60,8 +60,8 @@ llvm::Value *IRGen::generateList(HIRNode *n, Codegen::Scope &locals) {
 
   if (!elemType) {
     std::cerr << "Warning: invalid element type at line "
-              << (size_t)n->loc.first_line << ", col "
-              << (size_t)n->loc.first_column << std::endl;
+              << (size_t)n->loc.firstLn << ", col "
+              << (size_t)n->loc.firstCol << std::endl;
     return nullptr;
   }
 
@@ -109,7 +109,7 @@ llvm::Value *IRGen::generateListElementPtr(HIRNode *n,
                                            Codegen::Scope &locals) {
   llvm::Value *currentPtr =
       emitExpr(n->index.target, locals);
-  TypeInfo *current_type_data = n->index.target->type; // semantic type metadata
+  SA::Type *current_type_data = n->index.target->type; // semantic type metadata
   std::vector<HIRNode *> &indices = *n->index.idx;
 
   if (current_type_data && current_type_data->base == PTR) {
@@ -129,7 +129,7 @@ llvm::Value *IRGen::generateListElementPtr(HIRNode *n,
     llvm::Value *indexVal =
         emitExpr(idx_expr_node, locals);
 
-    TypeInfo *inner_type = current_type_data->inner;
+    SA::Type *inner_type = current_type_data->inner;
     llvm::Type *llvmElemType = irType(inner_type->base);
 
     llvm::Value *typedPtr =
@@ -164,7 +164,7 @@ llvm::Value *IRGen::generateListAccess(HIRNode *n,
 
   if (elementType->isVoidTy()) {
     fprintf(stderr, "Error: Invalid element type at line %zu\n",
-            n->loc.first_line);
+            n->loc.firstLn);
     return nullptr;
   }
 

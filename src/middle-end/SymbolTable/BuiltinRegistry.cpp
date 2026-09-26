@@ -10,25 +10,25 @@
 #define macro(val, str)  if (val) { \
         printf((str), (val)); \
     } \
-    return (TypedValue){.type = new TypeInfo(VOID, nullptr)};
+    return (SA::TypedVal){.type = new SA::Type(VOID, nullptr)};
 
 // Example Interpreter implementation for SA_print_list
-TypedValue SA_print_list_interpreter(TypedValue* args, int argc) {
-    if (argc < 2) return (TypedValue){0};
+SA::TypedVal SA_print_list_interpreter(SA::TypedVal* args, int argc) {
+    if (argc < 2) return (SA::TypedVal){0};
     // Implementation logic here...
     std::cout << "[Interpreter] Printing list at " << args[0].val.raw << std::endl;
-    return (TypedValue){.type = new TypeInfo(VOID, nullptr)};
+    return (SA::TypedVal){.type = new SA::Type(VOID, nullptr)};
 }
 
-TypedValue println_str(TypedValue* str, int argc) {
+SA::TypedVal println_str(SA::TypedVal* str, int argc) {
    macro(str->val.chars, "%s\n");
 }
 
-TypedValue printlni(TypedValue* ival, int argc) {
+SA::TypedVal printlni(SA::TypedVal* ival, int argc) {
    macro(ival->val.i64, "%ld\n");
 }
 
-TypedValue printlnf(TypedValue* fval, int argc) {
+SA::TypedVal printlnf(SA::TypedVal* fval, int argc) {
    macro(fval->val.f128, "%Lf\n");
 }
 
@@ -37,7 +37,7 @@ BuiltinRegistry& BuiltinRegistry::instance() {
     return inst;
 }
 
-void BuiltinRegistry::register_builtin(const char* name, TypeInfo* ret, std::vector<Param_t*> params, InterpreterCallback impl) {
+void BuiltinRegistry::register_builtin(const char* name, SA::Type* ret, std::vector<SA::Param*> params, InterpreterCallback impl) {
     BuiltinFunction fn;
     fn.name = name;
     fn.return_type = ret;
@@ -55,13 +55,13 @@ BuiltinFunction* BuiltinRegistry::lookup(const char* name) {
 
 void BuiltinRegistry::bootstrap() {
     // Register SA_print_list: void SA_print_list(list[any], i32)
-    // Using new TypeInfo to build the signature
-    TypeInfo* void_ty = new TypeInfo(VOID, nullptr);
+    // Using new SA::Type to build the signature
+    SA::Type* void_ty = new SA::Type(VOID, nullptr);
 
     register_builtin(
         "malloc", 
-        new TypeInfo(PTR, void_ty),
-        { new Param_t(new TypeInfo(U128, nullptr)) }, 
+        new SA::Type(PTR, void_ty),
+        { new SA::Param(new SA::Type(U128, nullptr)) }, 
         nullptr
     );
 
@@ -69,8 +69,8 @@ void BuiltinRegistry::bootstrap() {
         "printf", 
         void_ty,
         {
-            new Param(new TypeInfo(STRINGS, nullptr)),
-            new Param(true, new TypeInfo(UNKNOWN, nullptr))
+            new SA::Param(new SA::Type(STRINGS, nullptr)),
+            new SA::Param(true, new SA::Type(UNKNOWN, nullptr))
         }, 
         nullptr
     );
@@ -79,10 +79,10 @@ void BuiltinRegistry::bootstrap() {
         // sequence for a single character at `idx` inside a string.
         register_builtin(
             "_SA_getCharAt",
-            new TypeInfo(PTR, nullptr),
+            new SA::Type(PTR, nullptr),
             {
-                new Param(new TypeInfo(STRINGS, nullptr)),
-                new Param(new TypeInfo(I64, nullptr))
+                new SA::Param(new SA::Type(STRINGS, nullptr)),
+                new SA::Param(new SA::Type(I64, nullptr))
             },
             nullptr
         );
@@ -90,8 +90,8 @@ void BuiltinRegistry::bootstrap() {
     // Encode a Unicode code point (CHARACTER) into a UTF-8 byte sequence
     register_builtin(
         "SA_encode_cp",
-        new TypeInfo(PTR, nullptr),
-        { new Param(new TypeInfo(CHARACTER, nullptr)) },
+        new SA::Type(PTR, nullptr),
+        { new SA::Param(new SA::Type(CHARACTER, nullptr)) },
         nullptr
     );
 

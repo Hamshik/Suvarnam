@@ -5,10 +5,10 @@
 #include "semantic/semantic.hpp"
 #include <cstddef>
 
-TypeInfo* Semantic::binop(ASTNode *n, TypeInfo* type) {
+SA::Type* Semantic::binop(ASTNode *n, SA::Type* type) {
   // Use &type to allow inference to flow into children
-  TypeInfo* lt = checkExpr(n->bin.left, type);
-  TypeInfo* rt = checkExpr(n->bin.right, type);
+  SA::Type* lt = checkExpr(n->bin.left, type);
+  SA::Type* rt = checkExpr(n->bin.right, type);
 
   // 1. Numeric Literal Inference (Improved)
   if (n->bin.left->kind == AST_NUM && (!n->bin.left->type || n->bin.left->type->base == UNKNOWN)) {
@@ -36,7 +36,7 @@ TypeInfo* Semantic::binop(ASTNode *n, TypeInfo* type) {
     }
 
     // Re-use a global type pointer if possible to save memory
-    n->type = new TypeInfo(STRINGS, NULL); 
+    n->type = new SA::Type(STRINGS, NULL); 
     return n->type;
   }
 
@@ -52,13 +52,13 @@ TypeInfo* Semantic::binop(ASTNode *n, TypeInfo* type) {
               panic(n->loc, SEM_CMP_NEEDS_NUM, NULL);
           }
       }
-      n->type = new TypeInfo(BOOL, NULL);
+      n->type = new SA::Type(BOOL, NULL);
       return n->type;
 
     case OP_AND: case OP_OR:
       if (lt->base != BOOL || rt->base != BOOL)
         panic(n->loc, SEM_LOGIC_NEEDS_BOOL, NULL);
-      n->type = new TypeInfo(BOOL, NULL);
+      n->type = new SA::Type(BOOL, NULL);
       return n->type;
 
     default:
@@ -75,7 +75,7 @@ TypeInfo* Semantic::binop(ASTNode *n, TypeInfo* type) {
 
       // Promote returns the dominant base type (e.g., f64 > i32)
       DataTypes_t promted_t = promote(lt->base, rt->base);
-      n->type = n->type->base == promted_t ? n->type : new TypeInfo(promted_t, NULL);
+      n->type = n->type->base == promted_t ? n->type : new SA::Type(promted_t, NULL);
       return n->type;
   }
 }

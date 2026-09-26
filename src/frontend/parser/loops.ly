@@ -10,29 +10,29 @@ range:
 ;
 
 for_stmt:
-      FOR LPAREN IDENTIFIER IN expr RPAREN expr_stmt
+      FOR IDENTIFIER IN with_non_expr block
     {
-        $$ = new_for($3->var, $5, $7, @1, false);
+        $$ = new_for($2->var, $4, $5, @1, false);
+        ast_free($2);
+    }
+    | FOR MUT IDENTIFIER IN with_non_expr block
+    { 
+        $$ = new_for($3->var, $5, $6, @1, true); 
         ast_free($3);
     }
-    | FOR LPAREN MUT IDENTIFIER IN expr RPAREN expr_stmt
-    { 
-        $$ = new_for($4->var, $6, $8, @1, true); 
-        ast_free($4);
-    }
-    | FOR LPAREN range RPAREN expr_stmt
+    | FOR range block
     {
-        $$ = new_for("__SA temp idx__", $3, $5, @1, false);
+        $$ = new_for("__SA temp idx__", $2, $3, @1, false);
     }
 ;
 
 while_stmt:
-    WHILE LPAREN expr RPAREN expr_stmt
-        { $$ = new_while($3, $5, NULL, @1); }
-    | WHILE LPAREN expr RPAREN COLON LPAREN assignment RPAREN expr_stmt
+    WHILE expr block
+        { $$ = new_while($2, $3, NULL, @1); }
+    | WHILE expr COLON assign_expr block
     {
-        if($7->assign.op == OP_ASSIGN)
-            panic(@7, PARSE_SYNTAX, "expr expects operational assignment not just plain assign");
-        $$ = new_while($3, $9, $7, @1);
+        if($4->assign.op == OP_ASSIGN)
+            panic(@4, PARSE_SYNTAX, "with_non_expr expects operational assignment not just plain assign");
+        $$ = new_while($2, $4, $5, @1);
     }
 ;

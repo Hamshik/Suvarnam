@@ -5,7 +5,7 @@
 ASTNode *ast_alloc(void) {
     ASTNode *n = (ASTNode*)calloc(1, sizeof(ASTNode));
     if (!n) { perror("malloc"); exit(1); }
-    n->type = new TypeInfo(UNKNOWN, NULL);
+    n->type = new SA::Type(UNKNOWN, NULL);
     return n;
 }
 

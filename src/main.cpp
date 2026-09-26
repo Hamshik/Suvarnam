@@ -6,11 +6,11 @@
 #include <stdlib.h>
 
 ASTNode* root{};
-file_t *file{};
+File *file{};
 
 int main(int argc, char **argv) {
 
-    file = new file_t;
+    file = new File;
     
     Options opts;
     if (!parse_arguments(argc, argv, &opts)) {

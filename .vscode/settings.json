@@ -17,16 +17,14 @@
         "--clang-tidy",
         "--header-insertion=iwyu"
     ],
-    "files.associations": {
-        "*.yy": "bisonc++",
-        "*.l": "lex",
-        "**/frontend/parser/Parser.h": "cpp",
-        "**/frontend/parser/Parser.ih": "cpp",
-        "**/frontend/lexer/Scanner.h": "cpp",
-        "**/frontend/lexer/Scanner.ih": "cpp"
-    },
     "bisonFlex.enableDiagnostics": false,
     "chat.tools.terminal.autoApprove": {
         "flexc++": true
+    },
+    "cmake.parallelJobs": 4,
+    "cmake.configureSettings": {
+        "CMAKE_CXX_FLAGS_DEBUG": "-g",
+        "CMAKE_CXX_COMPILER_LAUNCHER": "ccache",
+        "CMAKE_C_COMPILER_LAUNCHER": "ccache"
     }
 }

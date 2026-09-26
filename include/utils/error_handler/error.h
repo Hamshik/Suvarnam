@@ -20,7 +20,7 @@ int digits_int(int);
 int starts_with(const char *, const char *);
 char *read_entire_path(FILE *, size_t *);
 
-void panic(SA_Location, errc_t, const char *);
-void warn(SA_Location, warnc_t, const char *);
+void panic(SA::Location, errc_t, const char *);
+void warn(SA::Location, warnc_t, const char *);
 void syserr(const char *);
 void syswarn(const char *);

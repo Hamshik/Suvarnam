@@ -1,5 +1,4 @@
-#ifndef SA_SYMBOL_TABLE_INTERNAL_HPP
-#define SA_SYMBOL_TABLE_INTERNAL_HPP
+#pragma once
 
 #include "SymbolTable.hpp"
 #include "semantic/import.hpp"
@@ -9,14 +8,15 @@
 #include <string>
 #include <unordered_map>
 
-extern file_t *file;
+extern File *file;
 struct SemanticSymbolRecord {
-  TypeInfo *type = nullptr;
+  SA::Type *type = nullptr;
   DataTypes_t max_type = UNKNOWN;
   DataTypes_t last_maxed_type = UNKNOWN;
   bool is_mutable = false;
   bool is_used = false;
   ASTNode *node_ptr = nullptr;
+  bool isGlobal;
 };
 
 struct SemanticScopeRecord {
@@ -39,8 +39,8 @@ public:
 
   void setImporter(Importer* importer){ this->importer = importer; }
 
-  TypeInfo *lookup(const char *);
-  bool declare(const char *, bool *, TypeInfo *, ASTNode *, bool);
+  SA::Type *lookup(const char *);
+  bool declare(const char *, bool *, SA::Type *, ASTNode *, bool);
   exitcode_t exists(ASTNode *);
   exitcode_t assignCheck(const char *, bool, DataTypes_t, DataTypes_t);
   bool isMut(const char *);
@@ -57,7 +57,7 @@ public:
   SemanticSymbolRecord *getTopScope(const char *);
 };
 
-namespace SA::Codegen {
+namespace Codegen {
 class Scope {
 public:
   std::unordered_map<std::string, llvm::Value *> symbols;
@@ -142,4 +142,3 @@ public:
 };
 } // namespace SA::Codegen
 
-#endif

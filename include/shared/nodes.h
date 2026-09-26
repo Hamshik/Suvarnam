@@ -4,12 +4,12 @@
 typedef struct ASTNode {
     ASTKind_t kind;
 
-    TypeInfo* type;
+    SA::Type* type;
     bool isglobal;
     bool is_variadic;
     
     bool ismut;
-    SA_Location loc; /* 0-based byte offset (start) */ /* 0-based byte offset (end) */ 
+    SA::Location loc; /* 0-based byte offset (start) */ /* 0-based byte offset (end) */ 
 
     union {
         // variables
@@ -50,7 +50,7 @@ typedef struct ASTNode {
         } fornode;
         
         // function definition and call
-        struct { char *name; Param_t *params; int param_count; struct ASTNode *body; } fn_def;
+        struct { char *name; SA::Param *params; int param_count; struct ASTNode *body; } fn_def;
         struct { char *name; struct ASTNode *args; } call;
         struct { struct ASTNode *value; } ret_stmt;
         //Import Nodes
@@ -66,7 +66,7 @@ typedef struct ASTNode {
         // Index Nodes
         struct {
             struct ASTNode* target; // The thing being indexed (e.g., the variable 'list')
-            idx_expr_t* idx;      // The position (e.g., the number '0' or expr 'i+1')
+            SA::idxExpr* idx;      // The position (e.g., the number '0' or expr 'i+1')
             bool islhs;
         } index;
     };

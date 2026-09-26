@@ -8,10 +8,10 @@
 #include <cstdlib>
 #include <cstring>
 
-void panic(SA_Location loc, errc_t code, const char *detail);
+void panic(SA::Location loc, errc_t code, const char *detail);
 unsigned __int128 SA_parse_u128(const char *str, int *ok);
 __int128 SA_parse_i128(const char *str, int *ok);
-SA_Value handle_num(ASTNode *node);
+SA::Value handle_num(ASTNode *node);
 
 // Main entry point: Lower a generic front-end node to MAST
 HIRNode *HIRGenerator::generate(ASTNode *node) {
@@ -20,7 +20,7 @@ HIRNode *HIRGenerator::generate(ASTNode *node) {
 
   switch (node->kind) {
   case AST_NUM: {
-    SA_Value val = handle_num(node);
+    SA::Value val = handle_num(node);
     HIRNode *m_node = create_literal(val, node->type);
     if (m_node)
       m_node->loc = node->loc;
@@ -42,7 +42,7 @@ HIRNode *HIRGenerator::generate(ASTNode *node) {
 
   case AST_STR: {
     HIRNode *m_node =
-        create_literal((SA_Value){.chars = node->literal.raw}, node->type);
+        create_literal((SA::Value){.chars = node->literal.raw}, node->type);
     if (m_node)
       m_node->loc = node->loc;
     return m_node;
@@ -50,7 +50,7 @@ HIRNode *HIRGenerator::generate(ASTNode *node) {
 
   case AST_CHAR: {
     HIRNode *m_node =
-        create_literal((SA_Value){.chars = node->literal.raw}, node->type);
+        create_literal((SA::Value){.chars = node->literal.raw}, node->type);
     if (m_node)
       m_node->loc = node->loc;
     return m_node;
@@ -58,7 +58,7 @@ HIRNode *HIRGenerator::generate(ASTNode *node) {
 
   case AST_BOOL: {
     HIRNode *m_node = create_literal(
-        (SA_Value){.bval = node->literal.raw[0] == 't' ? true : false},
+        (SA::Value){.bval = node->literal.raw[0] == 't' ? true : false},
         node->type);
     if (m_node)
       m_node->loc = node->loc;
@@ -124,7 +124,7 @@ HIRNode *HIRGenerator::generate(ASTNode *node) {
     default:
       fprintf(stderr,
               "[HIRGen] Error: Unhandled Assignment LHS kind %d at line %zu\n",
-              node->assign.lhs->kind, (size_t)node->loc.first_line);
+              node->assign.lhs->kind, (size_t)node->loc.firstLn);
       return nullptr;
     }
 
@@ -227,7 +227,7 @@ HIRNode *HIRGenerator::generate(ASTNode *node) {
 
   default:
     fprintf(stderr, "[HIRGen] Error: Unhandled AST node kind %d at line %zu\n",
-            node->kind, (size_t)node->loc.first_line);
+            node->kind, (size_t)node->loc.firstLn);
     return nullptr;
   }
 }

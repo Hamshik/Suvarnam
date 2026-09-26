@@ -7,12 +7,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-extern file_t* file;
+extern File* file;
 
 /* Prototype for semantic mutability check */
 bool SA_semantic_is_mutable(const char *name);
 
-void assign_value(DataTypes_t dt, SA_Value *dst, SA_Value src) {
+void assign_value(DataTypes_t dt, SA::Value *dst, SA::Value src) {
   switch (dt) {
   case I8:
     dst->i8 = src.i8;
@@ -98,10 +98,10 @@ void assign_value(DataTypes_t dt, SA_Value *dst, SA_Value src) {
 // leading to segfaults when handle_num() tries to dereference it.
 // Instead, we update the string representation so handle_num can re-parse it.
 
-static void update_val(SA_Value r, ASTNode *dst) {
+static void update_val(SA::Value r, ASTNode *dst) {
   if (!dst)
     return;
-  SA_Location loc = dst->loc;
+  SA::Location loc = dst->loc;
   DataTypes_t datatypes = dst->type->base;
   char buf[128];
   char *new_raw = NULL;
@@ -161,16 +161,16 @@ static void update_val(SA_Value r, ASTNode *dst) {
   dst->literal.raw = new_raw;
 }
 
-SA_Value eval_assign(ASTNode *lhs, ASTNode *rhs, OP_kind_t op, TypeInfo *type,
-                    SA_Location loc) {
-  TypedValue rt0 = ast_eval(rhs);
-  TypedValue rt = SA_cast_typed(rt0, type);
-  SA_Value r = rt.val;
-  SA_Value v = {0};
+SA::Value eval_assign(ASTNode *lhs, ASTNode *rhs, OP_kind_t op, SA::Type *type,
+                    SA::Location loc) {
+  SA::TypedVal rt0 = ast_eval(rhs);
+  SA::TypedVal rt = SA_cast_typed(rt0, type);
+  SA::Value r = rt.val;
+  SA::Value v = {0};
 
   if (!lhs) {
     panic( loc, RT_ASSIGN_TARGET_NOT_VAR, NULL);
-    return (SA_Value){0};
+    return (SA::Value){0};
   }
 
   /* Assignment to variable */
@@ -179,18 +179,18 @@ SA_Value eval_assign(ASTNode *lhs, ASTNode *rhs, OP_kind_t op, TypeInfo *type,
       if (!lhs->ismut) {
         panic( loc, RT_ASSIGN_UNSUPPORTED,
               "Cannot assign to immutable variable");
-        return (SA_Value){0};
+        return (SA::Value){0};
       }
       set_var(lhs->var, &r, type);
       return r;
     }
 
-    SA_Value cur = getvar(lhs->var, type, loc);
+    SA::Value cur = getvar(lhs->var, type, loc);
     OP_kind_t operation = get_assign_op(op);
     if (!lhs->ismut) {
       panic( loc, RT_ASSIGN_UNSUPPORTED,
             "Cannot update immutable variable");
-      return (SA_Value){0};
+      return (SA::Value){0};
     }
 
     switch (type->base) {
@@ -215,7 +215,7 @@ SA_Value eval_assign(ASTNode *lhs, ASTNode *rhs, OP_kind_t op, TypeInfo *type,
       v = eval_bool(operation, BOOL, cur, r);
       break;
     case STRINGS:
-      v = (SA_Value){.chars = do_operation_str(cur.chars, r.chars, operation)};
+      v = (SA::Value){.chars = do_operation_str(cur.chars, r.chars, operation)};
       break;
     case CHARACTER:
       v.chars = r.chars;
@@ -223,31 +223,31 @@ SA_Value eval_assign(ASTNode *lhs, ASTNode *rhs, OP_kind_t op, TypeInfo *type,
     case PTR:
       panic( loc, RT_ASSIGN_UNSUPPORTED,
             "pointer compound assignment not supported");
-      return (SA_Value){0};
+      return (SA::Value){0};
     default:
       panic( loc, RT_ASSIGN_UNSUPPORTED, NULL);
-      return (SA_Value){0};
+      return (SA::Value){0};
     }
     set_var(lhs->var, &v, type);
     return v;
   }
 
-  // TypedValue right_val = ast_eval(rhs);
+  // SA::TypedVal right_val = ast_eval(rhs);
 
   /* Assignment through dereference: *p = rhs */
   if (lhs->kind == AST_UNOP && lhs->unop.op == OP_DEREF) {
-    TypedValue pv = ast_eval(lhs->unop.operand);
+    SA::TypedVal pv = ast_eval(lhs->unop.operand);
     if (pv.type->base != PTR || pv.val.ptr.name == NULL) {
       panic( loc, RT_DANGLING_PTR, NULL);
-      return (SA_Value){0};
+      return (SA::Value){0};
     }
-    TypedValue *target =
+    SA::TypedVal *target =
         getvar_ref_at(pv.val.ptr.frame_id, pv.val.ptr.name, loc);
     if (!target)
-      return (SA_Value){0};
+      return (SA::Value){0};
     if (target->type != type) {
       panic( loc, RT_VAR_TYPE_MISMATCH, pv.val.ptr.name);
-      return (SA_Value){0};
+      return (SA::Value){0};
     }
 
     if (op == OP_ASSIGN) {
@@ -255,7 +255,7 @@ SA_Value eval_assign(ASTNode *lhs, ASTNode *rhs, OP_kind_t op, TypeInfo *type,
       return r;
     }
 
-    SA_Value cur = target->val;
+    SA::Value cur = target->val;
     OP_kind_t operation = get_assign_op(op);
     switch (type->base) {
     case I8:
@@ -278,7 +278,7 @@ SA_Value eval_assign(ASTNode *lhs, ASTNode *rhs, OP_kind_t op, TypeInfo *type,
     default:
       panic( loc, RT_ASSIGN_UNSUPPORTED,
             "unsupported deref assignment type");
-      return (SA_Value){0};
+      return (SA::Value){0};
     }
     assign_value(type->base, &target->val, v);
     return v;
@@ -294,34 +294,34 @@ SA_Value eval_assign(ASTNode *lhs, ASTNode *rhs, OP_kind_t op, TypeInfo *type,
     if (base_var && base_var->kind == AST_VAR && !base_var->ismut) {
       panic( loc, RT_ASSIGN_UNSUPPORTED,
             "Cannot assign to immutable variable");
-      return (SA_Value){0};
+      return (SA::Value){0};
     }
 
     // 2. Traverse down to the final container
-    TypedValue current_container = ast_eval(lhs->index.target);
-    idx_expr_t *curr_idx_node = lhs->index.idx;
+    SA::TypedVal current_container = ast_eval(lhs->index.target);
+    idxExpr *curr_idx_node = lhs->index.idx;
 
     while (curr_idx_node != NULL) {
-      TypedValue idx_val = ast_eval(curr_idx_node->expr_node);
+      SA::TypedVal idx_val = ast_eval(curr_idx_node->exprNode);
       int idx = idx_val.val.i32;
 
       // 1. Structural Check
       if (!current_container.type || current_container.type->base != LIST ||
           !current_container.val.raw) {
-        panic( curr_idx_node->expr_node->loc, SEM_INDEX_NOT_ARRAY,
+        panic( curr_idx_node->exprNode->loc, SEM_INDEX_NOT_ARRAY,
               "Target is not a list");
-        return (SA_Value){0};
+        return (SA::Value){0};
       }
 
       // 2. Bounds Check (CRITICAL)
       // We must use the dynamic size of the list in memory
       if (idx < 0 || (size_t)idx >= current_container.type->size) {
-        panic( curr_idx_node->expr_node->loc, RT_INDEX_OUT_OF_BOUNDS,
+        panic( curr_idx_node->exprNode->loc, RT_INDEX_OUT_OF_BOUNDS,
               logf_msg("Index %d out of bounds for list of size %zu", idx, current_container.type->size));
-        return (SA_Value){0};
+        return (SA::Value){0};
       }
 
-      TypedValue *elements = (TypedValue *)current_container.val.raw;
+      SA::TypedVal *elements = (SA::TypedVal *)current_container.val.raw;
 
       // 3. Final Assignment Step
       if (curr_idx_node->next == NULL) {
@@ -336,5 +336,5 @@ SA_Value eval_assign(ASTNode *lhs, ASTNode *rhs, OP_kind_t op, TypeInfo *type,
   }
 
   panic( loc, RT_ASSIGN_TARGET_NOT_VAR, NULL);
-  return (SA_Value){0};
+  return (SA::Value){0};
 }

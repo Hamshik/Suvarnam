@@ -151,8 +151,8 @@ bool parse_arguments(int argc, char **argv, Options *opts) {
   return true;
 }
 
-/* Set up input file and file_t structure */
-bool setup_input_file(const Options *opts, file_t *file) {
+/* Set up input file and File structure */
+bool setup_input_file(const Options *opts, File *file) {
   if (!opts->input_filename) {
     file->filename = (char *)"<stdin>";
     file->source = stdin;
@@ -174,7 +174,7 @@ bool setup_input_file(const Options *opts, file_t *file) {
 int compile_and_execute(ASTNode *root, const Options *opts, Importer* import) {
   error_fatal = false; /* collect semantic errors like Rust */
 
-  CompilerContext* ctx = import->getCtx();
+  SA::CompilerContext* ctx = import->getCtx();
   ctx->semantic->main(root);
 
   sym = ctx->sym;

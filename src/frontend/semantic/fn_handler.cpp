@@ -17,8 +17,8 @@ char* fn_name = nullptr;
  * Unified structure to hold function signature information
  */
 struct ResolvedSig {
-  TypeInfo* ret;
-  TypeInfo** params; // Pointer to array of TypeInfo*
+  SA::Type* ret;
+  SA::Type** params; // Pointer to array of SA::Type*
   int param_count;
   bool exists;
 };
@@ -46,7 +46,7 @@ ResolvedSig Semantic::getCallSig(const char* name) {
   return sig;
 }
 
-void Semantic::updateRetTy(const char *fn_name, TypeInfo *rt) {
+void Semantic::updateRetTy(const char *fn_name, SA::Type *rt) {
   if (!fn_name || !rt)
     return;
 
@@ -62,13 +62,13 @@ void Semantic::updateRetTy(const char *fn_name, TypeInfo *rt) {
 
 }
 
-TypeInfo* Semantic::fn(ASTNode *n) {
+SA::Type* Semantic::fn(ASTNode *n) {
   
   fn_name = n->fn_def.name;
 
   ctx->sym->push();
   for (int i = 0; i < n->fn_def.param_count; i++) {
-    if (!n->fn_def.params[i].type) n->fn_def.params[i].type = new TypeInfo(UNKNOWN, NULL);
+    if (!n->fn_def.params[i].type) n->fn_def.params[i].type = new SA::Type(UNKNOWN, NULL);
     
     if (!ctx->sym->declare(n->fn_def.params[i].name, &n->isglobal,
        n->fn_def.params[i].type, nullptr, true))
@@ -77,7 +77,7 @@ TypeInfo* Semantic::fn(ASTNode *n) {
   }
 
   DataTypes_t saved_g_fn_ret = fnRet;
-  TypeInfo* saved_current_fn_ret_type = currFnRet;
+  SA::Type* saved_current_fn_ret_type = currFnRet;
   int saved_in_fn = isInFn;
   fnRet = n->type ? n->type->base : UNKNOWN;
   currFnRet = n->type;
@@ -106,18 +106,18 @@ TypeInfo* Semantic::fn(ASTNode *n) {
   return nullptr;
 }
 
-TypeInfo* Semantic::call(ASTNode *n) {
+SA::Type* Semantic::call(ASTNode *n) {
   if (!n || !n->call.name) return nullptr;
 
   // Special handling for built-in 'len' property
   if (strcmp(n->call.name, "len") == 0) {
-    TypeInfo* arg_type = checkExpr(n->call.args);
+    SA::Type* arg_type = checkExpr(n->call.args);
     if (!arg_type || arg_type->base != LIST) {
       panic( n->loc, SEM_INDEX_NOT_ARRAY, "len() expects a list argument");
       return nullptr;
     }
     // Return I32 for the length
-    n->type = new TypeInfo(I32, nullptr);
+    n->type = new SA::Type(I32, nullptr);
     return n->type;
   }
 
@@ -145,8 +145,8 @@ TypeInfo* Semantic::call(ASTNode *n) {
   bool has_variadic_user_param = false;
   size_t fixed_user_param_count = 0;
   if (b) {
-    for (auto *param_type : b->param_types) {
-      if (param_type && param_type->type->base == UNKNOWN) {
+    for (auto *param : b->param_types) {
+      if (param && param->type->base == UNKNOWN) {
         is_variadic_builtin = true;
         break;
       }
@@ -177,7 +177,7 @@ TypeInfo* Semantic::call(ASTNode *n) {
     ASTNode *arg = n->call.args;
     for (int i = 0; i < sig.param_count; ++i) {
       ASTNode *cur = arg ? (arg->kind == AST_SEQ ? arg->seq.a : arg) : NULL;
-      TypeInfo *want = nullptr;
+      SA::Type *want = nullptr;
       if (f && i < f->param_count) {
         want = f->params[i].type;
       } else if (b && i < (int)b->param_types.size()) {
@@ -187,7 +187,7 @@ TypeInfo* Semantic::call(ASTNode *n) {
       if (want && want->base != UNKNOWN && isNumeric(want->base))
         forceNumericType(cur, want->base);
 
-      TypeInfo *at = checkExpr(cur, want);
+      SA::Type *at = checkExpr(cur, want);
       if (!at) return nullptr;
       if (at && want && want->base != UNKNOWN && !typesAreEqual(at, want)) {
         panic(n->loc, SEM_ARG_TYPE_MISMATCH, n->call.name);
@@ -213,11 +213,11 @@ TypeInfo* Semantic::call(ASTNode *n) {
     ASTNode *arg = n->call.args;
     for (int i = 0; i < fixed_param_count; ++i) {
       ASTNode *cur = arg ? (arg->kind == AST_SEQ ? arg->seq.a : arg) : NULL;
-      TypeInfo *want = (b && i < (int)b->param_types.size()) ? b->param_types[i]->type : nullptr;
+      SA::Type *want = (b && i < (int)b->param_types.size()) ? b->param_types[i]->type : nullptr;
       if (want && want->base != UNKNOWN && isNumeric(want->base))
         forceNumericType(cur, want->base);
-      TypeInfo *at = nullptr;
-      TypeInfo *want_ref = want;
+      SA::Type *at = nullptr;
+      SA::Type *want_ref = want;
       at = checkExpr(cur, want_ref);
       if (!at) return nullptr;
       if (at && want && want->base != UNKNOWN && !typesAreEqual(at, want)) {
@@ -231,13 +231,13 @@ TypeInfo* Semantic::call(ASTNode *n) {
     }
 
     // Remaining args: check against last builtin param type if present
-    TypeInfo *last_want = b && !b->param_types.empty() ? b->param_types.back()->type : nullptr;
+    SA::Type *last_want = b && !b->param_types.empty() ? b->param_types.back()->type : nullptr;
     while (arg) {
       ASTNode *cur = (arg->kind == AST_SEQ ? arg->seq.a : arg);
       if (last_want && last_want->base != UNKNOWN && isNumeric(last_want->base))
         forceNumericType(cur, last_want->base);
-      TypeInfo *at = nullptr;
-      TypeInfo *want_ref = last_want;
+      SA::Type *at = nullptr;
+      SA::Type *want_ref = last_want;
       at = checkExpr(cur, want_ref);
       if (!at) return nullptr;
       if (at && last_want && last_want->base != UNKNOWN && !typesAreEqual(at, last_want)) {
@@ -251,10 +251,10 @@ TypeInfo* Semantic::call(ASTNode *n) {
     }
   } else /* has_variadic_user_param */ {
     // Build variadic inner type list
-    std::vector<TypeInfo *> variadic_inner_types;
+    std::vector<SA::Type *> variadic_inner_types;
     for (int i = fixed_user_param_count; i < f->param_count; ++i) {
       if (f->params[i].is_variadic) {
-        TypeInfo *inner = f->params[i].type ? f->params[i].type->inner : nullptr;
+        SA::Type *inner = f->params[i].type ? f->params[i].type->inner : nullptr;
         variadic_inner_types.push_back(inner);
       }
     }
@@ -269,10 +269,10 @@ TypeInfo* Semantic::call(ASTNode *n) {
     // First, check fixed parameters
     for (int i = 0; i < (int)fixed_user_param_count; ++i, ++idx) {
       ASTNode *cur = arg ? (arg->kind == AST_SEQ ? arg->seq.a : arg) : NULL;
-      TypeInfo *want = f && i < f->param_count ? f->params[i].type : nullptr;
+      SA::Type *want = f && i < f->param_count ? f->params[i].type : nullptr;
       if (want && want->base != UNKNOWN && isNumeric(want->base))
         forceNumericType(cur, want->base);
-      TypeInfo *at = checkExpr(cur, want);
+      SA::Type *at = checkExpr(cur, want);
       if (!at) return nullptr;
       if (at && want && want->base != UNKNOWN && !typesAreEqual(at, want)) {
         panic(n->loc, SEM_ARG_TYPE_MISMATCH, n->call.name);
@@ -287,7 +287,7 @@ TypeInfo* Semantic::call(ASTNode *n) {
     // Now distribute remaining args into variadic groups
     size_t current_group = 0;
     std::vector<bool> group_has_arg(variadic_inner_types.size(), false);
-    auto type_matches = [](TypeInfo *expected, TypeInfo *actual) {
+    auto type_matches = [](SA::Type *expected, SA::Type *actual) {
       if (!expected) return true;
       if (!actual) return false;
       return expected->base == actual->base;
@@ -295,10 +295,10 @@ TypeInfo* Semantic::call(ASTNode *n) {
 
     while (arg) {
       ASTNode *cur = (arg->kind == AST_SEQ ? arg->seq.a : arg);
-      TypeInfo *actual_hint = nullptr;
+      SA::Type *actual_hint = nullptr;
       // Try to infer actual type by checking without hint first
-      TypeInfo *at = nullptr;
-      TypeInfo *tmp_want = nullptr;
+      SA::Type *at = nullptr;
+      SA::Type *tmp_want = nullptr;
       at = checkExpr(cur, tmp_want);
       if (!at) return nullptr;
       // Find matching variadic group starting from current_group
@@ -309,10 +309,10 @@ TypeInfo* Semantic::call(ASTNode *n) {
       if (g >= variadic_inner_types.size()) g = variadic_inner_types.size() - 1; // default last
 
       // Now validate the argument against the chosen group's inner type
-      TypeInfo *want = variadic_inner_types[g];
+      SA::Type *want = variadic_inner_types[g];
       if (want && want->base != UNKNOWN && isNumeric(want->base))
         forceNumericType(cur, want->base);
-      TypeInfo *at2 = checkExpr(cur, want);
+      SA::Type *at2 = checkExpr(cur, want);
       if (!at2) return nullptr;
       if (at2 && want && want->base != UNKNOWN && !typesAreEqual(at2, want)) {
         panic(n->loc, SEM_ARG_TYPE_MISMATCH, n->call.name);
@@ -341,13 +341,13 @@ TypeInfo* Semantic::call(ASTNode *n) {
   }
 
   if (!sig.ret) {
-      sig.ret = new TypeInfo(UNKNOWN, NULL);
+      sig.ret = new SA::Type(UNKNOWN, NULL);
   }
   n->type = sig.ret;
   return sig.ret;
 }
 
-TypeInfo* Semantic::ret(ASTNode *n) {
+SA::Type* Semantic::ret(ASTNode *n) {
   if (!isInFn) {
     panic( n->loc, SEM_RETURN_OUTSIDE_FN, "Return statement outside of a function.");
   }
@@ -359,7 +359,7 @@ TypeInfo* Semantic::ret(ASTNode *n) {
       return nullptr;
     }
     // Correctly returning VOID type
-    return new TypeInfo(VOID, nullptr);
+    return new SA::Type(VOID, nullptr);
   }
 
   // Case 2: Function declared to return a value (not VOID)
@@ -374,7 +374,7 @@ TypeInfo* Semantic::ret(ASTNode *n) {
   }
 
   // Check the type of the return expression, passing the expected return type for inference
-  TypeInfo* rt = checkExpr(n->ret_stmt.value, currFnRet);
+  SA::Type* rt = checkExpr(n->ret_stmt.value, currFnRet);
   
   if(fnRet== UNKNOWN){
     updateRetTy(fn_name, rt);

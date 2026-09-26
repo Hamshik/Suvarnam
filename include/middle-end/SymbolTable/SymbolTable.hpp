@@ -8,10 +8,10 @@
 
 typedef struct{
     const char *name;
-    Param_t *params;
+    SA::Param *params;
     int param_count;
     bool isReturned;
-    TypeInfo* ret;
+    SA::Type* ret;
     ASTNode* node_ptr;
 } FnSymbol;
 

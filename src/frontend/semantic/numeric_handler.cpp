@@ -113,7 +113,7 @@ void Semantic::forceNumericType(ASTNode *n, DataTypes_t t) {
     if (!n || t == UNKNOWN || !isNumeric(t)) return;
   
   if (!n->type) {
-      n->type = new TypeInfo(t, NULL);
+      n->type = new SA::Type(t, NULL);
   }
 
   switch (n->kind) {

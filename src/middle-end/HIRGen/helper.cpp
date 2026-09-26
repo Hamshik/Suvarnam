@@ -5,12 +5,12 @@
 #include <algorithm>
 #include <cstring>
 
-void panic(SA_Location loc, errc_t code, const char *detail);
+void panic(SA::Location loc, errc_t code, const char *detail);
 unsigned __int128 SA_parse_u128(const char *str, int *ok);
 __int128 SA_parse_i128(const char *str, int *ok);
 
 
-SA_Value handle_num(ASTNode *node);
+SA::Value handle_num(ASTNode *node);
 
 // Flattens front-end binary sequence trees into a flat vector of Mid-AST
 // nodes
@@ -58,9 +58,9 @@ HIRNode *HIRGenerator::emit_idx(ASTNode *node) {
     std::vector<HIRNode *> *call_args = new std::vector<HIRNode *>();
     call_args->push_back(target_node);
 
-    idx_expr_t *curr_idx = node->index.idx;
+    SA::idxExpr *curr_idx = node->index.idx;
     while (curr_idx) {
-      if (HIRNode *lowered_idx = generate(curr_idx->expr_node)) {
+      if (HIRNode *lowered_idx = generate(curr_idx->exprNode)) {
         call_args->push_back(lowered_idx);
       }
       curr_idx = curr_idx->next;
@@ -68,7 +68,7 @@ HIRNode *HIRGenerator::emit_idx(ASTNode *node) {
 
     HIRNode *call_node = create_call(
         "_SA_getCharAt", call_args,
-        node->type ? node->type : new TypeInfo(CHARACTER, nullptr));
+        node->type ? node->type : new SA::Type(CHARACTER, nullptr));
       
     call_node->loc = node->loc;
     return call_node;
@@ -85,9 +85,9 @@ HIRNode *HIRGenerator::emit_idx(ASTNode *node) {
 
   // 🎯 FIX: Process and translate frontend index sequences to vector layout
   // If node->index.idx is a linked list sequence of frontend AST nodes:
-  idx_expr_t *curr_idx = node->index.idx;
+  SA::idxExpr *curr_idx = node->index.idx;
   while (curr_idx) {
-    if (HIRNode *lowered_idx = generate(curr_idx->expr_node)) {
+    if (HIRNode *lowered_idx = generate(curr_idx->exprNode)) {
       index_node->index.idx->push_back(lowered_idx);
     }
     curr_idx = curr_idx->next;
@@ -99,16 +99,16 @@ HIRNode *HIRGenerator::emit_idx(ASTNode *node) {
   return index_node;
 }
 
-SA_Value handle_num(ASTNode *node) {
+SA::Value handle_num(ASTNode *node) {
   if (!node || !node->literal.raw) {
-    panic(node ? node->loc : (SA_Location){0}, RT_NUM_LITERAL_UNSUPPORTED,
+    panic(node ? node->loc : (SA::Location){0}, RT_NUM_LITERAL_UNSUPPORTED,
           "Numeric literal missing raw string value");
-    return (SA_Value){0};
+    return (SA::Value){0};
   }
 
   DataTypes_t base =
       (node->type && node->type->base != UNKNOWN) ? node->type->base : I32;
-  TypedValue v = {.type = node->type ? node->type : new TypeInfo(base, NULL)};
+  SA::TypedVal v = {.type = node->type ? node->type : new SA::Type(base, NULL)};
   const char *raw = node->literal.raw;
 
   switch (base) {
@@ -159,7 +159,7 @@ SA_Value handle_num(ASTNode *node) {
     if (!ok) {
       panic(node->loc, RT_NUM_LITERAL_UNSUPPORTED,
             "Failed to parse 128-bit literal");
-      return (SA_Value){0};
+      return (SA::Value){0};
     }
     break;
   }
@@ -182,7 +182,7 @@ SA_Value handle_num(ASTNode *node) {
   default:
     panic(node->loc, RT_NUM_LITERAL_UNSUPPORTED,
           "Unsupported numeric base type");
-    return (SA_Value){0};
+    return (SA::Value){0};
   }
 
   return v.val;

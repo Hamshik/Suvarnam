@@ -5,10 +5,12 @@
 // $insert class.h
 #include "Parser.h"
 #include "Scanner.h"
+#include "shared/enums.h"
+#include "utils/error_handler/error.h"
 
 inline void Parser::error()
 {
-    std::cerr << "Syntax error\n";
+    panic(d_loc_, PARSE_SYNTAX, ErrMsg);
 }
 
 // $insert lex

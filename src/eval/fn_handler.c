@@ -1,7 +1,7 @@
 #include "eval/eval.h"
 
 
-TypedValue eval_call(ASTNode *node, bool g_returning, TypedValue g_return_value) {
+SA::TypedVal eval_call(ASTNode *node, bool g_returning, SA::TypedVal g_return_value) {
   ASTNode *fn = SA_runtime_fn_lookup(node->call.name);
 
   // Evaluate args left-to-right into a small array.
@@ -14,7 +14,7 @@ TypedValue eval_call(ASTNode *node, bool g_returning, TypedValue g_return_value)
       it = NULL;
   }
 
-  TypedValue *argv = argc ? calloc((size_t)argc, sizeof(TypedValue)) : NULL;
+  SA::TypedVal *argv = argc ? calloc((size_t)argc, sizeof(SA::TypedVal)) : NULL;
   if (argc && !argv) {
     perror("calloc");
     exit(1);
@@ -32,7 +32,7 @@ TypedValue eval_call(ASTNode *node, bool g_returning, TypedValue g_return_value)
 
   // if (!fn) {
   //   bool ok = 0;
-  //   TypedValue out = SA_std_call(node->call.name, argv, argc, node->loc, &ok);
+  //   SA::TypedVal out = SA_std_call(node->call.name, argv, argc, node->loc, &ok);
   //   free(argv);
   //   if (!ok)
   //     panic( node->loc, RT_CALL_UNDEF_FN, node->call.name);
@@ -42,26 +42,26 @@ TypedValue eval_call(ASTNode *node, bool g_returning, TypedValue g_return_value)
   if (argc != fn->fn_def.param_count) {
     panic( node->loc, RT_ARGC_MISMATCH, node->call.name);
     free(argv);
-    return (TypedValue){0};
+    return (SA::TypedVal){0};
   }
 
   // New call frame.
   SA_runtime_env_push();
   for (int i = 0; i < fn->fn_def.param_count; i++) {
-    TypedValue casted = SA_cast_typed(argv[i], fn->fn_def.params[i].type);
-    SA_Value vv = casted.val;
+    SA::TypedVal casted = SA_cast_typed(argv[i], fn->fn_def.params[i].type);
+    SA::Value vv = casted.val;
     SA_runtime_env_set_current(fn->fn_def.params[i].name, &vv, fn->fn_def.params[i].type);
   }
 
   int saved_returning = g_returning;
-  TypedValue saved_return_value = g_return_value;
+  SA::TypedVal saved_return_value = g_return_value;
   g_returning = 0;
-  g_return_value = (TypedValue){0};
+  g_return_value = (SA::TypedVal){0};
 
-  TypedValue last = ast_eval(fn->fn_def.body);
-  TypedValue ret = g_returning ? g_return_value : last;
+  SA::TypedVal last = ast_eval(fn->fn_def.body);
+  SA::TypedVal ret = g_returning ? g_return_value : last;
   if (fn->type->base == VOID)
-    ret = (TypedValue){.type = new TypeInfo(VOID, NULL)};
+    ret = (SA::TypedVal){.type = new SA::Type(VOID, NULL)};
 
   g_returning = saved_returning;
   g_return_value = saved_return_value;

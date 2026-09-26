@@ -22,20 +22,20 @@ class HIRGenerator {
   std::vector<HIRNode*> side_effect_buffer;
   size_t temporary_variable_counter = 0;
   std::unordered_set<std::string> current_params;
-  CompilerContext* ctx;
+  SA::CompilerContext* ctx;
 
 public:
-  explicit HIRGenerator(CompilerContext* ctx): ctx(ctx) {}
+  explicit HIRGenerator(SA::CompilerContext* ctx): ctx(ctx) {}
 
   bool is_param(const std::string& name) const;
   
   HIRNode *create_fn_definition(ASTNode *);
-  HIRNode *create_declaration(const char *, HIRNode *, TypeInfo *);
-  HIRNode *create_call(const char *, std::vector<HIRNode *> *, TypeInfo *);
+  HIRNode *create_declaration(const char *, HIRNode *, SA::Type *);
+  HIRNode *create_call(const char *, std::vector<HIRNode *> *, SA::Type *);
   HIRNode *create_while_loop(HIRNode *, HIRNode *);
   HIRNode *create_block(std::vector<HIRNode *> *);
-  HIRNode *create_literal(SA_Value, TypeInfo *);
-  HIRNode *create_binary_op(OP_kind_t, HIRNode *, HIRNode *, TypeInfo *);
+  HIRNode *create_literal(SA::Value, SA::Type *);
+  HIRNode *create_binary_op(OP_kind_t, HIRNode *, HIRNode *, SA::Type *);
   HIRNode *create_assignment(HIRNode *, HIRNode *, OP_kind_t op = OP_ASSIGN, bool is_declaration = true);
   HIRNode *create_if_stmt(HIRNode *, HIRNode *, HIRNode *);
   HIRNode *emit_MAST_for_loop(ASTNode *);
@@ -52,7 +52,7 @@ public:
 
   void emit_varargs_to_call(HIRNode *call_node,
                                  const std::vector<std::vector<HIRNode *>> &vararg_groups,
-                                 const std::vector<TypeInfo *> &variadic_inner_types,
+                                 const std::vector<SA::Type *> &variadic_inner_types,
                                  std::vector<HIRNode *> *packed_varargs,
                                  FnSymbol *fn_symbol,
                                  size_t fixed_user_param_count);

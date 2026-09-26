@@ -4,13 +4,13 @@
 
 #include "shared/structs.h"
 
-extern file_t *file;
+extern File *file;
 /* If ll_path is non-NULL, writes IR there. If ir_out is non-NULL, allocates a
  * NUL-terminated copy of the textual IR (caller free). Returns 0 on success. */
 
 unsigned __int128 SA_parse_u128(const char *s, int *ok);
 __int128 SA_parse_i128(const char *s, int *ok);
-void panic(SA_Location loc, errc_t code, const char *detail);
+void panic(SA::Location loc, errc_t code, const char *detail);
 void syserr(const char *context);
 
 int codegen(HIRNode *, const char *, char **, bool is_main_module = true);
@@ -33,7 +33,6 @@ enum class Utf8Error {
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/TargetParser/Triple.h>
 
-using namespace SA;
 using namespace llvm;
 
 using argvec = std::vector<llvm::Value *>;

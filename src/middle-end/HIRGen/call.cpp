@@ -5,7 +5,7 @@
 #include "SymbolTable/BuiltinRegistry.hpp"
 #include "SymbolTable/SymbolTableInternal.hpp"
 
-void panic(SA_Location loc, errc_t code, const char *detail);
+void panic(SA::Location loc, errc_t code, const char *detail);
 unsigned __int128 SA_parse_u128(const char *str, int *ok);
 __int128 SA_parse_i128(const char *str, int *ok);
 
@@ -20,8 +20,8 @@ bool is_variadic_builtin(const char *name) {
     return false;
   }
 
-  for (auto *param_type : builtin->param_types) {
-    if (param_type && param_type->type->base == UNKNOWN) {
+  for (auto *param : builtin->param_types) {
+    if (param && param->type->base == UNKNOWN) {
       return true;
     }
   }
@@ -40,8 +40,8 @@ size_t count_fixed_builtin_params(const char *name) {
   }
 
   size_t fixed_params = 0;
-  for (auto *param_type : builtin->param_types) {
-    if (!param_type || param_type->type->base == UNKNOWN) {
+  for (auto *param : builtin->param_types) {
+    if (!param || param->type->base == UNKNOWN) {
       break;
     }
     ++fixed_params;
@@ -51,13 +51,13 @@ size_t count_fixed_builtin_params(const char *name) {
 }
 
 // Collect inner types for variadic user parameters (in declaration order)
-std::vector<TypeInfo *> collect_variadic_inner_types(FnSymbol *fn,
+std::vector<SA::Type *> collect_variadic_inner_types(FnSymbol *fn,
                                                          size_t fixed_user_param_count) {
-  std::vector<TypeInfo *> res;
+  std::vector<SA::Type *> res;
   if (!fn || !fn->params) return res;
   for (int i = fixed_user_param_count; i < fn->param_count; ++i) {
     if (fn->params[i].is_variadic) {
-      TypeInfo *inner = fn->params[i].type ? fn->params[i].type->inner : nullptr;
+      SA::Type *inner = fn->params[i].type ? fn->params[i].type->inner : nullptr;
       res.push_back(inner);
     }
   }
@@ -71,7 +71,7 @@ void distribute_lowered_arg(HIRNode *lowered_arg,
                                   size_t fixed_param_count,
                                   bool has_variadic_user_param,
                                   size_t fixed_user_param_count,
-                                  const std::vector<TypeInfo *> &variadic_inner_types,
+                                  const std::vector<SA::Type *> &variadic_inner_types,
                                   std::vector<std::vector<HIRNode *>> &vararg_groups,
                                   std::vector<HIRNode *> *&packed_varargs,
                                   std::vector<HIRNode *> *call_args,
@@ -117,25 +117,25 @@ void distribute_lowered_arg(HIRNode *lowered_arg,
 // including the hidden length integer that callers expect.
 void HIRGenerator::emit_varargs_to_call(HIRNode *call_node,
                                  const std::vector<std::vector<HIRNode *>> &vararg_groups,
-                                 const std::vector<TypeInfo *> &variadic_inner_types,
+                                 const std::vector<SA::Type *> &variadic_inner_types,
                                  std::vector<HIRNode *> *packed_varargs,
                                  FnSymbol *fn_symbol,
                                  size_t fixed_user_param_count) {
   if (!call_node) return;
 
   if (!vararg_groups.empty()) {
-    TypeInfo *count_type = new TypeInfo(I64, nullptr);
+    SA::Type *count_type = new SA::Type(I64, nullptr);
     for (size_t i = 0; i < vararg_groups.size(); ++i) {
       const auto &grp = vararg_groups[i];
       std::vector<HIRNode *> *elems = new std::vector<HIRNode *>(grp.begin(), grp.end());
       HIRNode *vararg_list = new HIRNode(ASTKind::AST_LIST);
       vararg_list->element.elements = elems;
-      vararg_list->type = new TypeInfo(LIST, nullptr);
+      vararg_list->type = new SA::Type(LIST, nullptr);
       vararg_list->type->inner = variadic_inner_types[i];
       vararg_list->type->size = elems->size();
       call_node->call.args->push_back(vararg_list);
 
-      SA_Value raw_count = {0};
+      SA::Value raw_count = {0};
       raw_count.i64 = static_cast<int64_t>(elems->size());
       HIRNode *hidden_count_arg = create_literal(raw_count, count_type);
       call_node->call.args->push_back(hidden_count_arg);
@@ -147,7 +147,7 @@ void HIRGenerator::emit_varargs_to_call(HIRNode *call_node,
   if (packed_varargs) {
     HIRNode *vararg_list = new HIRNode(ASTKind::AST_LIST);
     vararg_list->element.elements = packed_varargs;
-    vararg_list->type = new TypeInfo(LIST, nullptr);
+    vararg_list->type = new SA::Type(LIST, nullptr);
     if (fn_symbol && fn_symbol->params && fixed_user_param_count < fn_symbol->param_count) {
       vararg_list->type->inner = fn_symbol->params[fixed_user_param_count].type
                                      ? fn_symbol->params[fixed_user_param_count].type->inner
@@ -156,9 +156,9 @@ void HIRGenerator::emit_varargs_to_call(HIRNode *call_node,
     vararg_list->type->size = packed_varargs->size();
     call_node->call.args->push_back(vararg_list);
 
-    SA_Value raw_count = {0};
+    SA::Value raw_count = {0};
     raw_count.i64 = static_cast<int64_t>(packed_varargs->size());
-    TypeInfo *count_type = new TypeInfo(I64, nullptr);
+    SA::Type *count_type = new SA::Type(I64, nullptr);
     HIRNode *hidden_count_arg = HIRGenerator::create_literal(raw_count, count_type);
     call_node->call.args->push_back(hidden_count_arg);
   }
@@ -191,7 +191,7 @@ HIRNode *HIRGenerator::emit_call(ASTNode *node) {
   std::vector<HIRNode *> *packed_varargs = nullptr;
 
   // Collect inner types for each variadic parameter declared on the callee.
-  std::vector<TypeInfo *> variadic_inner_types =
+  std::vector<SA::Type *> variadic_inner_types =
       collect_variadic_inner_types(fn_symbol, fixed_user_param_count);
 
   std::vector<std::vector<HIRNode *>> vararg_groups;
@@ -229,7 +229,7 @@ HIRNode *HIRGenerator::emit_call(ASTNode *node) {
   } else if (is_vararg_builtin && packed_varargs && !packed_varargs->empty()) {
     HIRNode *vararg_list = new HIRNode(ASTKind::AST_LIST);
     vararg_list->element.elements = packed_varargs;
-    vararg_list->type = new TypeInfo(LIST, nullptr);
+    vararg_list->type = new SA::Type(LIST, nullptr);
     vararg_list->type->size = packed_varargs->size();
     call_node->call.args->push_back(vararg_list);
   }

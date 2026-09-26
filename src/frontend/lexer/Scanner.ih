@@ -22,16 +22,16 @@ int Scanner::lex(ParserBase::STYPE_ *value, ParserBase::LTYPE_ *location) {
 inline void Scanner::preCode() {
   if (!loc)
     return;
-  if (cursor.last_line == 0) {
-    cursor.last_line = 1;
-    cursor.last_column = 1;
+  if (cursor.lastLn == 0) {
+    cursor.lastLn = 1;
+    cursor.lastCol = 1;
   }
-  loc->first_line = cursor.last_line;
-  loc->first_column = cursor.last_column;
-  loc->first_pos = cursor.last_pos;
-  loc->last_line = loc->first_line;
-  loc->last_column = loc->first_column;
-  loc->last_pos = loc->first_pos;
+  loc->firstLn = cursor.lastLn;
+  loc->firstCol = cursor.lastCol;
+  loc->firstPos = cursor.lastPos;
+  loc->lastLn = loc->firstLn;
+  loc->lastCol = loc->firstCol;
+  loc->lastPos = loc->firstPos;
 }
 
 inline void Scanner::postCode(PostEnum_ type) {
@@ -62,11 +62,11 @@ void Scanner::updateLoc(const char *text, int len) {
     return;
   for (int index = 0; index < len; ++index) {
     if (text[index] == '\n') {
-      ++cursor.last_line;
-      cursor.last_column = 1;
+      ++cursor.lastLn;
+      cursor.lastCol = 1;
     } else
-      ++cursor.last_column;
-    ++cursor.last_pos;
+      ++cursor.lastCol;
+    ++cursor.lastPos;
   }
 }
 
@@ -78,13 +78,13 @@ ParserBase::LTYPE_ Scanner::tokenLoc() const {
   if (!text || len <= 0)
     return result;
 
-  size_t line = result.first_line;
-  size_t column = result.first_column;
-  size_t pos = result.first_pos;
+  size_t line = result.firstLn;
+  size_t column = result.firstCol;
+  size_t pos = result.firstPos;
   for (int index = 0; index < len; ++index) {
-    result.last_line = line;
-    result.last_column = column;
-    result.last_pos = pos;
+    result.lastLn = line;
+    result.lastCol = column;
+    result.lastPos = pos;
     if (text[index] == '\n') {
       ++line;
       column = 1;

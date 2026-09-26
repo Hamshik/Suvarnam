@@ -69,6 +69,5 @@ static const std::unordered_map<std::string_view, SA_Keyword> SA_keywords = {
     TOKEN_KEYWORD("mut", Tokens::MUT),
     TOKEN_KEYWORD("fn", Tokens::FN),
     TOKEN_KEYWORD("ret", Tokens::RETURN),
-    TOKEN_KEYWORD("return", Tokens::RETURN),
-    TOKEN_KEYWORD("set", Tokens::SET),
+    TOKEN_KEYWORD("return", Tokens::RETURN)
 };

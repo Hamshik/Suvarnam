@@ -3,19 +3,19 @@
 #include "shared/structs.h"
 #include <string.h>
 
-TypedValue eval_binop(ASTNode *node, TypedValue v) {
-  TypedValue l = ast_eval(node->bin.left);
-  TypedValue r = ast_eval(node->bin.right);
+SA::TypedVal eval_binop(ASTNode *node, SA::TypedVal v) {
+  SA::TypedVal l = ast_eval(node->bin.left);
+  SA::TypedVal r = ast_eval(node->bin.right);
 
   if (node->type->base == STRINGS) {
     if (node->bin.op == OP_ADD) {
-      v = (TypedValue) {
-        new TypeInfo(STRINGS, NULL),
+      v = (SA::TypedVal) {
+        new SA::Type(STRINGS, NULL),
         { .chars = do_operation_str(l.val.chars, r.val.chars, node->bin.op) }
       };
     } else if (node->bin.op == OP_MUL) {
-      TypedValue str_v = (l.type->base == STRINGS) ? l : r;
-      TypedValue num_v = (l.type->base == STRINGS) ? r : l;
+      SA::TypedVal str_v = (l.type->base == STRINGS) ? l : r;
+      SA::TypedVal num_v = (l.type->base == STRINGS) ? r : l;
       
       int count = (int)SA_as_i128(num_v.val, num_v.type->base);
       
@@ -24,8 +24,8 @@ TypedValue eval_binop(ASTNode *node, TypedValue v) {
       for (int i = 0; i < count; i++) {
         memcpy(res + i * len, str_v.val.chars, len);
       }
-      v = (TypedValue) {
-        new TypeInfo(STRINGS, NULL),
+      v = (SA::TypedVal) {
+        new SA::Type(STRINGS, NULL),
         { .chars = res }
       };
     }
@@ -33,32 +33,32 @@ TypedValue eval_binop(ASTNode *node, TypedValue v) {
   }
 
   if (node->bin.op == OP_AND || node->bin.op == OP_OR) {
-    TypedValue lb = SA_cast_typed(l, node->bin.left->type);
-    TypedValue rb = SA_cast_typed(r, node->bin.right->type);
-    v.type = new TypeInfo(BOOL, NULL);
+    SA::TypedVal lb = SA_cast_typed(l, node->bin.left->type);
+    SA::TypedVal rb = SA_cast_typed(r, node->bin.right->type);
+    v.type = new SA::Type(BOOL, NULL);
     v.val = eval_bool(node->bin.op, BOOL, lb.val, rb.val);
     return v;
   }
 
   if (isBoolOP(node->bin.op) || node->type->base == BOOL) {
     DataTypes_t cmp_t = SA_promote_runtime(l.type->base, r.type->base);
-    TypedValue lc = SA_cast_typed(l, l.type);
-    TypedValue rc = SA_cast_typed(r, r.type);
-    v.type = new TypeInfo(BOOL, NULL);
+    SA::TypedVal lc = SA_cast_typed(l, l.type);
+    SA::TypedVal rc = SA_cast_typed(r, r.type);
+    v.type = new SA::Type(BOOL, NULL);
     v.val = eval_bool(node->bin.op, cmp_t, lc.val, rc.val);
     return v;
   }
 
   DataTypes_t op_t = node->type->base;
-  TypedValue lc = SA_cast_typed(l, node->type);
-  TypedValue rc = SA_cast_typed(r, node->type);
-  v.type = new TypeInfo(op_t, NULL);
+  SA::TypedVal lc = SA_cast_typed(l, node->type);
+  SA::TypedVal rc = SA_cast_typed(r, node->type);
+  v.type = new SA::Type(op_t, NULL);
   v.val = SA_eval_binop_numeric(node->bin.op, op_t, lc.val, rc.val);
   return v;
 }
 
-SA_Value SA_eval_binop_numeric(OP_kind_t op, DataTypes_t type, SA_Value a,
-                             SA_Value b) {
+SA::Value SA_eval_binop_numeric(OP_kind_t op, DataTypes_t type, SA::Value a,
+                             SA::Value b) {
   type = SA_norm(type);
 
   if (SA_is_float(type)) {
@@ -153,18 +153,18 @@ SA_Value SA_eval_binop_numeric(OP_kind_t op, DataTypes_t type, SA_Value a,
   DIE("Invalid datatype for numeric operation");
 }
 
-SA_Value eval_bool(OP_kind_t op, DataTypes_t type, SA_Value a, SA_Value b) {
+SA::Value eval_bool(OP_kind_t op, DataTypes_t type, SA::Value a, SA::Value b) {
   type = SA_norm(type);
   if (type == BOOL) {
     switch (op) {
     case OP_AND:
-      return (SA_Value){.bval = a.bval && b.bval};
+      return (SA::Value){.bval = a.bval && b.bval};
     case OP_OR:
-      return (SA_Value){.bval = a.bval || b.bval};
+      return (SA::Value){.bval = a.bval || b.bval};
     case OP_EQ:
-      return (SA_Value){.bval = a.bval == b.bval};
+      return (SA::Value){.bval = a.bval == b.bval};
     case OP_NEQ:
-      return (SA_Value){.bval = a.bval != b.bval};
+      return (SA::Value){.bval = a.bval != b.bval};
     default:
       DIE("Invalid boolean operator");
     }
@@ -175,17 +175,17 @@ SA_Value eval_bool(OP_kind_t op, DataTypes_t type, SA_Value a, SA_Value b) {
     long double y = SA_as_f128(b, type);
     switch (op) {
     case OP_EQ:
-      return (SA_Value){.bval = x == y};
+      return (SA::Value){.bval = x == y};
     case OP_NEQ:
-      return (SA_Value){.bval = x != y};
+      return (SA::Value){.bval = x != y};
     case OP_GT:
-      return (SA_Value){.bval = x > y};
+      return (SA::Value){.bval = x > y};
     case OP_LT:
-      return (SA_Value){.bval = x < y};
+      return (SA::Value){.bval = x < y};
     case OP_GE:
-      return (SA_Value){.bval = x >= y};
+      return (SA::Value){.bval = x >= y};
     case OP_LE:
-      return (SA_Value){.bval = x <= y};
+      return (SA::Value){.bval = x <= y};
     default:
       DIE("Invalid float comparison operator");
     }
@@ -196,17 +196,17 @@ SA_Value eval_bool(OP_kind_t op, DataTypes_t type, SA_Value a, SA_Value b) {
     unsigned __int128 y = SA_as_u128(b, type);
     switch (op) {
     case OP_EQ:
-      return (SA_Value){.bval = x == y};
+      return (SA::Value){.bval = x == y};
     case OP_NEQ:
-      return (SA_Value){.bval = x != y};
+      return (SA::Value){.bval = x != y};
     case OP_GT:
-      return (SA_Value){.bval = x > y};
+      return (SA::Value){.bval = x > y};
     case OP_LT:
-      return (SA_Value){.bval = x < y};
+      return (SA::Value){.bval = x < y};
     case OP_GE:
-      return (SA_Value){.bval = x >= y};
+      return (SA::Value){.bval = x >= y};
     case OP_LE:
-      return (SA_Value){.bval = x <= y};
+      return (SA::Value){.bval = x <= y};
     default:
       DIE("Invalid integer comparison operator");
     }
@@ -217,17 +217,17 @@ SA_Value eval_bool(OP_kind_t op, DataTypes_t type, SA_Value a, SA_Value b) {
     __int128 y = SA_as_i128(b, type);
     switch (op) {
     case OP_EQ:
-      return (SA_Value){.bval = x == y};
+      return (SA::Value){.bval = x == y};
     case OP_NEQ:
-      return (SA_Value){.bval = x != y};
+      return (SA::Value){.bval = x != y};
     case OP_GT:
-      return (SA_Value){.bval = x > y};
+      return (SA::Value){.bval = x > y};
     case OP_LT:
-      return (SA_Value){.bval = x < y};
+      return (SA::Value){.bval = x < y};
     case OP_GE:
-      return (SA_Value){.bval = x >= y};
+      return (SA::Value){.bval = x >= y};
     case OP_LE:
-      return (SA_Value){.bval = x <= y};
+      return (SA::Value){.bval = x <= y};
     default:
       DIE("Invalid integer comparison operator");
     }
@@ -236,7 +236,7 @@ SA_Value eval_bool(OP_kind_t op, DataTypes_t type, SA_Value a, SA_Value b) {
   DIE("Invalid datatype for boolean operation");
 }
 
-SA_Value eval_binop_int(OP_kind_t op, bool isShort, int a, int b) {
+SA::Value eval_binop_int(OP_kind_t op, bool isShort, int a, int b) {
   if (isShort) {
     CHECK_INT_ZERO(op, b);
     if (op == OP_POW) {
@@ -252,7 +252,7 @@ SA_Value eval_binop_int(OP_kind_t op, bool isShort, int a, int b) {
         if (exp)
           base = (short)(base * base);
       }
-      return (SA_Value){.i16 = result};
+      return (SA::Value){.i16 = result};
     }
     switch (op) {
       INT_CASES(i16, (short)a, (short)b);
@@ -274,7 +274,7 @@ SA_Value eval_binop_int(OP_kind_t op, bool isShort, int a, int b) {
       if (exp)
         base = base * base;
     }
-    return (SA_Value){.i32 = result};
+    return (SA::Value){.i32 = result};
   }
   switch (op) {
     INT_CASES(i32, a, b);
@@ -283,7 +283,7 @@ SA_Value eval_binop_int(OP_kind_t op, bool isShort, int a, int b) {
   }
 }
 
-SA_Value eval_binop_float(OP_kind_t op, float a, float b) {
+SA::Value eval_binop_float(OP_kind_t op, float a, float b) {
   if (op == OP_DIV && fabsf(b) < 1e-12f)
     DIE("division by zero");
   switch (op) {
@@ -293,7 +293,7 @@ SA_Value eval_binop_float(OP_kind_t op, float a, float b) {
   }
 }
 
-SA_Value eval_binop_double(OP_kind_t op, double a, double b) {
+SA::Value eval_binop_double(OP_kind_t op, double a, double b) {
   if (op == OP_DIV && fabs(b) < 1e-12)
     DIE("division by zero");
   switch (op) {

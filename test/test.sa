@@ -1,8 +1,42 @@
-fn i32 main() {
-    var mut global = 100;
-    global = 10;
+fn i32 add(var i32 a, var mut i32 b) {
+    b += a;
+    return b;
+}
 
-    printf("%d\n", global);
-    
-    ret 0;
+fn void process_data(var i32... nums) {
+    var mut i32 total = 0;
+    for val in nums {
+        total += val;
+    }
+    printf("total: %d", total);
+}
+
+fn i32 main() {
+    var mut i32 x = 10;
+    var i32 y = 20;
+    var mut i32& ptr = &x;
+
+    x = add(x, y);
+
+    process_data(x,10,30,203);
+
+    if (x > 15) {
+        *ptr = 100;
+    } else {
+        *ptr = 0;
+    }
+
+    var mut i32[] list = {1, 2, 3, 4, 5};
+    for i in 0..4 {
+        list[i] = list[i] * 2;
+    }
+
+    var mut i32 count = 0;
+    while count < 5 : count += 1 {
+        if (count == 2) {
+            continue;
+        }
+    }
+
+    return 0;
 }

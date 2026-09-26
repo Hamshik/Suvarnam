@@ -15,7 +15,7 @@ bool isError = false;
 bool isWarning = false;
 bool error_fatal = true;
 
-void panic(SA_Location loc, errc_t code, const char *detail) {
+void panic(SA::Location loc, errc_t code, const char *detail) {
   const char *filename = (file && file->filename) ? file->filename : "<input>";
   const char *base = errc_msg(code);
   isError = true;
@@ -40,7 +40,7 @@ void panic(SA_Location loc, errc_t code, const char *detail) {
   if (!src || src_len == 0) {
     free(src);
     fprintf(stderr, SA_BOLD SA_DIM " --> %s:%zu:%zu\n" SA_RESET, filename,
-            (size_t)loc.first_line, (size_t)loc.first_column);
+            (size_t)loc.firstLn, (size_t)loc.firstCol);
     fprintf(stderr, SA_BOLD SA_DIM " note:" SA_RESET
                                    " could not read source to show caret\n");
     if (error_fatal)
@@ -48,9 +48,9 @@ void panic(SA_Location loc, errc_t code, const char *detail) {
     return;
   }
 
-  size_t pos = loc.first_pos;
-  size_t display_line = loc.first_line;
-  size_t display_column = loc.first_column;
+  size_t pos = loc.firstPos;
+  size_t display_line = loc.firstLn;
+  size_t display_column = loc.firstCol;
   bool is_eof_location = pos >= src_len;
   if (is_eof_location) {
     pos = src_len - 1;
@@ -95,11 +95,11 @@ void panic(SA_Location loc, errc_t code, const char *detail) {
   fprintf(stderr, SA_BOLD SA_DIM "%*s | " SA_RESET, ln_width, "");
   SA_print_source_padding(src, line_start, pos);
 
-  /* last_pos is inclusive.  Fall back to one character for locations that
+  /* lastPos is inclusive.  Fall back to one character for locations that
      do not provide a valid end position (for example, EOF diagnostics). */
   size_t span_end = pos + 1;
-  if (loc.last_pos >= pos && loc.last_pos < line_end)
-    span_end = loc.last_pos + 1;
+  if (loc.lastPos >= pos && loc.lastPos < line_end)
+    span_end = loc.lastPos + 1;
 
   size_t span_width = SA_source_display_width(src, pos, span_end);
   if (span_width == 0)
@@ -112,9 +112,10 @@ void panic(SA_Location loc, errc_t code, const char *detail) {
   free(src);
   if (error_fatal)
     exit(EXIT_FAILURE);
+
 }
 
-void warn(SA_Location loc, warnc_t code, const char *detail) {
+void warn(SA::Location loc, warnc_t code, const char *detail) {
   const char *filename = (file && file->filename) ? file->filename : "<input>";
   const char *base = warnc_msg(code);
   isWarning = true;
@@ -136,7 +137,7 @@ void warn(SA_Location loc, warnc_t code, const char *detail) {
             (int)code, base);
   }
   fprintf(stderr, SA_BOLD SA_DIM " --> %s:%zu:%zu\n" SA_RESET, filename,
-          (size_t)loc.first_line, (size_t)loc.first_column);
+          (size_t)loc.firstLn, (size_t)loc.firstCol);
 
   if (!src || src_len == 0) {
     free(src);
@@ -145,7 +146,7 @@ void warn(SA_Location loc, warnc_t code, const char *detail) {
     return;
   }
 
-  size_t pos = (loc.first_pos < 0) ? 0u : (size_t)loc.first_pos;
+  size_t pos = (loc.firstPos < 0) ? 0u : (size_t)loc.firstPos;
   if (pos >= src_len)
     pos = src_len - 1;
 
@@ -157,11 +158,11 @@ void warn(SA_Location loc, warnc_t code, const char *detail) {
   while (line_end < src_len && src[line_end] != '\n' && src[line_end] != '\0')
     line_end++;
 
-  int ln_width = digits_int(loc.first_line);
+  int ln_width = digits_int(loc.firstLn);
 
   fprintf(stderr, SA_BOLD SA_DIM "%*s |\n" SA_RESET, ln_width, "");
   fprintf(stderr, SA_BOLD SA_DIM "%*d | " SA_RESET, ln_width,
-          (int)loc.first_line);
+          (int)loc.firstLn);
   SA_print_highlighted_source_line(src + line_start, line_end - line_start);
   fputc('\n', stderr);
 

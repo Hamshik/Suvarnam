@@ -16,46 +16,46 @@ class Semantic {
   DataTypes_t fnRet = UNKNOWN;
   int isInFn = 0;
   int inLoop = 0;
-  TypeInfo *currFnRet = nullptr;
+  SA::Type *currFnRet = nullptr;
   bool importParseFailed = false;
   size_t checkDepth = 0;
 
   void regGlobalVarAndFn(ASTNode*);
-  TypeInfo* handleNum(ASTNode*, TypeInfo*&);
+  SA::Type* handleNum(ASTNode*, SA::Type*&);
 
-  TypeInfo *listHandle(ASTNode *, TypeInfo *type = nullptr);
+  SA::Type *listHandle(ASTNode *, SA::Type *type = nullptr);
   bool isList(ASTNode *);
-  TypeInfo *semanticIndexHandle(ASTNode *);
-  void idxAssign(ASTNode *&, ASTNode *&, TypeInfo *&);
+  SA::Type *semanticIndexHandle(ASTNode *);
+  void idxAssign(ASTNode *&, ASTNode *&, SA::Type *&);
 
   void typeError(ASTNode *, const char *);
-  bool typesAreEqual(TypeInfo *, TypeInfo *);
+  bool typesAreEqual(SA::Type *, SA::Type *);
 
-  TypeInfo *unop(ASTNode *, TypeInfo *type = nullptr);
+  SA::Type *unop(ASTNode *, SA::Type *type = nullptr);
   ASTNode* getBaseVar(const char*);
 
-  TypeInfo *binop(ASTNode *, TypeInfo *type = nullptr);
+  SA::Type *binop(ASTNode *, SA::Type *type = nullptr);
 
-  TypeInfo *assign(ASTNode *, TypeInfo *type = nullptr);
-  void validateAssign(ASTNode*, TypeInfo*, TypeInfo*);
+  SA::Type *assign(ASTNode *, SA::Type *type = nullptr);
+  void validateAssign(ASTNode*, SA::Type*, SA::Type*);
   bool verifyExprPathIsMut(ASTNode*);
-  void processDecl(ASTNode* ,TypeInfo*& ,TypeInfo*);
-  void resolveTargetType(ASTNode *, TypeInfo *&);
+  void processDecl(ASTNode* ,SA::Type*& ,SA::Type*);
+  void resolveTargetType(ASTNode *, SA::Type *&);
   const char* getSafeName(ASTNode *);
-  void resloveNestedNumeric(ASTNode *, TypeInfo *);
+  void resloveNestedNumeric(ASTNode *, SA::Type *);
   ASTNode* getBaseVarNode(ASTNode *);
 
-  TypeInfo *fn(ASTNode *);
-  TypeInfo *ret(ASTNode *);
-  TypeInfo *call(ASTNode *);
+  SA::Type *fn(ASTNode *);
+  SA::Type *ret(ASTNode *);
+  SA::Type *call(ASTNode *);
   bool fnAlwaysReturns(ASTNode *);
   struct ResolvedSig getCallSig(const char*);
-  void updateRetTy(const char *, TypeInfo *);
+  void updateRetTy(const char *, SA::Type *);
 
-  TypeInfo *checkUncondBranch(ASTNode *n, TypeInfo *type);
-  TypeInfo *checkWhileLoop(ASTNode *n, TypeInfo *type);
-  TypeInfo *checkRange(ASTNode *n, TypeInfo *type);
-  TypeInfo *checkForLoop(ASTNode *n, TypeInfo *type);
+  SA::Type *checkUncondBranch(ASTNode *n, SA::Type *type);
+  SA::Type *checkWhileLoop(ASTNode *n, SA::Type *type);
+  SA::Type *checkRange(ASTNode *n, SA::Type *type);
+  SA::Type *checkForLoop(ASTNode *n, SA::Type *type);
 
 public:
   static bool isNumeric(DataTypes_t);
@@ -69,14 +69,14 @@ public:
   static int numericBits(DataTypes_t);
 
   void main(ASTNode *);
-  TypeInfo *checkExpr(ASTNode *, TypeInfo *&);
-  TypeInfo *checkExpr(ASTNode *n) {
-    TypeInfo *dummy = nullptr;
+  SA::Type *checkExpr(ASTNode *, SA::Type *&);
+  SA::Type *checkExpr(ASTNode *n) {
+    SA::Type *dummy = nullptr;
     return checkExpr(n, dummy);
   }
 
   Semantic() = default;
 
-  CompilerContext* ctx;
+  SA::CompilerContext* ctx;
   Importer* importer;
 };
