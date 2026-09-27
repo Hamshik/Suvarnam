@@ -1,5 +1,5 @@
 list_stmt:
-    LBRACE args RBRACE       { $$ = new_list($2, @1); }
+    LSQUARE args RSQUARE       { $$ = new_list($2, @1); }
 ;
 
 indexing:

@@ -1,5 +1,6 @@
 #include "SymbolTable/BuiltinRegistry.hpp"
 #include "SymbolTable/SymbolTable.hpp"
+#include "SymbolTable/SymbolTableInternal.hpp"
 #include "ast/ast.h"
 #include "semantic/semantic.hpp"
 #include "shared/enums.h"
@@ -9,7 +10,6 @@
 #include <cctype>
 #include <cstddef>
 #include <string.h>
-#include "SymbolTable/SymbolTableInternal.hpp"
 
 extern ASTNode *root;
 
@@ -22,7 +22,6 @@ void Semantic::main(ASTNode *root) {
     importParseFailed = false;
 
   BuiltinRegistry::instance().bootstrap();
-  globalVarAllowed = true;
   regGlobalVarAndFn(root);
   ctx->sym->push();
 
@@ -41,7 +40,8 @@ SA::Type *Semantic::checkExpr(ASTNode *n, SA::Type *&type) {
   case AST_BOOL:
     return n->type;
 
-  case AST_NUM: return handleNum(n,type);
+  case AST_NUM:
+    return handleNum(n, type);
 
   case AST_STR:
     if (!n->type || n->type->base == UNKNOWN)
@@ -56,8 +56,12 @@ SA::Type *Semantic::checkExpr(ASTNode *n, SA::Type *&type) {
     return n->type;
 
   case AST_VAR: {
-    if (n->type->base == UNKNOWN)
-      n->type = ctx->sym->lookup(n->var);
+    if (n->type->base == UNKNOWN) {
+      SemanticSymbolRecord *symbol =
+          n->isglobal ? ctx->sym->getTopScope(n->var)
+                      : ctx->sym->findSym(n->var);
+      n->type = symbol ? symbol->type : nullptr;
+    }
 
     exitcode_t exit_code = ctx->sym->exists(n);
 
@@ -119,9 +123,12 @@ SA::Type *Semantic::checkExpr(ASTNode *n, SA::Type *&type) {
   case AST_CONTINUE:
     return checkUncondBranch(n, type);
 
-  case AST_FN:
+  case AST_FN: {
     Semantic::globalVarAllowed = false;
-    return fn(n);
+    SA::Type *fnTy = fn(n);
+    Semantic::globalVarAllowed = true;
+    return fnTy;
+  }
 
   case AST_CALL:
     return call(n); // The 'call' function (not provided) needs to be updated to

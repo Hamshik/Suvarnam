@@ -8,8 +8,10 @@ fn void process_data(var i32... nums) {
     for val in nums {
         total += val;
     }
-    printf("total: %d", total);
+    printf("total: %d\n", total);
 }
+
+var mut list = [1,2,3,4];
 
 fn i32 main() {
     var mut i32 x = 10;
@@ -18,24 +20,30 @@ fn i32 main() {
 
     x = add(x, y);
 
+
     process_data(x,10,30,203);
 
-    if (x > 15) {
+    if x > 15:
         *ptr = 100;
-    } else {
+    else:
         *ptr = 0;
-    }
 
-    var mut i32[] list = {1, 2, 3, 4, 5};
-    for i in 0..4 {
+    var mut i32[] list = [1, 2, 3, 4, 5];
+    
+    for i in 0..4:
         list[i] = list[i] * 2;
-    }
+    
+    for i in list:
+        printf("elements: %d\n", i);
+    
+    for i in @list:
+        printf("global elements: %d\n", i);
 
     var mut i32 count = 0;
     while count < 5 : count += 1 {
-        if (count == 2) {
+        printf("%d\n", count);
+        if (count == 2):
             continue;
-        }
     }
 
     return 0;

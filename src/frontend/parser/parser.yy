@@ -1,6 +1,7 @@
 %filenames Parser
 %baseclass-preinclude "frontend/parser/parser_includes.hpp"
 %ltype SA::Location
+%lsp-needed
 
 %polymorphic
     node: ASTNode*;
@@ -140,10 +141,15 @@ block:
 ;
 
 if_stmt:
-    IF LPAREN with_non_expr RPAREN expr_stmt %prec LOWER_THAN_ELSE
-        { $$ = new_if($3, $5, NULL, @1); }
-    | IF LPAREN with_non_expr RPAREN expr_stmt ELSE expr_stmt
-        { $$ = new_if($3, $5, $7, @1); }
+    IF expr block %prec LOWER_THAN_ELSE
+        { $$ = new_if($2, $3, NULL, @1); }
+    | IF expr block ELSE expr_stmt
+        { $$ = new_if($2, $3, $5, @1); }
+    
+    | IF expr COLON expr_stmt %prec LOWER_THAN_ELSE
+        { $$ = new_if($2, $4, NULL, @1); }
+    | IF expr COLON expr_stmt ELSE COLON expr_stmt
+        { $$ = new_if($2, $4, $7, @1); }
 ;
 
 recursive_type:

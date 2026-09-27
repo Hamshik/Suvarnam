@@ -12,7 +12,7 @@ extern bool isWarning;
 extern ASTNode *root;
 
 class Semantic {
-  bool globalVarAllowed = false;
+  bool globalVarAllowed = true;
   DataTypes_t fnRet = UNKNOWN;
   int isInFn = 0;
   int inLoop = 0;

@@ -95,8 +95,12 @@ exitcode_t SemanticSymTable::exists(ASTNode *n) {
   if (n->kind != AST_VAR)
     return NOT_DECLARED;
 
-  SemanticSymbolRecord *symbol = findSym(n->var);
+  SemanticSymbolRecord *symbol =
+      n->isglobal ? getTopScope(n->var) : findSym(n->var);
   if (!symbol) {
+    if (n->isglobal && findSym(n->var)) {
+      return NOT_DEC_AT_GLOB_SCOPE;
+    }
     return NOT_DECLARED;
   }
 

@@ -85,8 +85,10 @@ llvm::Value *IRGen::generateList(HIRNode *n, Codegen::Scope &locals) {
     allocatedPtr = b.CreateCall(mallocFn, {b.getInt64(totalSize)}, "list_heap");
     typedPtr = b.CreateBitCast(allocatedPtr, PointerType::getUnqual(ctx));
   } else {
-    allocatedPtr =
-        entryBuilder.CreateAlloca(arrayType, nullptr, "list_stack_alloc");
+    BasicBlock *entryBB = &currentFn->getEntryBlock();
+    IRBuilder<> allocaBuilder(entryBB, entryBB->begin());
+    allocatedPtr = allocaBuilder.CreateAlloca(arrayType, nullptr,
+                                              "list_stack_alloc");
     typedPtr = b.CreateInBoundsGEP(arrayType, allocatedPtr,
                                    {b.getInt32(0), b.getInt32(0)});
   }

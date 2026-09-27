@@ -1,6 +1,6 @@
 with_non_expr:
     range                      { $$ = $1; }
-    | expr                     { $$ = $1; }
+    | expr                     { $$ = $1; } %prec ASSIGN
 ;
 
 expr:
@@ -34,24 +34,14 @@ expr:
     | expr GT expr              { $$ = new_binop($1, $3, @1, OP_GT); }
     | expr GE expr              { $$ = new_binop($1, $3, @1, OP_GE); }
 
-    | AMP expr %prec AMP   
-    { 
-        $$ = new_unop($2, @1, OP_ADDR); 
-        $$->unop.operand->ismut = false;
-    }
-    
-    | AMP MUT expr %prec AMP   
-    { 
-        $$ = new_unop($3, @1, OP_ADDR); 
-        $$->unop.operand->ismut = true;
-    }
+    | AMP expr %prec AMP        { $$ = new_unop($2, @1, OP_ADDR); }
 
     | STAR expr %prec PLUS      { $$ = new_unop($2, @1, OP_DEREF); }
     
     | PLUS expr %prec PLUS      { $$ = new_unop($2, @1, OP_POS); }
     | MINUS expr %prec MINUS    { $$ = new_unop($2, @1, OP_NEG); }
-    | NOT expr                   { $$ = new_unop($2, @1, OP_NOT); }
-    | BITNOT expr                { $$ = new_unop($2, @1, OP_BITNOT); }
+    | NOT expr                  { $$ = new_unop($2, @1, OP_NOT); }
+    | BITNOT expr               { $$ = new_unop($2, @1, OP_BITNOT); }
 
     | IDENTIFIER INC %prec INC  { $$ = new_unop($1, @1, OP_INC); $$->isglobal = $1->isglobal;}
     | IDENTIFIER DEC %prec INC  { $$ = new_unop($1, @1, OP_DEC); $$->isglobal = $1->isglobal; }
