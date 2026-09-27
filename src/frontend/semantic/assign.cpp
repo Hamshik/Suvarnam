@@ -75,7 +75,7 @@ void Semantic::processDecl(ASTNode *n, SA::Type *&lhs_t, SA::Type *rhs_t) {
   resloveNestedNumeric(rhs, lhs_t);
 
   bool isreloved =
-      ctx->sym->declare(var_name, &n->isglobal, lhs_t, n, n->ismut);
+      ctx->sym.declare(var_name, &n->isglobal, lhs_t, n, n->ismut);
 
   if (!isreloved && !n->isglobal)
     panic(n->loc, SEM_VAR_REDECL, var_name);
@@ -90,7 +90,7 @@ bool Semantic::verifyExprPathIsMut(ASTNode *n) {
   // Base Case: If we hit a raw variable container
   if (n->kind == AST_VAR) {
     symbol =
-        n->isglobal ? ctx->sym->getTopScope(n->var) : ctx->sym->findSym(n->var);
+        n->isglobal ? ctx->sym.getTopScope(n->var) : ctx->sym.findSym(n->var);
     // Look up the symbol definition record from the Symbol Table
     // (Replace 'getTopScope' or your local scope lookup as needed)
     if (symbol) {
@@ -109,8 +109,8 @@ bool Semantic::verifyExprPathIsMut(ASTNode *n) {
       if (n->unop.operand->type->base == PTR && n->unop.operand->var) {
         n->unop.operand->ismut =
             n->isglobal
-                ? ctx->sym->getTopScope(n->unop.operand->var)->is_mutable
-                : ctx->sym->findSym(n->unop.operand->var)->is_mutable;
+                ? ctx->sym.getTopScope(n->unop.operand->var)->is_mutable
+                : ctx->sym.findSym(n->unop.operand->var)->is_mutable;
         n->type->ismut = n->unop.operand->ismut;
         return n->unop.operand->ismut;
       }
@@ -187,8 +187,8 @@ void Semantic::resolveTargetType(ASTNode *n, SA::Type *&type) {
         n->type = new SA::Type(UNKNOWN, NULL);
       type = n->type;
     } else {
-      type = ctx->sym->lookup(name);
-      lhs->ismut = ctx->sym->isMut(name);
+      type = ctx->sym.lookup(name);
+      lhs->ismut = ctx->sym.isMut(name);
     }
   }
 
@@ -260,7 +260,7 @@ SA::Type *Semantic::assign(ASTNode *n, SA::Type *type) {
       const char *base_var_name = (base && base->var) ? base->var : target_name;
 
       // 1. Verify mutability of the root variable holding the pointer chain
-      if (!ctx->sym->isMut(base_var_name)) {
+      if (!ctx->sym.isMut(base_var_name)) {
         SA::Location target_loc = base ? base->loc : n->assign.lhs->loc;
         panic(target_loc, SEM_ASSIGN_IMMUTABLE, base_var_name);
       }

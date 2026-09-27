@@ -172,7 +172,7 @@ bool Semantic::isList(ASTNode *target) {
     return false;
 
   SemanticSymbolRecord *symbol =
-      ctx->sym->findSym(target->var);
+      ctx->sym.findSym(target->var);
   if (!symbol)
     return false;
 
@@ -205,8 +205,8 @@ void Semantic::idxAssign(ASTNode *&n, ASTNode *&lhs, SA::Type *&final_type) {
   if (base->kind == AST_VAR) {
     // Ensure we check the specific identifier (preserving @ for globals)
     // to avoid accidental shadowing by immutable locals of the same name.
-    base->ismut = n->isglobal ? ctx->sym->getTopScope(base->var)->is_mutable
-        : ctx->sym->isMut(base->var);
+    base->ismut = n->isglobal ? ctx->sym.getTopScope(base->var)->is_mutable
+        : ctx->sym.isMut(base->var);
     if (!base->ismut) {
       panic(n->loc, SEM_ASSIGN_IMMUTABLE, base->var);
     }

@@ -2,6 +2,8 @@
 #define Parser_h_included
 
 #include "Parserbase.h"
+#include "shared/structs.h"
+#include <cstddef>
 
 #undef Parser
 
@@ -13,6 +15,10 @@ class Parser: public ParserBase
 {
     Scanner& d_scanner;
     Scanner& scanner;
+    size_t& errNo = d_nErrors_;
+    SA::Location& loc = d_loc_;
+    STYPE_& val = d_val_;
+
     const char* ErrMsg{};
 
     public:

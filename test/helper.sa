@@ -1,0 +1,13 @@
+fn i32 add(var i32 a, var mut i32 b) {
+    b += a;
+    return b;
+}
+
+fn void process_data(var i32... nums) {
+    var mut i32 total = 0;
+    for val in nums:
+        total += val;
+    printf("total: %d\n", total);
+}
+
+var mut list = [1,2,3,4];

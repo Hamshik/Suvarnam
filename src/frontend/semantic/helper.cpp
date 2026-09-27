@@ -120,20 +120,20 @@ SA::CompilerContext::CompilerContext(
   SemanticSymTable *sym, Scanner *scanner,
   Parser *parser, Semantic *semantic
 ): input(input),
-  sym(sym ? sym : new SemanticSymTable()),
-  semantic(semantic ? semantic : new Semantic()),
-  scanner(scanner ? scanner : new Scanner(input)),
-  parser(parser ? parser : new Parser(*this->scanner))
+  sym(sym ? *sym : *new SemanticSymTable()),
+  semantic(semantic ? *semantic : *new Semantic()),
+  scanner(scanner ? *scanner : *new Scanner(input)),
+  parser(parser ? *parser : *new Parser(this->scanner))
 {}
 
 SA::CompilerContext::~CompilerContext(){
-    delete semantic;
-    delete parser;
-    delete scanner;
+    delete &semantic;
+    delete &parser;
+    delete &scanner;
 }
 
 void SA::CompilerContext::setup(Importer* importer){
-  sym->setImporter(importer);
-  semantic->importer = importer;
-  semantic->ctx = this;
+  sym.setImporter(importer);
+  semantic.importer = importer;
+  semantic.ctx = this;
 }

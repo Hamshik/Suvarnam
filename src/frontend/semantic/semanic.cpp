@@ -23,10 +23,10 @@ void Semantic::main(ASTNode *root) {
 
   BuiltinRegistry::instance().bootstrap();
   regGlobalVarAndFn(root);
-  ctx->sym->push();
+  ctx->sym.push();
 
   checkExpr(root);
-  ctx->sym->pop();
+  ctx->sym.pop();
   --checkDepth;
 }
 
@@ -58,12 +58,12 @@ SA::Type *Semantic::checkExpr(ASTNode *n, SA::Type *&type) {
   case AST_VAR: {
     if (n->type->base == UNKNOWN) {
       SemanticSymbolRecord *symbol =
-          n->isglobal ? ctx->sym->getTopScope(n->var)
-                      : ctx->sym->findSym(n->var);
+          n->isglobal ? ctx->sym.getTopScope(n->var)
+                      : ctx->sym.findSym(n->var);
       n->type = symbol ? symbol->type : nullptr;
     }
 
-    exitcode_t exit_code = ctx->sym->exists(n);
+    exitcode_t exit_code = ctx->sym.exists(n);
 
     switch (exit_code) {
     case NOT_DECLARED:

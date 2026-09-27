@@ -21,7 +21,7 @@ void Semantic::regGlobalVarAndFn(ASTNode *n) {
     const char *fn_name = n->fn_def.name;
 
     // Ensure the function isn't duplicated
-    if (ctx->sym->fnFind(fn_name) != nullptr) {
+    if (ctx->sym.fnFind(fn_name) != nullptr) {
       panic(n->loc, SEM_INTERNAL_ERROR, "Redefinition of function signature");
     }
 
@@ -53,7 +53,7 @@ void Semantic::regGlobalVarAndFn(ASTNode *n) {
     }
 
     // Push into the global functional index map
-    ctx->sym->fnDeclare(n);
+    ctx->sym.fnDeclare(n);
   }
 
   if (n->kind == AST_ASSIGN && n->assign.is_declaration) {

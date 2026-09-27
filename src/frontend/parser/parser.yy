@@ -2,6 +2,7 @@
 %baseclass-preinclude "frontend/parser/parser_includes.hpp"
 %ltype SA::Location
 %lsp-needed
+%print-tokens
 
 %polymorphic
     node: ASTNode*;
@@ -85,37 +86,26 @@ top_level_stmts:
 ;
 
 expr_stmt:
-    assignment SEMICOLON        { $$ = $1; }
-    | assignment error SEMICOLON { panic(SA_loc_after(@1), PARSE_MISSING_SEMI, NULL); $$ = null(ASTNode*); }
+    assignment SEMICOLON         { $$ = $1; }
     | with_non_expr SEMICOLON            { $$ = $1; }
-    | with_non_expr error SEMICOLON      { panic(SA_loc_after(@1), PARSE_MISSING_SEMI, NULL); $$ = null(ASTNode*); }
     | block                     { $$ = $1; }
     | return_stmt SEMICOLON     { $$ = $1; }
-    | return_stmt error SEMICOLON { panic(SA_loc_after(@1), PARSE_MISSING_SEMI, NULL); $$ = null(ASTNode*); }
     | LEX_ERROR SEMICOLON       { scanner.lexTakeErr(); $$ = null(ASTNode*); }
     | LEX_ERROR                 { scanner.lexTakeErr(); $$ = null(ASTNode*); }
-    | error SEMICOLON           { panic(@1, PARSE_SYNTAX, NULL); $$ = null(ASTNode*); }
     | if_stmt                   { $$ = $1; }
     | for_stmt                  { $$ = $1; }
     | while_stmt                { $$ = $1; }
     | CONTINUE SEMICOLON        { $$ = new_continue(@1); }
     | BREAK SEMICOLON           { $$ = new_break(@1); }
-    /* Keep assignment operators out of expr to avoid assignment ambiguity. */
     | assign_expr SEMICOLON       { $$ = $1; }
-
-    | error {
-        if (!scanner.lexTakeErr()) panic(@1, PARSE_SYNTAX, ErrMsg);
-        ABORT();
-        $$ = null(ASTNode*);
-    }
 ;
 
 import_list:
     /* empty */                 { $$ = null(ASTNode*); }
-    | import_stmt SEMICOLON import_list
+    | import_stmt import_list
       {
-          if (!$3) $$ = $1;
-          else $$ = new_seq($1, $3);
+          if (!$2) $$ = $1;
+          else $$ = new_seq($1, $2);
       }    
 ;
 
@@ -132,7 +122,7 @@ expr_stmts:
 import_stmt:
     IMPORT STRING_LITERAL
       {
-          $$ = new_import_node($2->literal.raw, @1);
+          $$ = new_import_node($2->literal.raw, @1 + @2);
       }
 ;
 
@@ -142,14 +132,14 @@ block:
 
 if_stmt:
     IF expr block %prec LOWER_THAN_ELSE
-        { $$ = new_if($2, $3, NULL, @1); }
+        { $$ = new_if($2, $3, NULL, @1 + @3); }
     | IF expr block ELSE expr_stmt
-        { $$ = new_if($2, $3, $5, @1); }
+        { $$ = new_if($2, $3, $5, @1 + @5); }
     
     | IF expr COLON expr_stmt %prec LOWER_THAN_ELSE
-        { $$ = new_if($2, $4, NULL, @1); }
+        { $$ = new_if($2, $4, NULL, @1 + @4); }
     | IF expr COLON expr_stmt ELSE COLON expr_stmt
-        { $$ = new_if($2, $4, $7, @1); }
+        { $$ = new_if($2, $4, $7, @1 + @7); }
 ;
 
 recursive_type:

@@ -17,7 +17,6 @@ private:
   SA::CompilerContext* ctx;
   std::unique_ptr<std::istringstream> content;
   FILE* f;
-
 public:
   explicit Importer(FILE* f, SA::CompilerContext* ctx = nullptr);
 

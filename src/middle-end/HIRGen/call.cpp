@@ -176,7 +176,7 @@ HIRNode *HIRGenerator::emit_call(ASTNode *node) {
 
   bool has_variadic_user_param = false;
   size_t fixed_user_param_count = 0;
-  FnSymbol *fn_symbol = ctx->sym->fnFind(node->call.name);
+  FnSymbol *fn_symbol = ctx->sym.fnFind(node->call.name);
   if (fn_symbol && fn_symbol->params) {
     for (int i = 0; i < fn_symbol->param_count; ++i) {
       if (fn_symbol->params[i].is_variadic) {

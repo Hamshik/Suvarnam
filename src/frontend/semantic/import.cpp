@@ -46,7 +46,6 @@ std::optional<fs::path> Importer::resolve(const std::string &import_path,
 }
 
 extern ASTNode *root;
-static bool import_parse_failed = false;
 
 std::istringstream *Importer::getFileContent(FILE *f) {
   long saved_pos = ftell(f);
@@ -78,7 +77,7 @@ ASTNode *Importer::parseFile() {
   ASTNode *old_root = root; // save current AST
   root = nullptr;           // reset for new parse
 
-  if (ctx->parser->parse() == 0) {
+  if (ctx->parser.parse() == 0) {
     ASTNode *new_root = root; // get parsed AST
     root = old_root;          // restore old AST
     return new_root;
@@ -91,24 +90,24 @@ ASTNode *Importer::parseFile() {
 void Importer::ensureSemantic(ASTMod *m) {
   if (!m || m->semantic_done)
     return;
-
+  ctx->semantic.main(m->ast);
   m->semantic_done = true;
 }
 
 SA::Type *Importer::handleImport(ASTNode *n) {
   char *path = n->importNode.path;
   bool already_imported = false;
-  ASTMod *mod = ctx->sym->loadMod(path, file->filename, already_imported);
+  ASTMod *mod = ctx->sym.loadMod(path, file->filename, already_imported);
   if (!mod) {
     panic(n->loc, SEM_IMPORT_FILE_NOT_FOUND, path);
-    import_parse_failed = true;
+    ctx->semantic.importParseFailed = true;
     return nullptr;
   }
 
   n->importNode.path = mod->path; // path is already resloved in loadMod fn
 
   if (!mod->parsed) {
-    import_parse_failed = true;
+    ctx->semantic.importParseFailed = true;
     return nullptr;
   }
 

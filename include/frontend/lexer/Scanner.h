@@ -5,6 +5,8 @@
 #include "Scannerbase.h"
 #include "Parserbase.h"
 #include "lexer/keywords.h"
+#include "shared/structs.h"
+#include <vector>
 
 #define VAL(type, action) val->assign<Tag_::type>(action)
 
@@ -18,7 +20,7 @@ class Scanner: public ScannerBase
     // inclusive end, while the cursor is the position immediately after the
     // text consumed so far.
     ParserBase::LTYPE_ cursor = {0};
-    ParserBase::LTYPE_ openDelimPos = {0};
+    std::vector<SA::Location> openDelimPos;
     bool lexErrPending = false;
     int braceDepth = 0;
 
@@ -29,9 +31,16 @@ class Scanner: public ScannerBase
         
         // $insert lexFunctionDecl
         int lex(ParserBase::STYPE_* val, ParserBase::LTYPE_* loc);
-        void setOpenDelimPos(const ParserBase::LTYPE_ &pos) { openDelimPos = pos; }
-        void setOpenDelimPos(const ParserBase::LTYPE_ *pos) { if (pos) openDelimPos = *pos; }
-        ParserBase::LTYPE_ getCursor() const { return openDelimPos; }
+        void setOpenDelimPos(const ParserBase::LTYPE_ *pos) { openDelimPos.push_back(*pos); }
+        auto popOpenDelimPos(){
+            auto pos = openDelimPos.back();
+            openDelimPos.pop_back();
+            return pos;
+        }
+        auto getCursor() { 
+            return popOpenDelimPos();
+        }
+
         bool lexTakeErr(void);
         void lexMarkErr(void);
         static const SA_Keyword *findKeyword(const char *text, size_t len);

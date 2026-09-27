@@ -32,11 +32,11 @@ SA::Type *Semantic::checkForLoop(ASTNode *n, SA::Type *type) {
   }
 
   // 2. Push a new scope for the loop variable
-  ctx->sym->push();
+  ctx->sym.push();
 
   // 3. Declare the iterator variable in the new scope
   if (n->fornode.iterator_var_name &&
-      !ctx->sym->declare(n->fornode.iterator_var_name, &n->isglobal,
+      !ctx->sym.declare(n->fornode.iterator_var_name, &n->isglobal,
                           iterable_type->inner, n->fornode.iterable,
                           n->fornode.isVarMut)) {
     panic(n->loc, SEM_VAR_REDECL, n->fornode.iterator_var_name);
@@ -48,7 +48,7 @@ SA::Type *Semantic::checkForLoop(ASTNode *n, SA::Type *type) {
   inLoop--;
 
   // 5. Pop the scope
-  ctx->sym->pop();
+  ctx->sym.pop();
   return nullptr;
 }
 

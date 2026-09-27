@@ -10,38 +10,38 @@ expr:
     | CHAR_LITERAL              { $$ = $1; }
     | BOOL_LITERAL              { $$ = $1; }
 
-    | expr PLUS expr            { $$ = new_binop($1, $3, @1, OP_ADD); }
-    | expr MINUS expr           { $$ = new_binop($1, $3, @1, OP_SUB); }
-    | expr STAR expr            { $$ = new_binop($1, $3, @1, OP_MUL); }
-    | expr SLASH expr           { $$ = new_binop($1, $3, @1, OP_DIV); }
-    | expr MOD expr             { $$ = new_binop($1, $3, @1, OP_MOD); }
-    | expr POWER expr           { $$ = new_binop($1, $3, @1, OP_POW); }
+    | expr PLUS expr            { $$ = new_binop($1, $3, @1 + @3, OP_ADD); }
+    | expr MINUS expr           { $$ = new_binop($1, $3, @1 + @3, OP_SUB); }
+    | expr STAR expr            { $$ = new_binop($1, $3, @1 + @3, OP_MUL); }
+    | expr SLASH expr           { $$ = new_binop($1, $3, @1 + @3, OP_DIV); }
+    | expr MOD expr             { $$ = new_binop($1, $3, @1 + @3, OP_MOD); }
+    | expr POWER expr           { $$ = new_binop($1, $3, @1 + @3, OP_POW); }
 
-    | expr LSHIFT expr          { $$ = new_binop($1, $3, @1, OP_LSHIFT); }
-    | expr RSHIFT expr          { $$ = new_binop($1, $3, @1, OP_RSHIFT); }
+    | expr LSHIFT expr          { $$ = new_binop($1, $3, @1 + @3, OP_LSHIFT); }
+    | expr RSHIFT expr          { $$ = new_binop($1, $3, @1 + @3, OP_RSHIFT); }
 
-    | expr AMP expr             { $$ = new_binop($1, $3, @1, OP_BITAND); }
-    | expr BITXOR expr          { $$ = new_binop($1, $3, @1, OP_BITXOR); }
-    | expr PIPE expr            { $$ = new_binop($1, $3, @1, OP_BITOR); }
+    | expr AMP expr             { $$ = new_binop($1, $3, @1 + @3, OP_BITAND); }
+    | expr BITXOR expr          { $$ = new_binop($1, $3, @1 + @3, OP_BITXOR); }
+    | expr PIPE expr            { $$ = new_binop($1, $3, @1 + @3, OP_BITOR); }
 
-    | expr AND expr             { $$ = new_binop($1, $3, @1, OP_AND); }
-    | expr OR expr              { $$ = new_binop($1, $3, @1, OP_OR); }
+    | expr AND expr             { $$ = new_binop($1, $3, @1 + @3, OP_AND); }
+    | expr OR expr              { $$ = new_binop($1, $3, @1 + @3, OP_OR); }
 
-    | expr EQ expr              { $$ = new_binop($1, $3, @1, OP_EQ); }
-    | expr NEQ expr             { $$ = new_binop($1, $3, @1, OP_NEQ); }
-    | expr LT expr              { $$ = new_binop($1, $3, @1, OP_LT); }
-    | expr LE expr              { $$ = new_binop($1, $3, @1, OP_LE); }
-    | expr GT expr              { $$ = new_binop($1, $3, @1, OP_GT); }
-    | expr GE expr              { $$ = new_binop($1, $3, @1, OP_GE); }
+    | expr EQ expr              { $$ = new_binop($1, $3, @1 + @3, OP_EQ); }
+    | expr NEQ expr             { $$ = new_binop($1, $3, @1 + @3, OP_NEQ); }
+    | expr LT expr              { $$ = new_binop($1, $3, @1 + @3, OP_LT); }
+    | expr LE expr              { $$ = new_binop($1, $3, @1 + @3, OP_LE); }
+    | expr GT expr              { $$ = new_binop($1, $3, @1 + @3, OP_GT); }
+    | expr GE expr              { $$ = new_binop($1, $3, @1 + @3, OP_GE); }
 
-    | AMP expr %prec AMP        { $$ = new_unop($2, @1, OP_ADDR); }
+    | AMP expr %prec AMP        { $$ = new_unop($2, @1 + @2, OP_ADDR); }
 
-    | STAR expr %prec PLUS      { $$ = new_unop($2, @1, OP_DEREF); }
+    | STAR expr %prec PLUS      { $$ = new_unop($2, @1 + @2, OP_DEREF); }
     
-    | PLUS expr %prec PLUS      { $$ = new_unop($2, @1, OP_POS); }
-    | MINUS expr %prec MINUS    { $$ = new_unop($2, @1, OP_NEG); }
-    | NOT expr                  { $$ = new_unop($2, @1, OP_NOT); }
-    | BITNOT expr               { $$ = new_unop($2, @1, OP_BITNOT); }
+    | PLUS expr %prec PLUS      { $$ = new_unop($2, @1 + @2, OP_POS); }
+    | MINUS expr %prec MINUS    { $$ = new_unop($2, @1 + @2, OP_NEG); }
+    | NOT expr                  { $$ = new_unop($2, @1 + @2, OP_NOT); }
+    | BITNOT expr               { $$ = new_unop($2, @1 + @2, OP_BITNOT); }
 
     | IDENTIFIER INC %prec INC  { $$ = new_unop($1, @1, OP_INC); $$->isglobal = $1->isglobal;}
     | IDENTIFIER DEC %prec INC  { $$ = new_unop($1, @1, OP_DEC); $$->isglobal = $1->isglobal; }
@@ -49,7 +49,7 @@ expr:
     | LPAREN expr RPAREN         { $$ = $2; }
     | IDENTIFIER LPAREN opt_args RPAREN
       {
-          $$ = new_fn_call($1->var, $3, @1);
+          $$ = new_fn_call($1->var, $3, @1 + @4);
           ast_free($1);
       }
 

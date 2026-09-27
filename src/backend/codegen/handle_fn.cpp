@@ -2,7 +2,7 @@
 #include "codegen/codegen.hpp"
 #include <cstring>
 
-extern SemanticSymTable *sym;
+extern SemanticSymTable* sym;
 
 FnHelper::FnHelper(IRGen &irGen)
     : irGen(irGen), mod(irGen.mod), ctx(irGen.ctx), b(irGen.b),

@@ -5,18 +5,35 @@
 // $insert class.h
 #include "Parser.h"
 #include "Scanner.h"
+#include "parser/parser_helpers.h"
 #include "shared/enums.h"
 #include "utils/error_handler/error.h"
+#include <cctype>
 
 inline void Parser::error()
 {
-    panic(d_loc_, PARSE_SYNTAX, ErrMsg);
+    std::string token_text = d_scanner.matched();
+
+    if(token_text == "\"") token_text = "String Literal";
+    else if(token_text == "'") token_text = "Char Literal";
+    else if(isalpha(*token_text.c_str())) token_text = "Identifier";
+    else if(isalnum(*token_text.c_str())) token_text = "Numeric Literal";
+    
+    if (token_text.empty()) {
+        std::string msg = "syntax error: unexpected end of line or end of file";
+        panic(scanner.getCursor(), PARSE_SYNTAX, msg.c_str());
+
+    } else {
+        std::string msg = "syntax error: unexpected token '" + token_text + "'";
+        panic(locBefore(loc), PARSE_SYNTAX, msg.c_str());
+    }
+
 }
 
 // $insert lex
 inline int Parser::lex()
 {
-    return scanner.lex(&d_val_, &d_loc_);
+    return scanner.lex(&val, &loc);
 }
 
 inline void Parser::print()         

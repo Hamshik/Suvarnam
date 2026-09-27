@@ -17,7 +17,6 @@ class Semantic {
   int isInFn = 0;
   int inLoop = 0;
   SA::Type *currFnRet = nullptr;
-  bool importParseFailed = false;
   size_t checkDepth = 0;
 
   void regGlobalVarAndFn(ASTNode*);
@@ -58,6 +57,7 @@ class Semantic {
   SA::Type *checkForLoop(ASTNode *n, SA::Type *type);
 
 public:
+  bool importParseFailed = false;
   static bool isNumeric(DataTypes_t);
   static void checkErr();
   static DataTypes_t promote(DataTypes_t, DataTypes_t);

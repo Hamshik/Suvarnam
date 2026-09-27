@@ -127,12 +127,12 @@ struct ParamList {
 
 class CompilerContext {
 public:
-  Semantic *semantic = nullptr;
-  SemanticSymTable *sym = nullptr;
+  Semantic& semantic;
+  SemanticSymTable& sym;
   // Pass stream directly to Scanner instead of messing with std::cin
   std::istringstream& input;
-  Scanner *scanner;
-  Parser *parser;
+  Scanner& scanner;
+  Parser& parser;
 
   explicit CompilerContext(
     std::istringstream &input,

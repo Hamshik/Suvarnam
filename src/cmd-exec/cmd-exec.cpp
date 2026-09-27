@@ -175,9 +175,9 @@ int compile_and_execute(ASTNode *root, const Options *opts, Importer* import) {
   error_fatal = false; /* collect semantic errors like Rust */
 
   SA::CompilerContext* ctx = import->getCtx();
-  ctx->semantic->main(root);
+  ctx->semantic.main(root);
 
-  sym = ctx->sym;
+  sym = &ctx->sym;
   delete import;
 
   error_fatal = true; /* runtime errors should still stop */

@@ -22,10 +22,10 @@ static inline SA::Location SA_loc_start(SA::Location loc) {
 }
 
 /* Point at the position immediately following a parsed construct. */
-static inline SA::Location SA_loc_after(SA::Location loc) {
-    loc.firstLn = loc.lastLn;
-    loc.firstCol = loc.lastCol + 1;
-    loc.firstPos = loc.lastPos + 1;
+static inline SA::Location locBefore(SA::Location loc) {
+    loc.firstLn = loc.lastLn - 1;
+    loc.firstCol = loc.lastCol;
+    loc.firstPos = loc.lastPos - 1;
     loc.lastLn = loc.firstLn;
     loc.lastCol = loc.firstCol;
     loc.lastPos = loc.firstPos;

@@ -21,7 +21,6 @@
     "chat.tools.terminal.autoApprove": {
         "flexc++": true
     },
-    "cmake.parallelJobs": 4,
     "cmake.configureSettings": {
         "CMAKE_CXX_FLAGS_DEBUG": "-g",
         "CMAKE_CXX_COMPILER_LAUNCHER": "ccache",

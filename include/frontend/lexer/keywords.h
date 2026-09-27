@@ -35,7 +35,7 @@ typedef Parser::Tokens_ Tokens;
     { word, { word, SA_KEYWORD_BOOL_LITERAL, Parser::BOOL_LITERAL, UNKNOWN, value } }
 
 static const std::unordered_map<std::string_view, SA_Keyword> SA_keywords = {
-    TOKEN_KEYWORD("#import", Tokens::IMPORT),
+    TOKEN_KEYWORD("import", Tokens::IMPORT),
     TOKEN_KEYWORD("else", Tokens::ELSE),
     TOKEN_KEYWORD("if", Tokens::IF),
     TOKEN_KEYWORD("for", Tokens::FOR),

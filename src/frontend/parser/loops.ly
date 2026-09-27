@@ -12,51 +12,51 @@ range:
 for_stmt:
     FOR IDENTIFIER IN with_non_expr block
     {
-        $$ = new_for($2->var, $4, $5, @1, false);
+        $$ = new_for($2->var, $4, $5, @1 + @5, false);
         ast_free($2);
     }
     | FOR MUT IDENTIFIER IN with_non_expr block
     { 
-        $$ = new_for($3->var, $5, $6, @1, true); 
+        $$ = new_for($3->var, $5, $6, @1 + @6, true); 
         ast_free($3);
     }
     | FOR range block
     {
-        $$ = new_for("__SA temp idx__", $2, $3, @1, false);
+        $$ = new_for("__SA temp idx__", $2, $3, @1 + @3, false);
     }
 
     | FOR IDENTIFIER IN with_non_expr COLON expr_stmt
     {
-        $$ = new_for($2->var, $4, $6, @1, false);
+        $$ = new_for($2->var, $4, $6, @1 + @6, false);
         ast_free($2);
     }
     | FOR MUT IDENTIFIER IN with_non_expr COLON expr_stmt
     { 
-        $$ = new_for($3->var, $5, $7, @1, true); 
+        $$ = new_for($3->var, $5, $7, @1 + @7, true); 
         ast_free($3);
     }
     | FOR range COLON expr_stmt
     {
-        $$ = new_for("__SA temp idx__", $2, $4, @1, false);
+        $$ = new_for("__SA temp idx__", $2, $4, @1 + @4, false);
     }
 
 ;
 
 while_stmt:
     WHILE expr block
-        { $$ = new_while($2, $3, NULL, @1); }
+        { $$ = new_while($2, $3, NULL, @1 + @3); }
     | WHILE expr COLON assign_expr block
     {
         if($4->assign.op == OP_ASSIGN)
             panic(@4, PARSE_SYNTAX, "with_non_expr expects operational assignment not just plain assign");
-        $$ = new_while($2, $5, $4, @1);
+        $$ = new_while($2, $5, $4, @1 + @5);
     }
     | WHILE expr COLON expr_stmt
-        { $$ = new_while($2, $4, NULL, @1); } 
+        { $$ = new_while($2, $4, NULL, @1 + @4); } 
     | WHILE expr COLON assign_expr COLON expr_stmt
     {
         if($4->assign.op == OP_ASSIGN)
             panic(@4, PARSE_SYNTAX, "with_non_expr expects operational assignment not just plain assign");
-        $$ = new_while($2, $6, $4, @1);    
+        $$ = new_while($2, $6, $4, @1 + @6);    
     }
 ;

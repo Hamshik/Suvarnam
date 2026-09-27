@@ -9,7 +9,7 @@
 [ \t\r\n]+                   { /* skip whitespace */ }
 
 "'''"                        {
-    setOpenDelimPos(*loc);
+    setOpenDelimPos(loc);
     begin(StartCondition_::COMMENT3);
 }
 <COMMENT3>"'''"               { begin(StartCondition_::INITIAL); }
@@ -115,9 +115,9 @@
 "%"                 { return Parser::MOD; }
 "^^"                { return Parser::POWER; }
 "["                 { return Parser::LSQUARE; }
-"]"                 { return Parser::RSQUARE; }
-"("                 { return Parser::LPAREN; }
-")"                 { return Parser::RPAREN; }
+"]"                 { return Parser::RSQUARE;}
+"("                 { return Parser::LPAREN;}
+")"                 { return Parser::RPAREN;}
 "="                 { return Parser::ASSIGN; }
 "+="                { return Parser::PLUS_ASSIGN; }
 "-="                { return Parser::MINUS_ASSIGN; }
@@ -143,8 +143,8 @@
 ">="                { return Parser::GE; }
 "<"                 { return Parser::LT; }
 ">"                 { return Parser::GT; }
-"{"                 { return Parser::LBRACE; }
-"}"                 { return Parser::RBRACE; }
+"{"                 { setOpenDelimPos(loc); return Parser::LBRACE; }
+"}"                 { popOpenDelimPos(); return Parser::RBRACE; }
 ".."                { return Parser::DOT_DOT; }
 "..."               { return Parser::ELLIPSIS; }
 
