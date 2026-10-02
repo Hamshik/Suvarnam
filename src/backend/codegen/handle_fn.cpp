@@ -22,7 +22,12 @@ Function *FnHelper::getOrAddSymPrototype(const char *name) {
   for (int i = 0; i < symbol->param_count; ++i) {
     if (!symbol->params || !symbol->params[i].type)
       return nullptr;
+
     params.push_back(irGen.irType(symbol->params[i].type->base));
+
+    if (symbol->params[i].is_variadic && symbol->params[i].type->base == LIST) {
+      params.push_back(llvm::Type::getInt64Ty(ctx));
+    }
   }
 
   llvm::Type *return_type = symbol->ret ? irGen.irType(symbol->ret->base)

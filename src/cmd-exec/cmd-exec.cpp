@@ -246,8 +246,6 @@ int compile_and_execute(ASTNode *root, const Options *opts, Importer* import) {
   for (const auto &obj_path : object_paths) {
     link_args.push_back(obj_path);
   }
-  link_args.push_back("-Wl,-e,entrypoint");
-  link_args.push_back("-no-pie");
   link_args.push_back("-g");
   link_args.push_back("-O0");
   link_args.push_back("-o");

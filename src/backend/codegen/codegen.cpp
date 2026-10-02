@@ -6,6 +6,7 @@
 #include <iostream>
 #include <llvm-22/llvm/IR/LLVMContext.h>
 #include <llvm-22/llvm/IR/Module.h>
+#include <string>
 #include <unordered_set>
 #include <vector>
 
@@ -96,6 +97,9 @@ Function *FnHelper::emitInitFn(HIRNode *root) {
       for (auto stmt : *n->block_stmts) {
         if (stmt->kind == AST_FN)
           continue;
+        if (stmt->kind == AST_ASSIGN && stmt->assign.is_declaration &&
+            stmt->isglobal && irGen.tryEmitConst(stmt->assign.value))
+          continue;
         irGen.emitExpr(stmt, irGen.locals);
       }
     }
@@ -129,9 +133,10 @@ bool FnHelper::emitEntryFn(Function *initFn) {
 
   Function *exitFn = mod.getFunction("exit");
   if (!exitFn) {
-    FunctionType *ft = FunctionType::get(llvm::Type::getVoidTy(ctx),    // return void
-                                                    {llvm::Type::getInt32Ty(ctx)}, // takes int
-                                                    false);
+    FunctionType *ft =
+        FunctionType::get(llvm::Type::getVoidTy(ctx),    // return void
+                          {llvm::Type::getInt32Ty(ctx)}, // takes int
+                          false);
 
     exitFn = Function::Create(ft, Function::ExternalLinkage, "exit", mod);
   }
@@ -139,8 +144,8 @@ bool FnHelper::emitEntryFn(Function *initFn) {
   llvm::Value *ret = b.CreateCall(userMain);
 
   llvm::Value *exitCode = userMain->getReturnType()->isVoidTy()
-                        ? b.getInt32(0)
-                        : b.CreateIntCast(ret, b.getInt32Ty(), true);
+                              ? b.getInt32(0)
+                              : b.CreateIntCast(ret, b.getInt32Ty(), true);
 
   b.CreateCall(exitFn, {exitCode});
   b.CreateUnreachable();
@@ -174,7 +179,7 @@ bool IRGen::emitIR(const char *path, char **out) {
   return true;
 }
 
-void IRGen::preDecImportStmts(HIRNode *root) {
+void IRGen::preDecImportStmts(HIRNode *root, const char *outPath) {
   if (!root || !root->block_stmts)
     return;
 
@@ -184,13 +189,16 @@ void IRGen::preDecImportStmts(HIRNode *root) {
 
     std::string safe_name = stmt->name;
     for (char &c : safe_name) {
-      if (c == '/' || c == '\\') c = '_';
+      if (c == '/' || c == '\\')
+        c = '_';
     }
-    auto name = "/tmp/suvarnam_" + safe_name + ".ll";
+    auto name = outPath ? std::string(outPath) + safe_name + ".ll"
+                        : "/tmp/suvarnam_" + safe_name + ".ll";
 
     auto imported_mod = SA::HIR_SymbolTable::getMod(stmt->name);
     if (imported_mod && imported_mod->hirNode) {
-      codegen(imported_mod->hirNode, name.c_str(), nullptr, false /* is_main_module */);
+      codegen(imported_mod->hirNode, name.c_str(), nullptr,
+              false /* is_main_module */);
       ir_out.push_back(name);
     }
   }
@@ -198,22 +206,15 @@ void IRGen::preDecImportStmts(HIRNode *root) {
 
 /* ===================== MAIN CODEGEN ===================== */
 
-int IRGen::main(HIRNode *root, const char *ll_path, char **out_ir_str, bool is_main_module) {
+int IRGen::main(HIRNode *root, const char *ll_path, char **out_ir_str,
+                bool is_main_module) {
 
   if (!setupTarget())
     return 1;
 
-  preDecImportStmts(root);
-  fnHelper.preDecAllUserFns(root);
+  preDecImportStmts(root, ll_path);
   emitGlobVar(root);
   fnHelper.emitFns(root);
-
-  Function *initFn = fnHelper.emitInitFn(root);
-
-  if (is_main_module) {
-    if (!fnHelper.emitEntryFn(initFn))
-      return 1;
-  }
 
   // verify
   std::string err;
@@ -235,7 +236,8 @@ int IRGen::main(HIRNode *root, const char *ll_path, char **out_ir_str, bool is_m
   return 0;
 }
 
-int codegen(HIRNode *root, const char *ll_path, char **out_ir_str, bool is_main_module) {
+int codegen(HIRNode *root, const char *ll_path, char **out_ir_str,
+            bool is_main_module) {
   IRGen irGen;
   return irGen.main(root, ll_path, out_ir_str, is_main_module);
 }

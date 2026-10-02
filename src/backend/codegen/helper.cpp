@@ -2,6 +2,7 @@
 #include "shared/enums.h"
 #include <cstdio>
 #include <iostream>
+#include <math.h>
 
 __int128 parse_i128(const char *s, int *ok) {
   if (ok)
@@ -171,6 +172,172 @@ llvm::Value *IRGen::emitNum(HIRNode *n) {
     snprintf(err_msg, sizeof(err_msg), 
              "Codegen Error: AST_NUM has non-numeric type base %d", n->type->base);
     panic(n->loc, RT_NUM_LITERAL_UNSUPPORTED, err_msg);
+    return nullptr;
+  }
+}
+
+llvm::Constant *IRGen::tryEmitConst(HIRNode *n) {
+  if (!n)
+    return nullptr;
+
+  switch (n->kind) {
+  case AST_NUM:
+    return dyn_cast_or_null<llvm::Constant>(emitNum(n));
+  case AST_BOOL:
+    return llvm::ConstantInt::get(llvm::Type::getInt1Ty(ctx),
+                                 n->val.bval ? 1 : 0, false);
+  case AST_LIST: {
+    if (!n->element.elements || n->element.elements->empty())
+      return nullptr;
+
+    std::vector<llvm::Constant *> elements;
+    llvm::Type *elemTy = nullptr;
+
+    for (HIRNode *elem : *n->element.elements) {
+      llvm::Constant *constElem = tryEmitConst(elem);
+      if (!constElem)
+        return nullptr;
+
+      if (!elemTy)
+        elemTy = constElem->getType();
+      else if (constElem->getType() != elemTy)
+        return nullptr;
+
+      elements.push_back(constElem);
+    }
+
+    if (!elemTy)
+      return nullptr;
+
+    auto *arrayTy = llvm::ArrayType::get(elemTy, elements.size());
+    return llvm::ConstantArray::get(arrayTy, elements);
+  }
+  case AST_UNOP: {
+    auto *operand = tryEmitConst(n->binary.left);
+    if (!operand)
+      return nullptr;
+
+    if (auto *intC = dyn_cast<llvm::ConstantInt>(operand)) {
+      switch (n->binary.op) {
+      case OP_NEG:
+        return llvm::ConstantInt::get(intC->getType(), -intC->getValue());
+      case OP_NOT:
+        return llvm::ConstantInt::get(intC->getType(), ~intC->getValue());
+      default:
+        return nullptr;
+      }
+    }
+
+    if (auto *fpC = dyn_cast<llvm::ConstantFP>(operand)) {
+      switch (n->binary.op) {
+      case OP_NEG:
+        return llvm::ConstantFP::get(operand->getType(),
+                                    -fpC->getValueAPF());
+      default:
+        return nullptr;
+      }
+    }
+
+    return nullptr;
+  }
+  case AST_BINOP: {
+    auto *lhs = tryEmitConst(n->binary.left);
+    auto *rhs = tryEmitConst(n->binary.right);
+    if (!lhs || !rhs)
+      return nullptr;
+
+    if (auto *li = dyn_cast<llvm::ConstantInt>(lhs);
+        li && dyn_cast<llvm::ConstantInt>(rhs)) {
+      auto *ri = dyn_cast<llvm::ConstantInt>(rhs);
+      const llvm::APInt a = li->getValue();
+      const llvm::APInt b = ri->getValue();
+
+      switch (n->binary.op) {
+      case OP_ADD:
+        return llvm::ConstantInt::get(li->getType(), a + b);
+      case OP_SUB:
+        return llvm::ConstantInt::get(li->getType(), a - b);
+      case OP_MUL:
+        return llvm::ConstantInt::get(li->getType(), a * b);
+      case OP_DIV:
+        return llvm::ConstantInt::get(li->getType(), a.sdiv(b));
+      case OP_MOD:
+        return llvm::ConstantInt::get(li->getType(), a.srem(b));
+      case OP_EQ:
+        return a == b ? llvm::ConstantInt::getTrue(ctx)
+                      : llvm::ConstantInt::getFalse(ctx);
+      case OP_NEQ:
+        return a != b ? llvm::ConstantInt::getTrue(ctx)
+                      : llvm::ConstantInt::getFalse(ctx);
+      case OP_LT:
+        return a.slt(b) ? llvm::ConstantInt::getTrue(ctx)
+                        : llvm::ConstantInt::getFalse(ctx);
+      case OP_LE:
+        return a.sle(b) ? llvm::ConstantInt::getTrue(ctx)
+                        : llvm::ConstantInt::getFalse(ctx);
+      case OP_GT:
+        return a.sgt(b) ? llvm::ConstantInt::getTrue(ctx)
+                        : llvm::ConstantInt::getFalse(ctx);
+      case OP_GE:
+        return a.sge(b) ? llvm::ConstantInt::getTrue(ctx)
+                        : llvm::ConstantInt::getFalse(ctx);
+      default:
+        return nullptr;
+      }
+    }
+
+    if (auto *lf = dyn_cast<llvm::ConstantFP>(lhs);
+        lf && dyn_cast<llvm::ConstantFP>(rhs)) {
+      auto *rf = dyn_cast<llvm::ConstantFP>(rhs);
+      const llvm::APFloat a = lf->getValueAPF();
+      const llvm::APFloat b = rf->getValueAPF();
+
+      switch (n->binary.op) {
+      case OP_ADD:
+        return llvm::ConstantFP::get(lhs->getType(), a + b);
+      case OP_SUB:
+        return llvm::ConstantFP::get(lhs->getType(), a - b);
+      case OP_MUL:
+        return llvm::ConstantFP::get(lhs->getType(), a * b);
+      case OP_DIV:
+        return llvm::ConstantFP::get(lhs->getType(), a / b);
+      case OP_MOD:
+        return llvm::ConstantFP::get(lhs->getType(), std::fmod(a.convertToDouble(),
+                                                            b.convertToDouble()));
+      case OP_EQ:
+        return (a.compare(b) == llvm::APFloat::cmpEqual)
+                   ? llvm::ConstantInt::getTrue(ctx)
+                   : llvm::ConstantInt::getFalse(ctx);
+      case OP_NEQ:
+        return (a.compare(b) != llvm::APFloat::cmpEqual)
+                   ? llvm::ConstantInt::getTrue(ctx)
+                   : llvm::ConstantInt::getFalse(ctx);
+      case OP_LT:
+        return (a.compare(b) == llvm::APFloat::cmpLessThan)
+                   ? llvm::ConstantInt::getTrue(ctx)
+                   : llvm::ConstantInt::getFalse(ctx);
+      case OP_LE:
+        return (a.compare(b) == llvm::APFloat::cmpLessThan ||
+                a.compare(b) == llvm::APFloat::cmpEqual)
+                   ? llvm::ConstantInt::getTrue(ctx)
+                   : llvm::ConstantInt::getFalse(ctx);
+      case OP_GT:
+        return (a.compare(b) == llvm::APFloat::cmpGreaterThan)
+                   ? llvm::ConstantInt::getTrue(ctx)
+                   : llvm::ConstantInt::getFalse(ctx);
+      case OP_GE:
+        return (a.compare(b) == llvm::APFloat::cmpGreaterThan ||
+                a.compare(b) == llvm::APFloat::cmpEqual)
+                   ? llvm::ConstantInt::getTrue(ctx)
+                   : llvm::ConstantInt::getFalse(ctx);
+      default:
+        return nullptr;
+      }
+    }
+
+    return nullptr;
+  }
+  default:
     return nullptr;
   }
 }

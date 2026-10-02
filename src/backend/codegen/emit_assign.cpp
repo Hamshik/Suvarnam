@@ -122,11 +122,34 @@ void IRGen::emitGlobVar(HIRNode *n) {
 
       // Internal compiler variables (like loop counters) should use
       // InternalLinkage
-      auto linkage = (name.find("__") == 0) ? GlobalValue::InternalLinkage
+      auto linkage = (name.find("\003SA") == 0) ? GlobalValue::InternalLinkage
                                             : GlobalValue::ExternalLinkage;
 
-      new GlobalVariable(mod, irType(t), false, linkage,
-                         Constant::getNullValue(irType(t)), name);
+      llvm::Constant *initializer = tryEmitConst(stmt->assign.value);
+      if (!initializer)
+        panic(n->loc, SEM_INTERNAL_ERROR,
+              "Failed to emit constant initializer for global variable");
+
+      if (t == LIST) {
+        if (!initializer || !initializer->getType()->isArrayTy()) {
+          panic(n->loc, SEM_INTERNAL_ERROR,
+                "Global list initializer must lower to an array constant");
+        }
+
+        llvm::Type *arrayTy = initializer->getType();
+        std::string dataName = name + ".data";
+        auto *dataGV = new GlobalVariable(mod, arrayTy, true,
+                                          GlobalValue::ExternalLinkage,
+                                          cast<llvm::Constant>(initializer),
+                                          dataName);
+        auto *ptrInit = ConstantExpr::getBitCast(dataGV,
+                                                PointerType::getUnqual(ctx));
+        new GlobalVariable(mod, PointerType::getUnqual(ctx), false, linkage,
+                           ptrInit, name);
+        continue;
+      }
+
+      new GlobalVariable(mod, irType(t), false, linkage, initializer, name);
     }
   }
 }

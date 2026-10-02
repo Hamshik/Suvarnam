@@ -103,12 +103,14 @@ public:
 
   llvm::Type *irType(DataTypes_t);
   void emitGlobVar(HIRNode *);
+  llvm::Value *handleExternalGlobalVar(const char *varName);
 
   llvm::Value *emitExpr(HIRNode *, Codegen::Scope &);
   AllocaInst *getOrAddAlloca(const std::string &, DataTypes_t,
                              Codegen::Scope &);
 
   llvm::Value *emitNum(HIRNode *);
+  llvm::Constant *tryEmitConst(HIRNode *);
   llvm::Value *emitWhileloop(HIRNode *, Codegen::Scope &);
   llvm::Value *emitBinop(HIRNode *, Codegen::Scope &);
   llvm::Value *emitUnop(HIRNode *, Codegen::Scope &);
@@ -126,7 +128,7 @@ public:
 
   TargetMachine *setupTarget();
   bool emitIR(const char *, char **);
-  void preDecImportStmts(HIRNode *);
+  void preDecImportStmts(HIRNode *, const char *);
 
 public:
   IRGen()

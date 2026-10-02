@@ -1,12 +1,26 @@
+#include "SymbolTable/SymbolTableInternal.hpp"
 #include "codegen/codegen.hpp"
 #include <llvm-22/llvm/IR/Value.h>
 #include <vector>
 
 struct LoopContext {
-    BasicBlock *continuationBB;
-    BasicBlock *exitBB;
+  BasicBlock *continuationBB;
+  BasicBlock *exitBB;
 };
 extern std::vector<LoopContext> loopStack;
+extern SemanticSymTable *sym;
+llvm::Value *IRGen::handleExternalGlobalVar(const char *varName) {
+  auto varInfo = sym->getTopScope(varName);
+
+  if (!varInfo) return nullptr;
+  // Create a new global variable in the LLVM module
+  llvm::Type *varType = irType(varInfo->type->base);
+  llvm::GlobalVariable *newGlobalVar = new llvm::GlobalVariable(
+      mod, varType, false, llvm::GlobalValue::ExternalLinkage, nullptr,
+      varName);
+
+  return newGlobalVar;
+}
 
 llvm::Value *IRGen::emitExpr(HIRNode *n, Codegen::Scope &locals) {
   if (!n)
@@ -31,13 +45,15 @@ llvm::Value *IRGen::emitExpr(HIRNode *n, Codegen::Scope &locals) {
     return strHelper.emitChar(n);
 
   case AST_VAR: {
-    const char* varName = n->name ? n->name : "unnamed_tmp";
+    const char *varName = n->name ? n->name : "unnamed_tmp";
 
     Module *m = b.GetInsertBlock()->getModule();
-    llvm::Value* foundVal = nullptr;
+    llvm::Value *foundVal = nullptr;
 
     if (n->isglobal) {
       foundVal = m->getGlobalVariable(varName, true);
+      if (!foundVal)
+        foundVal = handleExternalGlobalVar(varName);
     } else {
       foundVal = locals.lookup(varName);
       if (!foundVal)
@@ -46,21 +62,26 @@ llvm::Value *IRGen::emitExpr(HIRNode *n, Codegen::Scope &locals) {
 
     if (foundVal) {
       // 🏠 Check if it is a local Stack variable allocation
-      // 🌍 Check if it is a module Global Variable allocation (This will now succeed!)
+      // 🌍 Check if it is a module Global Variable allocation (This will now
+      // succeed!)
       if (GlobalVariable *global_var = dyn_cast<GlobalVariable>(foundVal)) {
         return b.CreateLoad(global_var->getValueType(), global_var, varName);
       }
 
       if (AllocaInst *alloca_inst = dyn_cast<AllocaInst>(foundVal)) {
-        return b.CreateLoad(alloca_inst->getAllocatedType(), alloca_inst, varName);
+        return b.CreateLoad(alloca_inst->getAllocatedType(), alloca_inst,
+                            varName);
       }
 
-      // Fallback if it is a direct loaded register or standard parameter pointer
+      // Fallback if it is a direct loaded register or standard parameter
+      // pointer
       return foundVal;
     }
 
-    fprintf(stderr, "Codegen Error: Undefined variable '%s' evaluated at runtime \
-      at line %zu col %zu\n", varName, n->loc.firstLn, n->loc.firstCol);
+    fprintf(stderr,
+            "Codegen Error: Undefined variable '%s' evaluated at runtime \
+      at line %zu col %zu\n",
+            varName, n->loc.firstLn, n->loc.firstCol);
     return nullptr;
   }
 
@@ -84,13 +105,14 @@ llvm::Value *IRGen::emitExpr(HIRNode *n, Codegen::Scope &locals) {
 
   case AST_BLOCK: {
     // ITERATIVE processing of block statements
-    llvm::Value* lastVal = nullptr;
+    llvm::Value *lastVal = nullptr;
     for (auto stmt : *n->block_stmts) {
-        // If the current instruction stream is truly terminated (e.g., a return),
-        // we skip the rest of this specific block.
-        if (blockTerminated()) break;
-        
-        lastVal = emitExpr(stmt, locals);
+      // If the current instruction stream is truly terminated (e.g., a return),
+      // we skip the rest of this specific block.
+      if (blockTerminated())
+        break;
+
+      lastVal = emitExpr(stmt, locals);
     }
     return lastVal;
   }
@@ -109,7 +131,7 @@ llvm::Value *IRGen::emitExpr(HIRNode *n, Codegen::Scope &locals) {
 
   case AST_BREAK: {
     if (!loopStack.empty()) {
-      auto& currentLoop = loopStack.back();
+      auto &currentLoop = loopStack.back();
       b.CreateBr(currentLoop.exitBB);
     }
     return nullptr;

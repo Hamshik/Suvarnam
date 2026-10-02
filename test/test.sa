@@ -1,4 +1,5 @@
 import "helper.sa"
+import "helper2.sa"
 
 fn i32 main() {
     var mut i32 x = 10;
