@@ -67,7 +67,7 @@ SA::TypedVal ast_eval(ASTNode *node) {
     return eval_unop(node);
 
   case AST_ASSIGN: {
-    if (node->assign.op == OP_ASSIGN && node->assign.is_declaration) {
+    if (node->assign.op == OP_ASSIGN && node->assign.isDec) {
       SA::TypedVal rt0 = ast_eval(node->assign.rhs);
       SA::TypedVal rt = SA_cast_typed(rt0, node->type);
       SA_runtime_env_set_current(node->assign.lhs->var, &rt.val, node->type);
@@ -88,13 +88,13 @@ SA::TypedVal ast_eval(ASTNode *node) {
 
   case AST_IF:
     if (ast_eval(node->ifnode.cond).val.bval) {
-      SA::TypedVal r = ast_eval(node->ifnode.then_branch);
+      SA::TypedVal r = ast_eval(node->ifnode.thenBranch);
       if (g_returning)
         return g_return_value;
       return r;
     }
-    if (node->ifnode.else_branch) {
-      SA::TypedVal r = ast_eval(node->ifnode.else_branch);
+    if (node->ifnode.elseBranch) {
+      SA::TypedVal r = ast_eval(node->ifnode.elseBranch);
       if (g_returning)
         return g_return_value;
       return r;
@@ -131,8 +131,8 @@ SA::TypedVal ast_eval(ASTNode *node) {
 
   case AST_RETURN: {
     SA::TypedVal r = {.type = 0, .val = {0}};
-    if (node->ret_stmt.value)
-      r = ast_eval(node->ret_stmt.value);
+    if (node->ret.value)
+      r = ast_eval(node->ret.value);
     g_return_value = r;
     g_returning = 1;
     return r;

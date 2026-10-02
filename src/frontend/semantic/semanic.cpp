@@ -103,9 +103,9 @@ SA::Type *Semantic::checkExpr(ASTNode *n, SA::Type *&type) {
     if (ct->base != BOOL)
       panic(n->loc, SEM_IF_COND_NOT_BOOL, NULL);
 
-    checkExpr(n->ifnode.then_branch);
-    if (n->ifnode.else_branch)
-      checkExpr(n->ifnode.else_branch);
+    checkExpr(n->ifnode.thenBranch);
+    if (n->ifnode.elseBranch)
+      checkExpr(n->ifnode.elseBranch);
 
     return nullptr;
   }

@@ -52,7 +52,7 @@ void Semantic::processDecl(ASTNode *n, SA::Type *&lhs_t, SA::Type *rhs_t) {
   ASTNode *rhs = n->assign.rhs;
   const char *var_name = getSafeName(n->assign.lhs);
 
-  if (n->assign.is_declaration && (lhs_t->base == UNKNOWN || !lhs_t)) {
+  if (n->assign.isDec && (lhs_t->base == UNKNOWN || !lhs_t)) {
     free(lhs_t);
     lhs_t = rhs_t;
   }
@@ -155,7 +155,7 @@ void Semantic::validateAssign(ASTNode *n, SA::Type *lhs_t, SA::Type *rhs_t) {
 
     while (l_curr->base == LIST && r_curr->base == LIST) {
       if (l_curr->size != r_curr->size) {
-        if (n->assign.is_declaration && l_curr->size == 0) {
+        if (n->assign.isDec && l_curr->size == 0) {
           l_curr->size = r_curr->size;
         } else {
           panic(n->loc, SEM_LIST_SIZE_MISMATCH, "Dimension size mismatch");
@@ -182,7 +182,7 @@ void Semantic::resolveTargetType(ASTNode *n, SA::Type *&type) {
 
   if (lhs->kind == AST_VAR) {
     const char *name = lhs->var ? lhs->var : lhs->var;
-    if (n->assign.is_declaration) {
+    if (n->assign.isDec) {
       if (!n->type)
         n->type = new SA::Type(UNKNOWN, NULL);
       type = n->type;
@@ -193,7 +193,7 @@ void Semantic::resolveTargetType(ASTNode *n, SA::Type *&type) {
   }
 
   else if (lhs->kind == AST_UNOP && lhs->unop.op == OP_DEREF) {
-    if (n->assign.is_declaration) {
+    if (n->assign.isDec) {
       panic(n->loc, SEM_ASSIGN_TARGET_NOT_VAR, "cannot declare through deref");
     }
 
@@ -237,7 +237,7 @@ SA::Type *Semantic::assign(ASTNode *n, SA::Type *type) {
 
   const char *target_name = getSafeName(n->assign.lhs);
 
-  if (n->assign.is_declaration) {
+  if (n->assign.isDec) {
     processDecl(n, lhs_t, rhs_t);
   } else {
 
@@ -296,7 +296,7 @@ SA::Type *Semantic::assign(ASTNode *n, SA::Type *type) {
   // Sync types down to AST layers cleanly
   n->type = n->assign.lhs->type = lhs_t;
 
-  if (n->assign.is_declaration) {
+  if (n->assign.isDec) {
     n->assign.lhs->ismut = n->ismut;
   }
 

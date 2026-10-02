@@ -22,7 +22,7 @@
 %token <node> IDENTIFIER NUMBER STRING_LITERAL BOOL_LITERAL CHAR_LITERAL
 
 %type <op> assign_op
-%type <node>  top_level_stmts block if_stmt for_stmt while_stmt import_stmt expr_stmts
+%type <node>  top_level_stmts block ifStmt for_stmt while_stmt import_stmt expr_stmts
 %type <node>  fn_def param param_tail return_stmt opt_args args list_stmt with_non_expr expr_stmt top_level_stmt index_stmt fn_block_t
 %type <node>  assign_expr import_list expr assignment program range
 %type <paramlist> opt_params params
@@ -92,7 +92,7 @@ expr_stmt:
     | return_stmt SEMICOLON     { $$ = $1; }
     | LEX_ERROR SEMICOLON       { scanner.lexTakeErr(); $$ = null(ASTNode*); }
     | LEX_ERROR                 { scanner.lexTakeErr(); $$ = null(ASTNode*); }
-    | if_stmt                   { $$ = $1; }
+    | ifStmt                   { $$ = $1; }
     | for_stmt                  { $$ = $1; }
     | while_stmt                { $$ = $1; }
     | CONTINUE SEMICOLON        { $$ = new_continue(@1); }
@@ -130,7 +130,7 @@ block:
     LBRACE expr_stmts RBRACE    { $$ = $2; }
 ;
 
-if_stmt:
+ifStmt:
     IF expr block %prec LOWER_THAN_ELSE
         { $$ = new_if($2, $3, NULL, @1 + @3); }
     | IF expr block ELSE expr_stmt

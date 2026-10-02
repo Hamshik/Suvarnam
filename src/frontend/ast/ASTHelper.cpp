@@ -46,8 +46,8 @@ void ast_free(ASTNode *n) {
 
         case AST_IF:
             ast_free(n->ifnode.cond);
-            ast_free(n->ifnode.then_branch);
-            ast_free(n->ifnode.else_branch);
+            ast_free(n->ifnode.thenBranch);
+            ast_free(n->ifnode.elseBranch);
             break;
 
         case AST_FOR:
@@ -58,7 +58,7 @@ void ast_free(ASTNode *n) {
 
         case AST_FN:
             free(n->fn_def.name);
-            for (int i = 0; i < n->fn_def.param_count; i++) {
+            for (int i = 0; i < n->fn_def.paramCount; i++) {
                 free(n->fn_def.params[i].name);
             }
             free(n->fn_def.params);
@@ -71,7 +71,7 @@ void ast_free(ASTNode *n) {
             break;
 
         case AST_RETURN:
-            ast_free(n->ret_stmt.value);
+            ast_free(n->ret.value);
             break;
 
         case AST_BOOL:

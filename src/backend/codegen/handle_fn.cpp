@@ -18,8 +18,8 @@ Function *FnHelper::getOrAddSymPrototype(const char *name) {
     return nullptr;
 
   std::vector<llvm::Type *> params;
-  params.reserve(symbol->param_count);
-  for (int i = 0; i < symbol->param_count; ++i) {
+  params.reserve(symbol->paramCount);
+  for (int i = 0; i < symbol->paramCount; ++i) {
     if (!symbol->params || !symbol->params[i].type)
       return nullptr;
 
@@ -97,13 +97,13 @@ void FnHelper::emitFn(HIRNode *fn_ast) {
   }
 }
 
-static bool is_variadic_builtin_call(const HIRNode *n) {
-  if (!n || !n->call.target_fn) {
+static bool isVariadicBuiltin_call(const HIRNode *n) {
+  if (!n || !n->call.targetFb) {
     return false;
   }
 
   BuiltinFunction *builtin =
-      BuiltinRegistry::instance().lookup(n->call.target_fn);
+      BuiltinRegistry::instance().lookup(n->call.targetFb);
   if (!builtin) {
     return false;
   }
@@ -124,7 +124,7 @@ llvm::Value *FnHelper::emitCall(HIRNode *n, Codegen::Scope &locals) {
   // 🔹 Evaluate arguments
   if (n->call.args) {
     for (HIRNode *arg_node : *n->call.args) {
-      if (is_variadic_builtin_call(n) && arg_node &&
+      if (isVariadicBuiltin_call(n) && arg_node &&
           arg_node->kind == AST_LIST) {
         for (HIRNode *packed_arg : *arg_node->element.elements) {
           llvm::Value *v = irGen.emitExpr(packed_arg, locals);
@@ -142,7 +142,7 @@ llvm::Value *FnHelper::emitCall(HIRNode *n, Codegen::Scope &locals) {
     }
   }
 
-  const char *fname = n->call.target_fn;
+  const char *fname = n->call.targetFb;
 
   if (!fname || fname[0] == '\0') {
     syserr("ERROR: function call with empty name\n");

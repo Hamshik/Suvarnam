@@ -109,8 +109,8 @@ ASTNode* new_if(ASTNode *cond, ASTNode *thenB, ASTNode *elseB, SA::Location loc)
     ASTNode *node = ast_alloc();
     node->kind = AST_IF;
     node->ifnode.cond = cond;
-    node->ifnode.then_branch = thenB;
-    node->ifnode.else_branch = elseB;
+    node->ifnode.thenBranch = thenB;
+    node->ifnode.elseBranch = elseB;
     node->type = NULL;
     node->loc = loc;
     return node;
@@ -139,12 +139,12 @@ ASTNode* new_while(ASTNode *cond, ASTNode *body, ASTNode* expr, SA::Location loc
     return node;
 }
 
-ASTNode *new_fn_def(const char *name, SA::Param *params, int param_count, SA::Type *ret_type, ASTNode *body, SA::Location loc){
+ASTNode *new_fn_def(const char *name, SA::Param *params, int paramCount, SA::Type *ret_type, ASTNode *body, SA::Location loc){
     ASTNode *node = ast_alloc();
     node->kind = AST_FN;
     node->fn_def.name = strdup(name);
     node->fn_def.params = params;
-    node->fn_def.param_count = param_count;
+    node->fn_def.paramCount = paramCount;
     node->type = ret_type;
     node->fn_def.body = body;
     node->type = ret_type; // The type of a function definition is its return type
@@ -165,7 +165,7 @@ ASTNode* new_fn_call(const char *name, ASTNode *args, SA::Location loc){
 ASTNode* new_return(ASTNode *value, SA::Location loc) {
     ASTNode *node = ast_alloc();
     node->kind = AST_RETURN;
-    node->ret_stmt.value = value;
+    node->ret.value = value;
     node->type = value ? value->type : NULL;
     node->loc = loc;
     return node;

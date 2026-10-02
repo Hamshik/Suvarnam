@@ -14,17 +14,17 @@ SA::Value handle_num(ASTNode *node);
 
 // Flattens front-end binary sequence trees into a flat vector of Mid-AST
 // nodes
-void HIRGenerator::flatten_sequence(ASTNode *node,
+void HIRGenerator::flattenSeq(ASTNode *node,
                                     std::vector<HIRNode *> *stmts) {
   if (!node)
     return;
 
   if (node->kind == AST_SEQ) {
-    flatten_sequence(node->seq.a, stmts);
-    flatten_sequence(node->seq.b, stmts);
+    flattenSeq(node->seq.a, stmts);
+    flattenSeq(node->seq.b, stmts);
   } else {
     // 1. Clear any leftover side-effects from previous statements
-    side_effect_buffer.clear();
+    sideEffectBuf.clear();
 
     // 2. Generate the current statement (e.g., AST_CALL for printlns)
     HIRNode *m_node = generate(node);
@@ -32,11 +32,11 @@ void HIRGenerator::flatten_sequence(ASTNode *node,
     // 3. 🎯 THE CRITICAL INJECTION: If generating this statement created
     // __deref temporaries, they MUST be pushed into the final statements array
     // BEFORE this statement!
-    if (!side_effect_buffer.empty()) {
-      for (auto *side_effect : side_effect_buffer) {
+    if (!sideEffectBuf.empty()) {
+      for (auto *side_effect : sideEffectBuf) {
         stmts->push_back(side_effect);
       }
-      side_effect_buffer.clear(); // Reset the buffer
+      sideEffectBuf.clear(); // Reset the buffer
     }
 
     // 4. Now safely append the main statement node that relies on those
@@ -51,7 +51,7 @@ void HIRGenerator::flatten_sequence(ASTNode *node,
 }
 
 
-HIRNode *HIRGenerator::emit_idx(ASTNode *node) {
+HIRNode *HIRGenerator::emitIdx(ASTNode *node) {
   HIRNode *target_node = generate(node->index.target);
   
   if (target_node && target_node->type && target_node->type->base == STRINGS) {
@@ -66,7 +66,7 @@ HIRNode *HIRGenerator::emit_idx(ASTNode *node) {
       curr_idx = curr_idx->next;
     }
 
-    HIRNode *call_node = create_call(
+    HIRNode *call_node = createCall(
         "_SA_getCharAt", call_args,
         node->type ? node->type : new SA::Type(CHARACTER, nullptr));
       
@@ -188,7 +188,7 @@ SA::Value handle_num(ASTNode *node) {
   return v.val;
 }
 
-HIRNode *HIRGenerator::create_var(ASTNode *node) {
+HIRNode *HIRGenerator::createVar(ASTNode *node) {
   HIRNode *m_node = new HIRNode(ASTKind::AST_VAR);
   m_node->name = strdup(node->var);
   m_node->type = node->type;
@@ -197,6 +197,6 @@ HIRNode *HIRGenerator::create_var(ASTNode *node) {
   return m_node;
 }
 
-bool HIRGenerator::is_param(const std::string& name) const {
-  return current_params.find(name) != current_params.end();
+bool HIRGenerator::isParam(const std::string& name) const {
+  return currParams.find(name) != currParams.end();
 }

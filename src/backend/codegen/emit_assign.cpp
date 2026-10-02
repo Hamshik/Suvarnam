@@ -41,7 +41,7 @@ llvm::Value *IRGen::emitAssign(HIRNode *n, Codegen::Scope &locals) {
                       ? n->type->base
                       : (lhs->type ? lhs->type->base : UNKNOWN);
 
-    if (n->assign.is_declaration) {
+    if (n->assign.isDec) {
       if (n->isglobal) {
         targetPtr = m->getGlobalVariable(name, true);
         if (!targetPtr) {
@@ -104,11 +104,11 @@ void IRGen::emitGlobVar(HIRNode *n) {
 
   // Recursive global emission must only stay in the top-level block.
   // We do not traverse into AST_FN nodes here.
-  if (n->kind != AST_BLOCK || !n->block_stmts)
+  if (n->kind != AST_BLOCK || !n->blockStmts)
     return;
 
-  for (auto *stmt : *n->block_stmts) {
-    if (stmt->kind == AST_ASSIGN && stmt->assign.is_declaration) {
+  for (auto *stmt : *n->blockStmts) {
+    if (stmt->kind == AST_ASSIGN && stmt->assign.isDec) {
       HIRNode *target = stmt->assign.target;
       if (!target || !target->name || target->name[0] == '\0') {
         continue; // Guard against "no symbol" linker errors
@@ -122,7 +122,7 @@ void IRGen::emitGlobVar(HIRNode *n) {
 
       // Internal compiler variables (like loop counters) should use
       // InternalLinkage
-      auto linkage = (name.find("\003SA") == 0) ? GlobalValue::InternalLinkage
+      auto linkage = (name.find("\003") == 0) ? GlobalValue::InternalLinkage
                                             : GlobalValue::ExternalLinkage;
 
       llvm::Constant *initializer = tryEmitConst(stmt->assign.value);

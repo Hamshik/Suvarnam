@@ -21,14 +21,14 @@ HIRNode *HIRGenerator::generate(ASTNode *node) {
   switch (node->kind) {
   case AST_NUM: {
     SA::Value val = handle_num(node);
-    HIRNode *m_node = create_literal(val, node->type);
+    HIRNode *m_node = createLiteral(val, node->type, ASTKind::AST_NUM);
     if (m_node)
       m_node->loc = node->loc;
     return m_node;
   }
 
   case AST_VAR: {
-    return create_var(node);
+    return createVar(node);
   }
 
   case AST_UNOP: {
@@ -42,7 +42,7 @@ HIRNode *HIRGenerator::generate(ASTNode *node) {
 
   case AST_STR: {
     HIRNode *m_node =
-        create_literal((SA::Value){.chars = node->literal.raw}, node->type);
+        createLiteral((SA::Value){.chars = node->literal.raw}, node->type, ASTKind::AST_STR);
     if (m_node)
       m_node->loc = node->loc;
     return m_node;
@@ -50,16 +50,16 @@ HIRNode *HIRGenerator::generate(ASTNode *node) {
 
   case AST_CHAR: {
     HIRNode *m_node =
-        create_literal((SA::Value){.chars = node->literal.raw}, node->type);
+        createLiteral((SA::Value){.chars = node->literal.raw}, node->type, ASTKind::AST_CHAR);
     if (m_node)
       m_node->loc = node->loc;
     return m_node;
   }
 
   case AST_BOOL: {
-    HIRNode *m_node = create_literal(
+    HIRNode *m_node = createLiteral(
         (SA::Value){.bval = node->literal.raw[0] == 't' ? true : false},
-        node->type);
+        node->type, ASTKind::AST_BOOL);
     if (m_node)
       m_node->loc = node->loc;
     return m_node;
@@ -90,7 +90,7 @@ HIRNode *HIRGenerator::generate(ASTNode *node) {
   }
 
   case AST_BINOP: {
-    HIRNode *m_node = create_binary_op(node->bin.op, generate(node->bin.left),
+    HIRNode *m_node = createBinOp(node->bin.op, generate(node->bin.left),
                                        generate(node->bin.right), node->type);
     if (m_node)
       m_node->loc = node->loc;
@@ -130,8 +130,8 @@ HIRNode *HIRGenerator::generate(ASTNode *node) {
 
     HIRNode *value = generate(node->assign.rhs);
 
-    auto n = create_assignment(target, value, node->assign.op,
-                               node->assign.is_declaration);
+    auto n = createAssign(target, value, node->assign.op,
+                               node->assign.isDec);
 
     n->isglobal = node->isglobal;
     n->loc = node->loc;
@@ -141,25 +141,25 @@ HIRNode *HIRGenerator::generate(ASTNode *node) {
 
   case AST_SEQ: {
     HIRNode *block = new HIRNode(ASTKind::AST_BLOCK);
-    block->block_stmts = new std::vector<HIRNode *>();
+    block->blockStmts = new std::vector<HIRNode *>();
 
     // Clear the tracking buffers for the new sequence stream
-    side_effect_buffer.clear();
+    sideEffectBuf.clear();
 
     // Handle flattening of the original node tree elements
     std::vector<HIRNode *> raw_flattened_stmts;
-    flatten_sequence(node, &raw_flattened_stmts);
+    flattenSeq(node, &raw_flattened_stmts);
 
     // Drain the side-effects and sequence steps into the finalized block
     for (auto *stmt : raw_flattened_stmts) {
       // If processing a statement emitted side-effects, insert those first!
-      if (!side_effect_buffer.empty()) {
-        block->block_stmts->insert(block->block_stmts->end(),
-                                   side_effect_buffer.begin(),
-                                   side_effect_buffer.end());
-        side_effect_buffer.clear();
+      if (!sideEffectBuf.empty()) {
+        block->blockStmts->insert(block->blockStmts->end(),
+                                   sideEffectBuf.begin(),
+                                   sideEffectBuf.end());
+        sideEffectBuf.clear();
       }
-      block->block_stmts->push_back(stmt);
+      block->blockStmts->push_back(stmt);
     }
 
     block->loc = node->loc;
@@ -167,15 +167,15 @@ HIRNode *HIRGenerator::generate(ASTNode *node) {
   }
 
   case AST_FN:
-    return create_fn_definition(node);
+    return createFnDef(node);
 
   case AST_CALL:
-    return emit_call(node);
+    return emitCall(node);
 
   case AST_LIST: {
     HIRNode *elements = new HIRNode(ASTKind::AST_LIST);
     elements->element.elements = new std::vector<HIRNode *>();
-    flatten_sequence(node->list.elements, elements->element.elements);
+    flattenSeq(node->list.elements, elements->element.elements);
 
     elements->type = node->type;
     elements->loc = node->loc;
@@ -183,20 +183,20 @@ HIRNode *HIRGenerator::generate(ASTNode *node) {
   }
 
   case AST_INDEX:
-    return emit_idx(node);
+    return emitIdx(node);
 
   case AST_FOR:
-    return emit_MAST_for_loop(node);
+    return emitForLoop(node);
 
   case AST_WHILE:
-    return emit_MAST_while_loop(node);
+    return emitWhileLoop(node);
 
   case AST_IF: {
     HIRNode *if_node = new HIRNode(ASTKind::AST_IF);
-    if_node->if_stmt.condition = generate(node->ifnode.cond);
-    if_node->if_stmt.then_branch = generate(node->ifnode.then_branch);
-    if_node->if_stmt.else_branch =
-        node->ifnode.else_branch ? generate(node->ifnode.else_branch) : nullptr;
+    if_node->ifStmt.cond = generate(node->ifnode.cond);
+    if_node->ifStmt.thenBranch = generate(node->ifnode.thenBranch);
+    if_node->ifStmt.elseBranch =
+        node->ifnode.elseBranch ? generate(node->ifnode.elseBranch) : nullptr;
     if_node->type = node->type;
     if_node->loc = node->loc;
     return if_node;
@@ -204,9 +204,9 @@ HIRNode *HIRGenerator::generate(ASTNode *node) {
 
   case AST_BLOCK: {
     HIRNode *block = new HIRNode(ASTKind::AST_BLOCK);
-    block->block_stmts = new std::vector<HIRNode *>();
+    block->blockStmts = new std::vector<HIRNode *>();
     if (node->block.block)
-      flatten_sequence(node->block.block, block->block_stmts);
+      flattenSeq(node->block.block, block->blockStmts);
     block->loc = node->loc;
     return block;
   }
@@ -215,7 +215,7 @@ HIRNode *HIRGenerator::generate(ASTNode *node) {
     HIRNode *return_node = new HIRNode(ASTKind::AST_RETURN);
     return_node->type = node->type;
     return_node->loc = node->loc;
-    return_node->ret_stmt.value = generate(node->ret_stmt.value);
+    return_node->ret.value = generate(node->ret.value);
     return return_node;
   }
 

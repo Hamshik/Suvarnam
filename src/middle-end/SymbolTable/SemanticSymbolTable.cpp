@@ -183,7 +183,7 @@ bool SemanticSymTable::fnDeclare(ASTNode *node_ptr) {
     die_allocation("strdup");
   }
   fn->params = node_ptr->fn_def.params;
-  fn->param_count = node_ptr->fn_def.param_count;
+  fn->paramCount = node_ptr->fn_def.paramCount;
   fn->ret = node_ptr->type;
   fn->isReturned = false;
   fn->node_ptr = node_ptr;

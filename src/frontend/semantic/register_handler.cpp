@@ -26,9 +26,9 @@ void Semantic::regGlobalVarAndFn(ASTNode *n) {
     }
 
     bool is_illegal = false;
-    for (int i = 0; i < n->fn_def.param_count; ++i) {
+    for (int i = 0; i < n->fn_def.paramCount; ++i) {
       if (n->fn_def.params[i].is_variadic) {
-        bool ok = !(i+1 < n->fn_def.param_count &&
+        bool ok = !(i+1 < n->fn_def.paramCount &&
             n->fn_def.params[i].type->inner->base == n->fn_def.params[i+1].type->inner->base);
         if(!ok)
           panic(n->loc, SEM_INTERNAL_ERROR, "both datatype of same kind is ambigous for varg param");
@@ -43,12 +43,12 @@ void Semantic::regGlobalVarAndFn(ASTNode *n) {
     FnSymbol *f = new FnSymbol;
     f->name = strdup(fn_name);
     f->ret = n->type; // e.g., I32, VOID, PTR
-    f->param_count = n->fn_def.param_count;
+    f->paramCount = n->fn_def.paramCount;
 
     // Transfer parameter types to symbol record
-    f->params = (SA::Param *)calloc((size_t)f->param_count, sizeof(SA::Param));
+    f->params = (SA::Param *)calloc((size_t)f->paramCount, sizeof(SA::Param));
     SA::Param *curr_p = n->fn_def.params;
-    for (int i = 0; i < f->param_count && curr_p; ++i) {
+    for (int i = 0; i < f->paramCount && curr_p; ++i) {
       f->params[i] = curr_p[i];
     }
 
@@ -56,7 +56,7 @@ void Semantic::regGlobalVarAndFn(ASTNode *n) {
     ctx->sym.fnDeclare(n);
   }
 
-  if (n->kind == AST_ASSIGN && n->assign.is_declaration) {
+  if (n->kind == AST_ASSIGN && n->assign.isDec) {
     if (n->assign.lhs && n->assign.lhs->kind == AST_VAR) {
       const char *global_var_name = n->assign.lhs->var;
 

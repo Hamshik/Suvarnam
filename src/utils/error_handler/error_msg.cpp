@@ -40,12 +40,12 @@ static const char *errc_msg_english(errc_t code) {
         case SEM_VAR_REDECL: return "redeclaration of variable";
         case SEM_ASSIGN_TYPE_MISMATCH: return "type mismatch in assignment";
         case SEM_ASSIGN_IMMUTABLE: return "cannot assign to immutable variable";
-        case SEM_IF_COND_NOT_BOOL: return "if condition must be boolean";
+        case SEM_IF_COND_NOT_BOOL: return "if cond must be boolean";
         case SEM_FOR_INIT_INVALID: return "for init must be an assignment/declaration";
         case SEM_FOR_INIT_NOT_NUM: return "for init variable must be numeric";
         case SEM_FOR_END_TYPE_MISMATCH: return "for end value must match init type";
         case SEM_FOR_STEP_TYPE_MISMATCH: return "for step value must match init type";
-        case SEM_WHILE_COND_NOT_BOOL: return "while condition must be boolean";
+        case SEM_WHILE_COND_NOT_BOOL: return "while cond must be boolean";
         case SEM_FN_REDECL: return "redeclaration of function";
         case SEM_DUP_PARAM: return "duplicate parameter name";
         case SEM_CALL_UNDEF_FN: return "call to undefined function";

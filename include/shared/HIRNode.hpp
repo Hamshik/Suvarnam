@@ -15,28 +15,22 @@ class HIRNode {
     // This must stay OUTSIDE the union to prevent memory corruption.
     
     union{
-        std::vector<HIRNode*> *block_stmts;
+        std::vector<HIRNode*> *blockStmts;
         // Primitive Literals & Identifiers
         const char *name; // Reused for variable names and function targets & import paths
-
-        // Variable Declaration (e.g., let __end: i64 = 10)
-        struct {
-            const char *decl_name;
-            HIRNode *init_value; // Can be nullptr
-        } decl;
         
         SA::Value val;
 
         // Assignment (e.g., i = i + 1)
         struct {
             HIRNode *target, *value;
-            bool is_declaration;
+            bool isDec;
         } assign;
 
         // Math & Logic Ops (e.g., i < __end)
         struct {
             OP_kind_t op; // "+", "-", "<", ">=", "=="
-            HIRNode *left, *right;
+            HIRNode *left, *right; //right can be nullptr,so treating it as unop instead
         } binary;
 
         // RANGE
@@ -44,22 +38,20 @@ class HIRNode {
 
         // Structured If/Else Engine
         struct {
-            HIRNode *condition;
-            HIRNode *then_branch;
-            HIRNode *else_branch; // Can be nullptr
-        } if_stmt;
+            HIRNode *cond, *thenBranch, *elseBranch; // Can be nullptr
+        } ifStmt;
 
         // THE UNIVERSAL LOOP ENGINE
         // This single structure replaces Range loops, Array loops, and For-loops!
         struct {
-            HIRNode *condition;   // Simple binary check (e.g., i < __end)
+            HIRNode *cond;   // Simple binary check (e.g., i < __end)
             HIRNode *body;        // Sequential block containing loop instructions
             HIRNode *expr;
-        } while_loop;
+        } whileLoop;
 
         // Function Calls (e.g., printlni(i))
         struct {
-            const char *target_fn;
+            const char *targetFb;
             std::vector<HIRNode*> *args;
         } call;
 
@@ -76,11 +68,11 @@ class HIRNode {
         struct {
             std::vector<HIRNode*>* body;
             std::vector<SA::Param*>* params;
-            size_t param_count;
+            size_t paramCount;
             const char* name;
         } fn;
 
-        struct { struct HIRNode *value; } ret_stmt;
+        struct { struct HIRNode *value; } ret;
     }; 
 
     // Clean Constructor Initialization Tracker

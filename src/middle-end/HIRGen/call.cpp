@@ -10,7 +10,7 @@ unsigned __int128 SA_parse_u128(const char *str, int *ok);
 __int128 SA_parse_i128(const char *str, int *ok);
 
 
-bool is_variadic_builtin(const char *name) {
+bool isVariadicBuiltin(const char *name) {
   if (!name) {
     return false;
   }
@@ -29,7 +29,7 @@ bool is_variadic_builtin(const char *name) {
   return false;
 }
 
-size_t count_fixed_builtin_params(const char *name) {
+size_t countFixedBuiltinParams(const char *name) {
   if (!name) {
     return 0;
   }
@@ -39,202 +39,221 @@ size_t count_fixed_builtin_params(const char *name) {
     return 0;
   }
 
-  size_t fixed_params = 0;
+  size_t fixedParams = 0;
   for (auto *param : builtin->param_types) {
     if (!param || param->type->base == UNKNOWN) {
       break;
     }
-    ++fixed_params;
+    ++fixedParams;
   }
 
-  return fixed_params;
+  return fixedParams;
 }
 
+struct VarargCallState {
+  HIRNode *callNode;
+  bool isBuiltinVararg;
+  size_t fixedParamCount;
+  bool hasUserVarargs;
+  size_t fixedUserParamCount;
+  FnSymbol *fnSymbol;
+  std::vector<SA::Type *> varargTypes;
+  std::vector<std::vector<HIRNode *>> varargGroups;
+  std::vector<HIRNode *> *packedArgs = nullptr;
+  size_t currentGroup = 0;
+  size_t argIndex = 0;
+};
+
 // Collect inner types for variadic user parameters (in declaration order)
-std::vector<SA::Type *> collect_variadic_inner_types(FnSymbol *fn,
-                                                         size_t fixed_user_param_count) {
-  std::vector<SA::Type *> res;
-  if (!fn || !fn->params) return res;
-  for (int i = fixed_user_param_count; i < fn->param_count; ++i) {
-    if (fn->params[i].is_variadic) {
-      SA::Type *inner = fn->params[i].type ? fn->params[i].type->inner : nullptr;
-      res.push_back(inner);
+std::vector<SA::Type *> collectVarargTypes(FnSymbol *fnSymbol,
+                                           size_t fixedParamCount) {
+  std::vector<SA::Type *> types;
+  if (!fnSymbol || !fnSymbol->params) return types;
+  for (int i = fixedParamCount; i < fnSymbol->paramCount; ++i) {
+    if (fnSymbol->params[i].is_variadic) {
+      SA::Type *innerType = fnSymbol->params[i].type
+                                ? fnSymbol->params[i].type->inner
+                                : nullptr;
+      types.push_back(innerType);
     }
   }
-  return res;
+  return types;
 }
 
 // Distribute a lowered argument into either builtin packed vector, one of the
 // user variadic groups, or append directly to the call args when not variadic.
-void distribute_lowered_arg(HIRNode *lowered_arg,
-                                  bool is_vararg_builtin,
-                                  size_t fixed_param_count,
-                                  bool has_variadic_user_param,
-                                  size_t fixed_user_param_count,
-                                  const std::vector<SA::Type *> &variadic_inner_types,
-                                  std::vector<std::vector<HIRNode *>> &vararg_groups,
-                                  std::vector<HIRNode *> *&packed_varargs,
-                                  std::vector<HIRNode *> *call_args,
-                                  size_t &current_variadic_group,
-                                  size_t arg_index) {
-  if (!lowered_arg) return;
+void distributeArg(HIRNode *loweredArg, VarargCallState &state) {
+  if (!loweredArg) return;
+  const size_t argIndex = state.argIndex++;
 
-  if (is_vararg_builtin && arg_index >= fixed_param_count) {
-    if (!packed_varargs) packed_varargs = new std::vector<HIRNode *>();
-    packed_varargs->push_back(lowered_arg);
+  if (state.isBuiltinVararg && argIndex >= state.fixedParamCount) {
+    if (!state.packedArgs)
+      state.packedArgs = new std::vector<HIRNode *>();
+    state.packedArgs->push_back(loweredArg);
     return;
   }
 
-  if (has_variadic_user_param && arg_index >= fixed_user_param_count) {
-    if (variadic_inner_types.empty()) {
+  if (state.hasUserVarargs && argIndex >= state.fixedUserParamCount) {
+    if (state.varargTypes.empty()) {
       // fallback to packed
-      if (!packed_varargs) packed_varargs = new std::vector<HIRNode *>();
-      packed_varargs->push_back(lowered_arg);
+      if (!state.packedArgs)
+        state.packedArgs = new std::vector<HIRNode *>();
+      state.packedArgs->push_back(loweredArg);
       return;
     }
 
-    size_t g = current_variadic_group;
-    while (g < variadic_inner_types.size() &&
-           !(variadic_inner_types[g] == nullptr ||
-             (lowered_arg->type && variadic_inner_types[g]->base == lowered_arg->type->base))) {
-      ++g;
+    size_t group = state.currentGroup;
+    while (group < state.varargTypes.size() &&
+           !(state.varargTypes[group] == nullptr ||
+             (loweredArg->type &&
+              state.varargTypes[group]->base == loweredArg->type->base))) {
+      ++group;
     }
-    if (g >= vararg_groups.size()) {
-      vararg_groups.back().push_back(lowered_arg);
-      current_variadic_group = vararg_groups.size() - 1;
+    if (group >= state.varargGroups.size()) {
+      state.varargGroups.back().push_back(loweredArg);
+      state.currentGroup = state.varargGroups.size() - 1;
     } else {
-      vararg_groups[g].push_back(lowered_arg);
-      current_variadic_group = g;
+      state.varargGroups[group].push_back(loweredArg);
+      state.currentGroup = group;
     }
     return;
   }
 
   // Non-variadic: append to call args
-  if (call_args) call_args->push_back(lowered_arg);
+  if (state.callNode->call.args)
+    state.callNode->call.args->push_back(loweredArg);
 }
 
-// Emit grouped varargs (user) or packed varargs (builtin) into call args,
-// including the hidden length integer that callers expect.
-void HIRGenerator::emit_varargs_to_call(HIRNode *call_node,
-                                 const std::vector<std::vector<HIRNode *>> &vararg_groups,
-                                 const std::vector<SA::Type *> &variadic_inner_types,
-                                 std::vector<HIRNode *> *packed_varargs,
-                                 FnSymbol *fn_symbol,
-                                 size_t fixed_user_param_count) {
-  if (!call_node) return;
+HIRNode *makeVarargList(std::vector<HIRNode *> *elements,
+                        SA::Type *innerType) {
+  HIRNode *varargList = new HIRNode(ASTKind::AST_LIST);
+  varargList->element.elements = elements;
+  varargList->type = new SA::Type(LIST, nullptr);
+  varargList->type->inner = innerType;
+  varargList->type->size = elements->size();
+  return varargList;
+}
 
-  if (!vararg_groups.empty()) {
-    SA::Type *count_type = new SA::Type(I64, nullptr);
-    for (size_t i = 0; i < vararg_groups.size(); ++i) {
-      const auto &grp = vararg_groups[i];
-      std::vector<HIRNode *> *elems = new std::vector<HIRNode *>(grp.begin(), grp.end());
-      HIRNode *vararg_list = new HIRNode(ASTKind::AST_LIST);
-      vararg_list->element.elements = elems;
-      vararg_list->type = new SA::Type(LIST, nullptr);
-      vararg_list->type->inner = variadic_inner_types[i];
-      vararg_list->type->size = elems->size();
-      call_node->call.args->push_back(vararg_list);
+void appendVarargCount(HIRGenerator &generator, HIRNode *callNode,
+                       size_t count) {
+  SA::Value rawCount = {0};
+  rawCount.i64 = static_cast<int64_t>(count);
+  SA::Type *countType = new SA::Type(I64, nullptr);
+  HIRNode *countArg =
+      generator.createLiteral(rawCount, countType, ASTKind::AST_NUM);
+  callNode->call.args->push_back(countArg);
+}
 
-      SA::Value raw_count = {0};
-      raw_count.i64 = static_cast<int64_t>(elems->size());
-      HIRNode *hidden_count_arg = create_literal(raw_count, count_type);
-      call_node->call.args->push_back(hidden_count_arg);
+void appendVarargGroup(HIRGenerator &generator, const VarargCallState &state,
+                       size_t groupIndex) {
+  const auto &group = state.varargGroups[groupIndex];
+  auto *elements = new std::vector<HIRNode *>(group.begin(), group.end());
+  state.callNode->call.args->push_back(
+      makeVarargList(elements, state.varargTypes[groupIndex]));
+  appendVarargCount(generator, state.callNode, elements->size());
+}
+
+SA::Type *packedVarargType(const VarargCallState &state) {
+  if (!state.fnSymbol || !state.fnSymbol->params ||
+      state.fixedUserParamCount >= state.fnSymbol->paramCount) {
+    return nullptr;
+  }
+
+  SA::Type *paramType = state.fnSymbol->params[state.fixedUserParamCount].type;
+  return paramType ? paramType->inner : nullptr;
+}
+
+void appendPackedVarargs(HIRGenerator &generator,
+                         const VarargCallState &state) {
+  state.callNode->call.args->push_back(
+      makeVarargList(state.packedArgs, packedVarargType(state)));
+  appendVarargCount(generator, state.callNode, state.packedArgs->size());
+}
+
+void appendBuiltinVarargs(const VarargCallState &state) {
+  state.callNode->call.args->push_back(makeVarargList(state.packedArgs, nullptr));
+}
+
+// Emit grouped user varargs or packed builtin varargs with their hidden lengths.
+void appendUserVarargs(HIRGenerator &generator, const VarargCallState &state) {
+  if (!state.callNode) return;
+
+  if (!state.varargGroups.empty()) {
+    for (size_t i = 0; i < state.varargGroups.size(); ++i) {
+      appendVarargGroup(generator, state, i);
     }
     return;
   }
 
-  // Fallback: single packed vector
-  if (packed_varargs) {
-    HIRNode *vararg_list = new HIRNode(ASTKind::AST_LIST);
-    vararg_list->element.elements = packed_varargs;
-    vararg_list->type = new SA::Type(LIST, nullptr);
-    if (fn_symbol && fn_symbol->params && fixed_user_param_count < fn_symbol->param_count) {
-      vararg_list->type->inner = fn_symbol->params[fixed_user_param_count].type
-                                     ? fn_symbol->params[fixed_user_param_count].type->inner
-                                     : nullptr;
-    }
-    vararg_list->type->size = packed_varargs->size();
-    call_node->call.args->push_back(vararg_list);
+  if (state.packedArgs)
+    appendPackedVarargs(generator, state);
+}
 
-    SA::Value raw_count = {0};
-    raw_count.i64 = static_cast<int64_t>(packed_varargs->size());
-    SA::Type *count_type = new SA::Type(I64, nullptr);
-    HIRNode *hidden_count_arg = HIRGenerator::create_literal(raw_count, count_type);
-    call_node->call.args->push_back(hidden_count_arg);
+VarargCallState makeVarargState(HIRNode *callNode, const char *name,
+                                FnSymbol *fnSymbol) {
+  const bool isBuiltinVararg = isVariadicBuiltin(name);
+  const size_t fixedParamCount =
+      isBuiltinVararg ? countFixedBuiltinParams(name) : 0;
+
+  bool hasUserVarargs = false;
+  size_t fixedUserParamCount = 0;
+  if (fnSymbol && fnSymbol->params) {
+    for (int i = 0; i < fnSymbol->paramCount; ++i) {
+      if (fnSymbol->params[i].is_variadic) {
+        hasUserVarargs = true;
+        break;
+      }
+      ++fixedUserParamCount;
+    }
+  }
+
+  VarargCallState state{
+      .callNode = callNode,
+      .isBuiltinVararg = isBuiltinVararg,
+      .fixedParamCount = fixedParamCount,
+      .hasUserVarargs = hasUserVarargs,
+      .fixedUserParamCount = fixedUserParamCount,
+      .fnSymbol = fnSymbol,
+      .varargTypes = collectVarargTypes(fnSymbol, fixedUserParamCount)};
+  state.varargGroups.resize(state.varargTypes.size());
+  return state;
+}
+
+HIRNode *makeCallNode(ASTNode *node) {
+  HIRNode *callNode = new HIRNode(ASTKind::AST_CALL);
+  callNode->name = strdup(node->call.name);
+  callNode->call.args = new std::vector<HIRNode *>();
+  return callNode;
+}
+
+void lowerArgs(HIRGenerator &generator, ASTNode *node,
+               VarargCallState &state) {
+  for (ASTNode *current = node->call.args; current;) {
+    ASTNode *argExpr = (current->kind == AST_SEQ) ? current->seq.a : current;
+    HIRNode *loweredArg = generator.generate(argExpr);
+    distributeArg(loweredArg, state);
+    current = (current->kind == AST_SEQ) ? current->seq.b : nullptr;
   }
 }
 
-
-HIRNode *HIRGenerator::emit_call(ASTNode *node) {
-  HIRNode *call_node = new HIRNode(ASTKind::AST_CALL);
-  call_node->name = strdup(node->call.name);
-  call_node->call.args = new std::vector<HIRNode *>();
-
-  const bool is_vararg_builtin = is_variadic_builtin(node->call.name);
-  const size_t fixed_param_count =
-      is_vararg_builtin ? count_fixed_builtin_params(node->call.name) : 0;
-
-  bool has_variadic_user_param = false;
-  size_t fixed_user_param_count = 0;
-  FnSymbol *fn_symbol = ctx->sym.fnFind(node->call.name);
-  if (fn_symbol && fn_symbol->params) {
-    for (int i = 0; i < fn_symbol->param_count; ++i) {
-      if (fn_symbol->params[i].is_variadic) {
-        has_variadic_user_param = true;
-        break;
-      }
-      ++fixed_user_param_count;
-    }
+void appendCallVarargs(HIRGenerator &generator, const VarargCallState &state) {
+  if (state.hasUserVarargs) {
+    appendUserVarargs(generator, state);
+  } else if (state.isBuiltinVararg && state.packedArgs &&
+             !state.packedArgs->empty()) {
+    appendBuiltinVarargs(state);
   }
+}
 
-  // For builtins we still pack into a single vector as before.
-  std::vector<HIRNode *> *packed_varargs = nullptr;
+HIRNode *HIRGenerator::emitCall(ASTNode *node) {
+  HIRNode *callNode = makeCallNode(node);
+  FnSymbol *fnSymbol = ctx->sym.fnFind(node->call.name);
+  VarargCallState state =
+      makeVarargState(callNode, node->call.name, fnSymbol);
+  lowerArgs(*this, node, state);
+  appendCallVarargs(*this, state);
 
-  // Collect inner types for each variadic parameter declared on the callee.
-  std::vector<SA::Type *> variadic_inner_types =
-      collect_variadic_inner_types(fn_symbol, fixed_user_param_count);
-
-  std::vector<std::vector<HIRNode *>> vararg_groups;
-  if (!variadic_inner_types.empty())
-    vararg_groups.resize(variadic_inner_types.size());
-
-  size_t current_variadic_group = 0;
-  size_t arg_index = 0;
-
-  for (ASTNode *curr = node->call.args; curr;) {
-    ASTNode *arg_expr = (curr->kind == AST_SEQ) ? curr->seq.a : curr;
-
-    HIRNode *lowered_arg = generate(arg_expr);
-
-    if (!lowered_arg) {
-      curr = (curr->kind == AST_SEQ) ? curr->seq.b : nullptr;
-      continue;
-    }
-
-    // Delegate distribution behavior to small helpers (see above)
-    distribute_lowered_arg(lowered_arg, is_vararg_builtin, fixed_param_count,
-                           has_variadic_user_param, fixed_user_param_count,
-                           variadic_inner_types, vararg_groups, packed_varargs,
-                           call_node->call.args, current_variadic_group,
-                           arg_index);
-
-    curr = (curr->kind == AST_SEQ) ? curr->seq.b : nullptr;
-    ++arg_index;
-  }
-
-  // Emit grouped varargs (user) or packed varargs (builtin)
-  if (has_variadic_user_param) {
-    emit_varargs_to_call(call_node, vararg_groups,
-      variadic_inner_types, packed_varargs, fn_symbol, fixed_user_param_count);
-  } else if (is_vararg_builtin && packed_varargs && !packed_varargs->empty()) {
-    HIRNode *vararg_list = new HIRNode(ASTKind::AST_LIST);
-    vararg_list->element.elements = packed_varargs;
-    vararg_list->type = new SA::Type(LIST, nullptr);
-    vararg_list->type->size = packed_varargs->size();
-    call_node->call.args->push_back(vararg_list);
-  }
-
-  call_node->type = node->type;
-  call_node->loc = node->loc;
-  return call_node;
+  callNode->type = node->type;
+  callNode->loc = node->loc;
+  return callNode;
 }

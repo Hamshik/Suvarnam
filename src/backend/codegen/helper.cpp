@@ -356,15 +356,15 @@ Function *FnHelper::getMallocFn() {
 
 llvm::Value *IRGen::emitIf(HIRNode *n, Codegen::Scope &locals) {
 
-  // 1. Emit condition
-  llvm::Value *condV = emitExpr(n->if_stmt.condition, locals);
+  // 1. Emit cond
+  llvm::Value *condV = emitExpr(n->ifStmt.cond, locals);
   if (!condV) {
       // Stop the layout corruption immediately!
       condV = ConstantInt::getFalse(ctx);
       std::cerr << "Codegen Error: Condition expression inside 'if' failed to generate valid IR!" << std::endl;
   }
 
-  // Ensure condition is i1 (bool)
+  // Ensure cond is i1 (bool)
   if (condV->getType()->isIntegerTy() &&
       condV->getType()->getIntegerBitWidth() != 1) {
     condV =
@@ -379,14 +379,14 @@ llvm::Value *IRGen::emitIf(HIRNode *n, Codegen::Scope &locals) {
   BasicBlock *mergeBB = BasicBlock::Create(ctx, "ifcont");
 
   // 3. Branch
-  if (n->if_stmt.else_branch)
+  if (n->ifStmt.elseBranch)
     b.CreateCondBr(condV, thenBB, elseBB);
   else
     b.CreateCondBr(condV, thenBB, mergeBB);
 
   // ---- THEN BLOCK ----
   b.SetInsertPoint(thenBB);
-  emitExpr(n->if_stmt.then_branch, locals);
+  emitExpr(n->ifStmt.thenBranch, locals);
 
   if (!blockTerminated())
     b.CreateBr(mergeBB);
@@ -394,11 +394,11 @@ llvm::Value *IRGen::emitIf(HIRNode *n, Codegen::Scope &locals) {
   thenBB = b.GetInsertBlock(); // update
 
   // ---- ELSE BLOCK ----
-  if (n->if_stmt.else_branch) {
+  if (n->ifStmt.elseBranch) {
     fn->insert(fn->end(), elseBB);
     b.SetInsertPoint(elseBB);
 
-    emitExpr(n->if_stmt.else_branch, locals);
+    emitExpr(n->ifStmt.elseBranch, locals);
 
     if (!blockTerminated())
       b.CreateBr(mergeBB);

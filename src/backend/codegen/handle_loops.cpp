@@ -29,7 +29,7 @@ llvm::Value *IRGen::emitWhileloop(HIRNode *n, Codegen::Scope &locals) {
   // --- 1. CONDITION BLOCK ---
   b.SetInsertPoint(condBB);
   llvm::Value *condV =
-      emitExpr(n->while_loop.condition, loopBodyScope);
+      emitExpr(n->whileLoop.cond, loopBodyScope);
   if (!condV) {
     condV = ConstantInt::getTrue(ctx);
   }
@@ -37,15 +37,15 @@ llvm::Value *IRGen::emitWhileloop(HIRNode *n, Codegen::Scope &locals) {
 
   // --- 2. BODY BLOCK ---
   b.SetInsertPoint(bodyBB);
-  emitExpr(n->while_loop.body, loopBodyScope);
+  emitExpr(n->whileLoop.body, loopBodyScope);
 
   if (!blockTerminated())
     b.CreateBr(exprBB);
 
   // --- 3. CONTINUATION EXPRESSION BLOCK (: (expr) execution step) ---
   b.SetInsertPoint(exprBB);
-  if (n->while_loop.expr) {
-    emitExpr(n->while_loop.expr, loopBodyScope);
+  if (n->whileLoop.expr) {
+    emitExpr(n->whileLoop.expr, loopBodyScope);
   }
 
   if (!blockTerminated())

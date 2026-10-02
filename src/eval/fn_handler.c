@@ -39,7 +39,7 @@ SA::TypedVal eval_call(ASTNode *node, bool g_returning, SA::TypedVal g_return_va
   //   return out;
   // }
 
-  if (argc != fn->fn_def.param_count) {
+  if (argc != fn->fn_def.paramCount) {
     panic( node->loc, RT_ARGC_MISMATCH, node->call.name);
     free(argv);
     return (SA::TypedVal){0};
@@ -47,7 +47,7 @@ SA::TypedVal eval_call(ASTNode *node, bool g_returning, SA::TypedVal g_return_va
 
   // New call frame.
   SA_runtime_env_push();
-  for (int i = 0; i < fn->fn_def.param_count; i++) {
+  for (int i = 0; i < fn->fn_def.paramCount; i++) {
     SA::TypedVal casted = SA_cast_typed(argv[i], fn->fn_def.params[i].type);
     SA::Value vv = casted.val;
     SA_runtime_env_set_current(fn->fn_def.params[i].name, &vv, fn->fn_def.params[i].type);

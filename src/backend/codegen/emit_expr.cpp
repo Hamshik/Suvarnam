@@ -106,7 +106,7 @@ llvm::Value *IRGen::emitExpr(HIRNode *n, Codegen::Scope &locals) {
   case AST_BLOCK: {
     // ITERATIVE processing of block statements
     llvm::Value *lastVal = nullptr;
-    for (auto stmt : *n->block_stmts) {
+    for (auto stmt : *n->blockStmts) {
       // If the current instruction stream is truly terminated (e.g., a return),
       // we skip the rest of this specific block.
       if (blockTerminated())
@@ -118,7 +118,7 @@ llvm::Value *IRGen::emitExpr(HIRNode *n, Codegen::Scope &locals) {
   }
 
   case AST_RETURN: {
-    llvm::Value *v = emitExpr(n->ret_stmt.value, locals);
+    llvm::Value *v = emitExpr(n->ret.value, locals);
 
     if (!blockTerminated()) {
       if (v)

@@ -86,10 +86,10 @@ ReturnInfo analyze_returns(ASTNode *n) {
   }
 
   case AST_IF: {
-    ReturnInfo then_info = analyze_returns(n->ifnode.then_branch);
-    if (!n->ifnode.else_branch)
+    ReturnInfo then_info = analyze_returns(n->ifnode.thenBranch);
+    if (!n->ifnode.elseBranch)
       return (ReturnInfo){false, true};
-    ReturnInfo else_info = analyze_returns(n->ifnode.else_branch);
+    ReturnInfo else_info = analyze_returns(n->ifnode.elseBranch);
     return (ReturnInfo){
         then_info.always_return && else_info.always_return,
         then_info.always_fallthrough && else_info.always_fallthrough};

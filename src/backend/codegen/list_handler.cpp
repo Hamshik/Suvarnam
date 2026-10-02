@@ -60,8 +60,8 @@ llvm::Value *IRGen::generateList(HIRNode *n, Codegen::Scope &locals) {
 
   if (!elemType) {
     std::cerr << "Warning: invalid element type at line "
-              << (size_t)n->loc.firstLn << ", col "
-              << (size_t)n->loc.firstCol << std::endl;
+              << (size_t)n->loc.firstLn << ", col " << (size_t)n->loc.firstCol
+              << std::endl;
     return nullptr;
   }
 
@@ -75,23 +75,12 @@ llvm::Value *IRGen::generateList(HIRNode *n, Codegen::Scope &locals) {
   static size_t list_heap = 0;
   static size_t list_stack = 0;
 
-  // Hybrid Mechanism:
-  // If we are in the 'init' function, allocate on the Heap.
-  // Otherwise, use the Stack (AllocaInst) for automatic local cleanup.
-  if (currentFn && currentFn->getName() == "init") {
-    const DataLayout &DL = m->getDataLayout();
-    uint64_t totalSize = n->type->size * DL.getTypeAllocSize(elemType);
-    Function *mallocFn = fnHelper.getMallocFn();
-    allocatedPtr = b.CreateCall(mallocFn, {b.getInt64(totalSize)}, "list_heap");
-    typedPtr = b.CreateBitCast(allocatedPtr, PointerType::getUnqual(ctx));
-  } else {
-    BasicBlock *entryBB = &currentFn->getEntryBlock();
-    IRBuilder<> allocaBuilder(entryBB, entryBB->begin());
-    allocatedPtr = allocaBuilder.CreateAlloca(arrayType, nullptr,
-                                              "list_stack_alloc");
-    typedPtr = b.CreateInBoundsGEP(arrayType, allocatedPtr,
-                                   {b.getInt32(0), b.getInt32(0)});
-  }
+  BasicBlock *entryBB = &currentFn->getEntryBlock();
+  IRBuilder<> allocaBuilder(entryBB, entryBB->begin());
+  allocatedPtr =
+      allocaBuilder.CreateAlloca(arrayType, nullptr, "list_stack_alloc");
+  typedPtr = b.CreateInBoundsGEP(arrayType, allocatedPtr,
+                                 {b.getInt32(0), b.getInt32(0)});
 
   for (uint32_t index = 0; index < n->element.elements->size(); ++index) {
     HIRNode *exprNode = (*n->element.elements)[index];
@@ -107,10 +96,8 @@ llvm::Value *IRGen::generateList(HIRNode *n, Codegen::Scope &locals) {
   return b.CreateBitCast(typedPtr, irType(LIST));
 }
 
-llvm::Value *IRGen::generateListElementPtr(HIRNode *n,
-                                           Codegen::Scope &locals) {
-  llvm::Value *currentPtr =
-      emitExpr(n->index.target, locals);
+llvm::Value *IRGen::generateListElementPtr(HIRNode *n, Codegen::Scope &locals) {
+  llvm::Value *currentPtr = emitExpr(n->index.target, locals);
   SA::Type *current_type_data = n->index.target->type; // semantic type metadata
   std::vector<HIRNode *> &indices = *n->index.idx;
 
@@ -128,8 +115,7 @@ llvm::Value *IRGen::generateListElementPtr(HIRNode *n,
       return nullptr;
     }
 
-    llvm::Value *indexVal =
-        emitExpr(idx_expr_node, locals);
+    llvm::Value *indexVal = emitExpr(idx_expr_node, locals);
 
     SA::Type *inner_type = current_type_data->inner;
     llvm::Type *llvmElemType = irType(inner_type->base);
@@ -155,10 +141,8 @@ llvm::Value *IRGen::generateListElementPtr(HIRNode *n,
   return currentPtr;
 }
 
-llvm::Value *IRGen::generateListAccess(HIRNode *n,
-                                       Codegen::Scope &locals) {
-  llvm::Value *elementAddr =
-      generateListElementPtr(n, locals);
+llvm::Value *IRGen::generateListAccess(HIRNode *n, Codegen::Scope &locals) {
+  llvm::Value *elementAddr = generateListElementPtr(n, locals);
   if (!elementAddr)
     return nullptr;
 

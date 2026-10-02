@@ -3,22 +3,22 @@ assignment:
     VAR recursive_type IDENTIFIER ASSIGN expr {
         ASTNode* id = $3;
         $$ = new_assign(id, $5, $2, false, @1 + @5, OP_ASSIGN);
-        $$->assign.is_declaration = true;
+        $$->assign.isDec = true;
     }
     | VAR MUT recursive_type IDENTIFIER ASSIGN with_non_expr {
         ASTNode* id = $4;
         $$ = new_assign(id, $6, $3, true, @1 + @6, OP_ASSIGN);
-        $$->assign.is_declaration = true;
+        $$->assign.isDec = true;
     }
     | VAR IDENTIFIER ASSIGN with_non_expr {
         ASTNode* id = $2;
         $$ = new_assign(id, $4, NULL, false, @1 + @4, OP_ASSIGN);
-        $$->assign.is_declaration = true;
+        $$->assign.isDec = true;
     }
     | VAR MUT IDENTIFIER ASSIGN with_non_expr {
         ASTNode* id = $3;
         $$ = new_assign(id, $5, NULL, true, @1 + @5, OP_ASSIGN);
-        $$->assign.is_declaration = true;
+        $$->assign.isDec = true;
     }
 ;
 

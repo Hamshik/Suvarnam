@@ -41,10 +41,10 @@ TargetMachine *IRGen::setupTarget() {
 }
 
 void FnHelper::preDecAllUserFns(HIRNode *n) {
-  if (!n || !n->block_stmts)
+  if (!n || !n->blockStmts)
     return;
 
-  for (auto stmt : *n->block_stmts) {
+  for (auto stmt : *n->blockStmts) {
     // Capture user function definitions and build empty declarations
     if (stmt->kind == AST_FN) {
       getOrAddPrototypes(stmt);
@@ -66,8 +66,8 @@ void FnHelper::emitFns(HIRNode *root) {
     if (!n)
       return;
     if (n->kind == AST_BLOCK) {
-      if (n->block_stmts) {
-        for (auto stmt : *n->block_stmts)
+      if (n->blockStmts) {
+        for (auto stmt : *n->blockStmts)
           walk(stmt);
       }
     } else if (n->kind == AST_FN) {
@@ -93,11 +93,11 @@ Function *FnHelper::emitInitFn(HIRNode *root) {
   std::function<void(HIRNode *)> emit_nonfn = [&](HIRNode *n) {
     if (!n || n->kind != AST_BLOCK)
       return;
-    if (n->block_stmts) {
-      for (auto stmt : *n->block_stmts) {
+    if (n->blockStmts) {
+      for (auto stmt : *n->blockStmts) {
         if (stmt->kind == AST_FN)
           continue;
-        if (stmt->kind == AST_ASSIGN && stmt->assign.is_declaration &&
+        if (stmt->kind == AST_ASSIGN && stmt->assign.isDec &&
             stmt->isglobal && irGen.tryEmitConst(stmt->assign.value))
           continue;
         irGen.emitExpr(stmt, irGen.locals);
@@ -180,10 +180,10 @@ bool IRGen::emitIR(const char *path, char **out) {
 }
 
 void IRGen::preDecImportStmts(HIRNode *root, const char *outPath) {
-  if (!root || !root->block_stmts)
+  if (!root || !root->blockStmts)
     return;
 
-  for (auto stmt : *root->block_stmts) {
+  for (auto stmt : *root->blockStmts) {
     if (stmt->kind != AST_IMPORT)
       continue;
 

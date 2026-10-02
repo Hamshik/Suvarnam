@@ -7,298 +7,280 @@
 #include <string>
 #include <vector>
 
+namespace {
 
+struct IterableForLoop {
+  ASTNode *node;
+  ASTNode *iterable;
+  HIRNode *rootBlock;
+  HIRNode *iterableExpr;
+  HIRNode *whileNode;
+  std::string iteratorName;
+  std::string indexName;
+  std::string arrayName;
+  SA::Type *indexType;
+  SA::Type *elementType;
+  bool hasParamCount;
+};
 
-HIRNode *HIRGenerator::emit_MAST_for_range_loop(ASTNode *node) {
+struct RangeForLoop {
+  ASTNode *node;
+  ASTNode *rangeNode;
+  HIRNode *rootBlock;
+  HIRNode *whileNode;
+  HIRNode *startVal;
+  HIRNode *endVal;
+  HIRNode *stepVal;
+  std::string iteratorName;
+  bool isDescending;
+};
 
-  ASTNode *range_node = node->fornode.iterable->kind == AST_VAR
-                              ? ctx->sym.findSym(
-                                    node->fornode.iterable->var)
-                                    ->node_ptr
-                              // to get ranges
-                              : node->fornode.iterable;
-
-  // 1. Create a root block to isolate the loop configuration variables
-  HIRNode *root_block = new HIRNode(ASTKind::AST_BLOCK);
-  root_block->block_stmts = new std::vector<HIRNode *>();
-  root_block->loc = node->loc;
-
-  // 2. Extract range boundary expressions
-  HIRNode *start_val = generate(range_node->range.start);
-  HIRNode *end_val = generate(range_node->range.end);
-
-  bool is_descending = false;
-  if (start_val->kind == ASTKind::AST_NUM &&
-      end_val->kind == ASTKind::AST_NUM) {
-    is_descending = start_val->val.i64 > end_val->val.i64;
-  }
-
-  // Default the step value: 1 for ascending, -1 for descending
-  HIRNode *step_val;
-  if (range_node->range.step) {
-    step_val = generate(range_node->range.step);
-  } else {
-    SA::Value step_raw = {0};
-    step_raw.i64 = is_descending ? -1 : 1;
-    step_val = create_literal(step_raw, range_node->range.start->type);
-  }
-
-  const char *iterator_name = strdup(node->fornode.iterator_var_name);
-
-  HIRNode *iterator_target = new HIRNode(ASTKind::AST_VAR);
-  iterator_target->name = strdup(iterator_name);
-  iterator_target->type = start_val->type;
-
-  // 3. Emit Initializer: i = start_val
-  HIRNode *init_assign =
-      create_assignment(iterator_target, start_val, OP_kind::OP_ASSIGN);
-  init_assign->loc = node->loc;
-  root_block->block_stmts->push_back(init_assign);
-
-  // 4. Instantiate the Universal Primitive While Loop
-  HIRNode *while_node = new HIRNode(ASTKind::AST_WHILE);
-  while_node->type = node->type;
-  while_node->loc = node->loc;
-
-  // 5. Build Condition Expression: i <= end_val
-  // Create the variable lookup node for 'i' on the left side of the operation
-  HIRNode *iterator_id = new HIRNode(ASTKind::AST_VAR);
-  iterator_id->name = strdup(iterator_name);
-  iterator_id->type =
-      range_node->range.start->type; // Matches the range type context
-
-  // Exclusive range (0..10): use < or >. Inclusive range (0..=10): use <= or >=
-  OP_kind_t cond_op;
-  if (range_node->range.isexslusive) {
-    cond_op = is_descending ? OP_kind::OP_GE : OP_kind::OP_LE;
-  } else {
-    cond_op = is_descending ? OP_kind::OP_GT : OP_kind::OP_LT;
-  }
-
-  while_node->while_loop.condition =
-      create_binary_op(cond_op, iterator_id, end_val, iterator_id->type);
-
-  // 6. Build the Loop Body Block
-  HIRNode *body_block = new HIRNode(ASTKind::AST_BLOCK);
-  body_block->block_stmts = new std::vector<HIRNode *>();
-  body_block->loc = node->loc;
-
-  // If your body is an AST node list, flatten it directly into the body
-  // statements vector
-  if (node->fornode.body)
-    flatten_sequence(node->fornode.body, body_block->block_stmts);
-
-  // 7. Append Step Action to the bottom of the body: i = i + step_val
-  HIRNode *iterator_id_for_step = new HIRNode(ASTKind::AST_VAR);
-  iterator_id_for_step->name = strdup(iterator_name);
-  iterator_id_for_step->type = iterator_id->type;
-
-  HIRNode *add_step_expr = create_binary_op(
-      OP_kind::OP_ADD, iterator_id_for_step, step_val, iterator_id->type);
-
-  HIRNode *step_target = new HIRNode(ASTKind::AST_VAR);
-  step_target->name = strdup(iterator_name);
-  step_target->type = iterator_id->type;
-
-  HIRNode *step_assign =
-      create_assignment(step_target, add_step_expr, OP_kind::OP_ASSIGN);
-  step_assign->loc = node->loc;
-  body_block->block_stmts->push_back(step_assign);
-
-  // Bind the completed body to the while engine
-  while_node->while_loop.body = body_block;
-
-  // Push the while loop block onto our sequence execution list
-  root_block->block_stmts->push_back(while_node);
-
-  return root_block;
+inline HIRNode *makeVar(const char *name, SA::Type *type) {
+  HIRNode *var = new HIRNode(ASTKind::AST_VAR);
+  var->name = strdup(name);
+  var->type = type;
+  return var;
 }
 
-HIRNode *HIRGenerator::emit_MAST_for_loop(ASTNode *node) {
-  if (!node)
+IterableForLoop makeIterableLoop(HIRGenerator &generator, ASTNode *node) {
+  ASTNode *iterable = node->fornode.iterable;
+  static int loopCounter = 0;
+  int loopIndex = loopCounter++;
+
+  IterableForLoop loop{
+      .node = node,
+      .iterable = iterable,
+      .rootBlock = new HIRNode(ASTKind::AST_BLOCK),
+      .iterableExpr = generator.generate(iterable),
+      .whileNode = new HIRNode(ASTKind::AST_WHILE),
+      .iteratorName = node->fornode.iterator_var_name,
+      .indexName = "\003__idx__" + std::to_string(loopIndex),
+      .arrayName = "\003__arr__" + std::to_string(loopIndex),
+      .indexType = new SA::Type(I64, nullptr),
+      .elementType = iterable->type->inner,
+      .hasParamCount = iterable->kind == AST_VAR &&
+                       generator.isParam(iterable->var) &&
+                       generator.isParam(std::string(iterable->var) +
+                                          "\003_count")};
+
+  loop.rootBlock->blockStmts = new std::vector<HIRNode *>();
+  loop.rootBlock->loc = node->loc;
+  loop.whileNode->type = node->type;
+  loop.whileNode->loc = node->loc;
+  return loop;
+}
+
+void initIterableLoop(HIRGenerator &generator, IterableForLoop &loop) {
+  HIRNode *iteratorDecl = new HIRNode(ASTKind::AST_ASSIGN);
+  iteratorDecl->assign.isDec = true;
+  iteratorDecl->assign.target = makeVar(loop.iteratorName.c_str(), loop.elementType);
+  iteratorDecl->assign.value =
+      generator.createLiteral((SA::Value){0}, loop.elementType, ASTKind::AST_NUM);
+  iteratorDecl->type = loop.elementType;
+  iteratorDecl->loc = loop.node->loc;
+  loop.rootBlock->blockStmts->push_back(iteratorDecl);
+
+  if (loop.hasParamCount) {
+    HIRNode *arrayCount =
+        makeVar((loop.arrayName + "\003_count").c_str(), loop.indexType);
+    HIRNode *paramCount = makeVar(
+        (std::string(loop.iterable->var) + "\003_count").c_str(), loop.indexType);
+    HIRNode *countAssign = generator.createAssign(
+        arrayCount, paramCount, OP_kind::OP_ASSIGN, true);
+    countAssign->loc = loop.node->loc;
+    loop.rootBlock->blockStmts->push_back(countAssign);
+  }
+
+  HIRNode *arrayTarget = makeVar(loop.arrayName.c_str(), loop.iterableExpr->type);
+  HIRNode *arrayAssign = generator.createAssign(
+      arrayTarget, loop.iterableExpr, OP_kind::OP_ASSIGN, true);
+  arrayAssign->loc = loop.node->loc;
+  loop.rootBlock->blockStmts->push_back(arrayAssign);
+
+  HIRNode *indexTarget = makeVar(loop.indexName.c_str(), loop.indexType);
+  HIRNode *zero =
+      generator.createLiteral((SA::Value){0}, loop.indexType, ASTKind::AST_NUM);
+  HIRNode *indexInit = generator.createAssign(
+      indexTarget, zero, OP_kind::OP_ASSIGN, true);
+  indexInit->loc = loop.node->loc;
+  loop.rootBlock->blockStmts->push_back(indexInit);
+}
+
+HIRNode *iterableCondition(HIRGenerator &generator, IterableForLoop &loop) {
+  HIRNode *limit;
+  if (loop.hasParamCount) {
+    limit = makeVar((loop.arrayName + "\003_count").c_str(), loop.indexType);
+  } else {
+    SA::Value length = {0};
+    length.i64 = static_cast<int64_t>(loop.iterable->type->size);
+    limit = generator.createLiteral(length, loop.indexType, ASTKind::AST_NUM);
+  }
+
+  return generator.createBinOp(
+      OP_kind::OP_LT, makeVar(loop.indexName.c_str(), loop.indexType), limit,
+      loop.indexType);
+}
+
+HIRNode *iterableBody(HIRGenerator &generator, IterableForLoop &loop) {
+  HIRNode *bodyBlock = new HIRNode(ASTKind::AST_BLOCK);
+  bodyBlock->blockStmts = new std::vector<HIRNode *>();
+  bodyBlock->loc = loop.node->loc;
+
+  HIRNode *indexExpr = new HIRNode(ASTKind::AST_INDEX);
+  indexExpr->type = loop.elementType;
+  indexExpr->index.target = makeVar(loop.arrayName.c_str(), loop.iterable->type);
+  indexExpr->index.idx = new std::vector<HIRNode *>();
+  indexExpr->index.idx->push_back(makeVar(loop.indexName.c_str(), loop.indexType));
+  indexExpr->index.islhs = false;
+
+  HIRNode *iteratorUpdate = generator.createAssign(
+      makeVar(loop.iteratorName.c_str(), loop.elementType), indexExpr,
+      OP_kind::OP_ASSIGN, false);
+  iteratorUpdate->loc = loop.node->loc;
+  bodyBlock->blockStmts->push_back(iteratorUpdate);
+  generator.flattenSeq(loop.node->fornode.body, bodyBlock->blockStmts);
+
+  HIRNode *increment = generator.createBinOp(
+      OP_kind::OP_ADD, makeVar(loop.indexName.c_str(), loop.indexType),
+      generator.createLiteral((SA::Value){1}, loop.indexType, ASTKind::AST_NUM),
+      loop.indexType);
+  HIRNode *stepAssign = generator.createAssign(
+      makeVar(loop.indexName.c_str(), loop.indexType), increment,
+      OP_kind::OP_ASSIGN, false);
+  stepAssign->loc = loop.node->loc;
+  bodyBlock->blockStmts->push_back(stepAssign);
+  return bodyBlock;
+}
+
+RangeForLoop makeRangeLoop(HIRGenerator &generator, ASTNode *node,
+                           ASTNode *rangeNode) {
+  HIRNode *startVal = generator.generate(rangeNode->range.start);
+  HIRNode *endVal = generator.generate(rangeNode->range.end);
+  bool isDescending = startVal->kind == ASTKind::AST_NUM &&
+                      endVal->kind == ASTKind::AST_NUM &&
+                      startVal->val.i64 > endVal->val.i64;
+
+  HIRNode *stepVal;
+  if (rangeNode->range.step) {
+    stepVal = generator.generate(rangeNode->range.step);
+  } else {
+    SA::Value stepValue = {0};
+    stepValue.i64 = isDescending ? -1 : 1;
+    stepVal = generator.createLiteral(stepValue, rangeNode->range.start->type,
+                                      ASTKind::AST_NUM);
+  }
+
+  HIRNode *rootBlock = new HIRNode(ASTKind::AST_BLOCK);
+  rootBlock->blockStmts = new std::vector<HIRNode *>();
+  rootBlock->loc = node->loc;
+
+  HIRNode *whileNode = new HIRNode(ASTKind::AST_WHILE);
+  whileNode->type = node->type;
+  whileNode->loc = node->loc;
+
+  return RangeForLoop{
+      .node = node,
+      .rangeNode = rangeNode,
+      .rootBlock = rootBlock,
+      .whileNode = whileNode,
+      .startVal = startVal,
+      .endVal = endVal,
+      .stepVal = stepVal,
+      .iteratorName = node->fornode.iterator_var_name,
+      .isDescending = isDescending};
+}
+
+void initRangeLoop(HIRGenerator &generator, RangeForLoop &loop) {
+  HIRNode *iteratorTarget = makeVar(loop.iteratorName.c_str(), loop.startVal->type);
+  HIRNode *initAssign = generator.createAssign(
+      iteratorTarget, loop.startVal, OP_kind::OP_ASSIGN);
+  initAssign->loc = loop.node->loc;
+  loop.rootBlock->blockStmts->push_back(initAssign);
+}
+
+HIRNode *rangeCondition(HIRGenerator &generator, RangeForLoop &loop) {
+  OP_kind_t conditionOp;
+  if (loop.rangeNode->range.isexslusive) {
+    conditionOp = loop.isDescending ? OP_kind::OP_GE : OP_kind::OP_LE;
+  } else {
+    conditionOp = loop.isDescending ? OP_kind::OP_GT : OP_kind::OP_LT;
+  }
+
+  HIRNode *iteratorId = makeVar(loop.iteratorName.c_str(), loop.startVal->type);
+  return generator.createBinOp(conditionOp, iteratorId, loop.endVal,
+                               iteratorId->type);
+}
+
+HIRNode *rangeBody(HIRGenerator &generator, RangeForLoop &loop) {
+  HIRNode *bodyBlock = new HIRNode(ASTKind::AST_BLOCK);
+  bodyBlock->blockStmts = new std::vector<HIRNode *>();
+  bodyBlock->loc = loop.node->loc;
+  if (loop.node->fornode.body)
+    generator.flattenSeq(loop.node->fornode.body, bodyBlock->blockStmts);
+
+  HIRNode *iteratorId = makeVar(loop.iteratorName.c_str(), loop.startVal->type);
+  HIRNode *stepExpr = generator.createBinOp(
+      OP_kind::OP_ADD, iteratorId, loop.stepVal, iteratorId->type);
+  HIRNode *stepAssign = generator.createAssign(
+      makeVar(loop.iteratorName.c_str(), iteratorId->type), stepExpr,
+      OP_kind::OP_ASSIGN);
+  stepAssign->loc = loop.node->loc;
+  bodyBlock->blockStmts->push_back(stepAssign);
+  return bodyBlock;
+}
+
+} // namespace
+
+HIRNode *HIRGenerator::emitForRange(ASTNode *node) {
+  if (!node || !node->fornode.iterable)
+    return nullptr;
+  ASTNode *rangeNode = node->fornode.iterable->kind == AST_VAR
+                           ? ctx->sym.findSym(node->fornode.iterable->var)->node_ptr
+                           : node->fornode.iterable;
+
+  RangeForLoop loop = makeRangeLoop(*this, node, rangeNode);
+  initRangeLoop(*this, loop);
+  loop.whileNode->whileLoop.cond = rangeCondition(*this, loop);
+  loop.whileNode->whileLoop.body = rangeBody(*this, loop);
+  loop.rootBlock->blockStmts->push_back(loop.whileNode);
+  return loop.rootBlock;
+}
+
+HIRNode *HIRGenerator::emitForLoop(ASTNode *node) {
+  if (!node || !node->fornode.iterable)
     return nullptr;
   if (node->fornode.iterable->kind == AST_RANGE)
-    return emit_MAST_for_range_loop(node);
+    return emitForRange(node);
 
-  ASTNode *body = node->fornode.body;
-  ASTNode *iterable = node->fornode.iterable;
-  const char *iterator_name = strdup(node->fornode.iterator_var_name);
-
-  // 1. Create a root block to isolate configuration data structures
-  HIRNode *root_block = new HIRNode(ASTKind::AST_BLOCK);
-  root_block->block_stmts = new std::vector<HIRNode *>();
-  root_block->loc = node->loc;
-
-  // Evaluate loop expressions safely
-  HIRNode *iterable_expr = generate(iterable);
-
-  static int loop_counter = 0;
-  std::string idx_var_str = "\003__idx__" + std::to_string(loop_counter);
-  std::string arr_var_str = "\003__arr__" + std::to_string(loop_counter++);
-
-  const char *idx_var_name = strdup(idx_var_str.c_str());
-  const char *arr_var_name = strdup(arr_var_str.c_str());
-
-  SA::Type *int_type =
-      new SA::Type(I64, nullptr); // Ensure 64-bit safe bounds index typing
-  SA::Type *element_type = iterable->type->inner;
-
-  // ==========================================
-  // 🎯 THE FIX: PRE-DECLARE ALL VARIABLES FIRST
-  // ==========================================
-
-  bool iterable_is_param = (iterable->kind == AST_VAR && is_param(iterable->var) && is_param(std::string(iterable->var) + "\003_count"));
-
-  // Explicitly declare 'j' at the absolute top of the scope block
-  HIRNode *iterator_decl = new HIRNode(ASTKind::AST_ASSIGN);
-  iterator_decl->assign.is_declaration = true;
-  iterator_decl->assign.target = new HIRNode(ASTKind::AST_VAR);
-  iterator_decl->assign.target->name = strdup(iterator_name);
-  iterator_decl->assign.target->type = element_type;
-  iterator_decl->assign.is_declaration = true; // FORCE declaration status!
-  iterator_decl->assign.value = create_literal((SA::Value){0}, element_type);
-  iterator_decl->type = element_type;
-  iterator_decl->loc = node->loc;
-  root_block->block_stmts->push_back(iterator_decl);
-
-  if (iterable_is_param) {
-    HIRNode *arr_count_target = new HIRNode(ASTKind::AST_VAR);
-    arr_count_target->name = strdup((arr_var_str + "\003_count").c_str());
-    arr_count_target->type = int_type;
-
-    HIRNode *param_count_var = new HIRNode(ASTKind::AST_VAR);
-    param_count_var->name = strdup((std::string(iterable->var) + "\003_count").c_str());
-    param_count_var->type = int_type;
-
-    HIRNode *count_assign = create_assignment(arr_count_target, param_count_var, OP_kind::OP_ASSIGN, true);
-    count_assign->loc = node->loc;
-    root_block->block_stmts->push_back(count_assign);
-  }
-
-  HIRNode *arr_target = new HIRNode(ASTKind::AST_VAR);
-  arr_target->name = strdup(arr_var_name);
-  arr_target->type = iterable_expr->type;
-
-  // Cache the iterable reference: __arr__0 = iterable
-  HIRNode *arr_assign =
-  create_assignment(arr_target, iterable_expr, OP_kind::OP_ASSIGN, true);
-  arr_assign->loc = node->loc;
-  root_block->block_stmts->push_back(arr_assign);
-
-  // Setup counter tracking reference variables: __idx__0 = 0
-  HIRNode *zero_lit = create_literal((SA::Value){0}, int_type);
-  HIRNode *idx_target = new HIRNode(ASTKind::AST_VAR);
-  idx_target->name = strdup(idx_var_name);
-  idx_target->type = int_type;
-  HIRNode *idx_init =
-      create_assignment(idx_target, zero_lit, OP_kind::OP_ASSIGN, true);
-  idx_init->loc = node->loc;
-  root_block->block_stmts->push_back(idx_init);
-
-  // ==========================================
-  // 2. CONSTRUCT LOOP CONDITIONS & ENGINE
-  // ==========================================
-  HIRNode *while_node = new HIRNode(ASTKind::AST_WHILE);
-  while_node->type = node->type;
-  while_node->loc = node->loc;
-
-  // Check expression: __idx__0 < iterable_length
-  HIRNode *idx_id_cond = new HIRNode(ASTKind::AST_VAR);
-  idx_id_cond->name = strdup(idx_var_name);
-  idx_id_cond->type = int_type;
-
-  HIRNode *limit_node;
-  if (iterable_is_param) {
-    limit_node = new HIRNode(ASTKind::AST_VAR);
-    limit_node->name = strdup((arr_var_str + "\003_count").c_str());
-    limit_node->type = int_type;
-  } else {
-    limit_node = create_literal(
-        (SA::Value){.i64 = (int64_t)iterable->type->size}, int_type);
-  }
-  while_node->while_loop.condition =
-      create_binary_op(OP_kind::OP_LT, idx_id_cond, limit_node, int_type);
-
-  // ==========================================
-  // 3. CONSTRUCT LOOP BODY BASIC BLOCKS
-  // ==========================================
-  HIRNode *body_block = new HIRNode(ASTKind::AST_BLOCK);
-  body_block->block_stmts = new std::vector<HIRNode *>();
-  body_block->loc = node->loc;
-
-  // Array read assignments: j = __arr__0[__idx__0]
-  HIRNode *arr_id_read = new HIRNode(ASTKind::AST_VAR);
-  arr_id_read->name = strdup(arr_var_name);
-  arr_id_read->type = iterable->type;
-
-  HIRNode *idx_id_read = new HIRNode(ASTKind::AST_VAR);
-  idx_id_read->name = strdup(idx_var_name);
-  idx_id_read->type = int_type;
-
-  HIRNode *index_expr = new HIRNode(ASTKind::AST_INDEX);
-  index_expr->type = element_type;
-  index_expr->index.target = arr_id_read;
-  index_expr->index.idx = new std::vector<HIRNode *>();
-  index_expr->index.idx->push_back(idx_id_read);
-  index_expr->index.islhs = false;
-
-  HIRNode *iterator_target_update = new HIRNode(ASTKind::AST_VAR);
-  iterator_target_update->name = strdup(iterator_name);
-  iterator_target_update->type = element_type;
-
-  // 🎯 NOTICE: altered to 'is_declaration = false' because j was pre-declared
-  // above!
-  HIRNode *iterator_update = create_assignment(
-      iterator_target_update, index_expr, OP_kind::OP_ASSIGN, false);
-  iterator_update->loc = node->loc;
-  body_block->block_stmts->push_back(iterator_update);
-
-  // Append child expressions inside user loop block safely
-  flatten_sequence(body, body_block->block_stmts);
-
-  // Step index updater layout execution block: __idx__0 = __idx__0 + 1
-  HIRNode *idx_id_step = new HIRNode(ASTKind::AST_VAR);
-  idx_id_step->name = strdup(idx_var_name);
-  idx_id_step->type = int_type;
-
-  HIRNode *one_lit = create_literal((SA::Value){1}, int_type);
-  HIRNode *add_step_expr =
-      create_binary_op(OP_kind::OP_ADD, idx_id_step, one_lit, int_type);
-  HIRNode *idx_step_target = new HIRNode(ASTKind::AST_VAR);
-  idx_step_target->name = strdup(idx_var_name);
-  idx_step_target->type = int_type;
-  HIRNode *step_assign = create_assignment(idx_step_target, add_step_expr,
-                                           OP_kind::OP_ASSIGN, false);
-  step_assign->loc = node->loc;
-  body_block->block_stmts->push_back(step_assign);
-
-  while_node->while_loop.body = body_block;
-  root_block->block_stmts->push_back(while_node);
-
-  return root_block;
+  return emitForIterableObj(node);
 }
 
-HIRNode *HIRGenerator::emit_MAST_while_loop(ASTNode *node) {
+HIRNode *HIRGenerator::emitForIterableObj(ASTNode *node) {
+  if (!node || !node->fornode.iterable)
+    return nullptr;
+
+  IterableForLoop loop = makeIterableLoop(*this, node);
+  initIterableLoop(*this, loop);
+  loop.whileNode->whileLoop.cond = iterableCondition(*this, loop);
+  loop.whileNode->whileLoop.body = iterableBody(*this, loop);
+  loop.rootBlock->blockStmts->push_back(loop.whileNode);
+  return loop.rootBlock;
+}
+
+HIRNode *HIRGenerator::emitWhileLoop(ASTNode *node) {
   if (!node)
     return nullptr;
 
-  // 1. Lower the loop condition expression (e.g., condition evaluation)
-  HIRNode *condition = generate(node->whilenode.cond);
+  HIRNode *cond = generate(node->whilenode.cond);
+  HIRNode *bodyBlock = new HIRNode(ASTKind::AST_BLOCK);
+  bodyBlock->blockStmts = new std::vector<HIRNode *>();
+  bodyBlock->loc = node->loc;
 
-  // 2. Instantiate a clean block container for the loop body statements
-  HIRNode *body_block = new HIRNode(ASTKind::AST_BLOCK);
-  body_block->block_stmts = new std::vector<HIRNode *>();
-  body_block->loc = node->loc;
+  if (node->whilenode.body)
+    flattenSeq(node->whilenode.body, bodyBlock->blockStmts);
 
-  // 3. Flatten the original frontend sequential statements into the block
-  if (node->whilenode.body) {
-    flatten_sequence(node->whilenode.body, body_block->block_stmts);
-  }
-
-  // 4. Wrap everything cleanly inside a Mid-AST while node
-  HIRNode *while_node = create_while_loop(condition, body_block);
-  while_node->loc = node->loc;
-  while_node->while_loop.expr = generate(node->whilenode.expr);
-
-  return while_node;
+  HIRNode *whileNode = createWhileLoop(cond, bodyBlock);
+  whileNode->loc = node->loc;
+  whileNode->whileLoop.expr = generate(node->whilenode.expr);
+  return whileNode;
 }

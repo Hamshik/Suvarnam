@@ -9,7 +9,7 @@
 typedef struct{
     const char *name;
     SA::Param *params;
-    int param_count;
+    int paramCount;
     bool isReturned;
     SA::Type* ret;
     ASTNode* node_ptr;
