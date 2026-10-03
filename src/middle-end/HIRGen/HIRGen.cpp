@@ -225,6 +225,13 @@ HIRNode *HIRGenerator::generate(ASTNode *node) {
   case AST_BREAK:
     return new HIRNode(ASTKind::AST_BREAK);
 
+  case AST_STRUCT: {
+    HIRNode *block = new HIRNode(ASTKind::AST_BLOCK);
+    block->blockStmts = new std::vector<HIRNode *>();
+    block->loc = node->loc;
+    return block;
+  }
+
   default:
     fprintf(stderr, "[HIRGen] Error: Unhandled AST node kind %d at line %zu\n",
             node->kind, (size_t)node->loc.firstLn);

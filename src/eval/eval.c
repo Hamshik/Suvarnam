@@ -19,7 +19,7 @@ SA::TypedVal ast_eval_main(ASTNode *root) {
     panic( (SA::Location){1, 1, 0, 0, 0, 0}, SEM_CALL_UNDEF_FN, "main");
     return (SA::TypedVal){0};
   }
-  ASTNode *call = new_fn_call("main", NULL, (SA::Location){0});
+  ASTNode *call = newFnCall("main", NULL, (SA::Location){0});
   SA::TypedVal ret = ast_eval(call);
   ast_free(call);
   return ret;

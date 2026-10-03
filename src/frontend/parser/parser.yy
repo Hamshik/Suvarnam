@@ -15,8 +15,8 @@
 
 %token LEX_ERROR
 %token LBRACE RBRACE SEMICOLON COLON IN COMMA ELLIPSIS
-%token IF FOR WHILE MUT VAR FN RETURN IMPORT
-%token CONTINUE BREAK NOT BITNOT
+%token IF FOR WHILE MUT VAR FN RETURN IMPORT STRUCT
+%token CONTINUE BREAK 
 
 %token <datatype> DATATYPES
 %token <node> IDENTIFIER NUMBER STRING_LITERAL BOOL_LITERAL CHAR_LITERAL
@@ -24,13 +24,14 @@
 %type <op> assign_op
 %type <node>  top_level_stmts block ifStmt for_stmt while_stmt import_stmt expr_stmts
 %type <node>  fn_def param param_tail return_stmt opt_args args list_stmt with_non_expr expr_stmt top_level_stmt index_stmt fn_block_t
-%type <node>  assign_expr import_list expr assignment program range
+%type <node>  assign_expr import_list expr assignment program range structs fields field opt_field_default
 %type <paramlist> opt_params params
 %type <type>  recursive_type
 %type <size>  opt_list_size
 %type <idx_epr> indexing
 
 %right ASSIGN PLUS_ASSIGN MINUS_ASSIGN STAR_ASSIGN SLASH_ASSIGN MOD_ASSIGN POWER_ASSIGN LSHIFT_ASSIGN RSHIFT_ASSIGN
+%left NOT BITNOT
 %left OR
 %left AND
 %left PIPE
@@ -42,9 +43,9 @@
 %left PLUS MINUS
 %left STAR SLASH MOD
 %right POWER
-%left INC DEC
-%left LPAREN RPAREN
-%left LSQUARE RSQUARE
+%left INC DEC 
+%left LPAREN RPAREN LSQUARE RSQUARE
+
 %nonassoc LOWER_THAN_ELSE
 %nonassoc ELSE
 %nonassoc DOT_DOT
@@ -59,13 +60,14 @@
 %include list.ly
 %include loops.ly
 %include assign.ly
+%include obj.ly
 
 program:
     import_list top_level_stmts
     {
         if (!$1) $$ = $2;
         else if (!$2) $$ = $1;
-        else $$ = new_seq($1, $2);
+        else $$ = newSeq($1, $2);
         root = $$;
     }
 ;
@@ -81,7 +83,7 @@ top_level_stmts:
     {
         if (!$1) $$ = $2;
         else if (!$2) $$ = $1;
-        else $$ = new_seq($1, $2);
+        else $$ = newSeq($1, $2);
     }
 ;
 
@@ -95,9 +97,10 @@ expr_stmt:
     | ifStmt                   { $$ = $1; }
     | for_stmt                  { $$ = $1; }
     | while_stmt                { $$ = $1; }
-    | CONTINUE SEMICOLON        { $$ = new_continue(@1); }
-    | BREAK SEMICOLON           { $$ = new_break(@1); }
+    | CONTINUE SEMICOLON        { $$ = newCont(@1); }
+    | BREAK SEMICOLON           { $$ = newBreak(@1); }
     | assign_expr SEMICOLON       { $$ = $1; }
+    | structs                   { $$ = $1; }
 ;
 
 import_list:
@@ -105,7 +108,7 @@ import_list:
     | import_stmt import_list
       {
           if (!$2) $$ = $1;
-          else $$ = new_seq($1, $2);
+          else $$ = newSeq($1, $2);
       }    
 ;
 
@@ -115,14 +118,14 @@ expr_stmts:
     {
         if (!$1) $$ = $2;
         else if (!$2) $$ = $1;
-        else $$ = new_seq($1, $2);
+        else $$ = newSeq($1, $2);
     }
 ;
 
 import_stmt:
     IMPORT STRING_LITERAL
       {
-          $$ = new_import_node($2->literal.raw, @1 + @2);
+          $$ = newImport($2->literal.raw, @1 + @2);
       }
 ;
 
@@ -132,19 +135,23 @@ block:
 
 ifStmt:
     IF expr block %prec LOWER_THAN_ELSE
-        { $$ = new_if($2, $3, NULL, @1 + @3); }
+        { $$ = newIf($2, $3, NULL, @1 + @3); }
     | IF expr block ELSE expr_stmt
-        { $$ = new_if($2, $3, $5, @1 + @5); }
+        { $$ = newIf($2, $3, $5, @1 + @5); }
     
     | IF expr COLON expr_stmt %prec LOWER_THAN_ELSE
-        { $$ = new_if($2, $4, NULL, @1 + @4); }
+        { $$ = newIf($2, $4, NULL, @1 + @4); }
     | IF expr COLON expr_stmt ELSE COLON expr_stmt
-        { $$ = new_if($2, $4, $7, @1 + @7); }
+        { $$ = newIf($2, $4, $7, @1 + @7); }
 ;
 
 recursive_type:
     DATATYPES {
         $$ = new SA::Type($1, null(SA::Type*)); 
+    }
+    | IDENTIFIER {
+        $$ = new SA::Type(new std::string($1->var), null(SA::Type*));
+        ast_free($1);
     }
     | recursive_type LSQUARE opt_list_size RSQUARE {
         $$ = new SA::Type(LIST, $1);

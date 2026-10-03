@@ -118,3 +118,14 @@ SA::Type *Importer::handleImport(ASTNode *n) {
 
   return nullptr;
 }
+
+bool Importer::isexists(std::string path) {
+  std::filesystem::path output_path(path);
+  std::filesystem::path destination_dir = output_path.parent_path();
+
+  if (destination_dir.empty()) {
+    destination_dir = ".";
+  }
+
+  return std::filesystem::is_directory(destination_dir);
+}

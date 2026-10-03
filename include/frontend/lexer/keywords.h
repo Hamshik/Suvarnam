@@ -40,6 +40,7 @@ static const std::unordered_map<std::string_view, SA_Keyword> SA_keywords = {
     TOKEN_KEYWORD("if", Tokens::IF),
     TOKEN_KEYWORD("for", Tokens::FOR),
     TOKEN_KEYWORD("var", Tokens::VAR),
+    TOKEN_KEYWORD("struct", Tokens::STRUCT),
     TYPE_KEYWORD("i8", I8),
     TYPE_KEYWORD("i16", I16),
     TYPE_KEYWORD("i32", I32),

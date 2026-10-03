@@ -150,6 +150,9 @@ SA::Type *Semantic::checkExpr(ASTNode *n, SA::Type *&type) {
   case AST_INDEX:
     return semanticIndexHandle(n);
 
+  case AST_STRUCT:
+    return nullptr;
+
   case AST_BLOCK:
     return checkExpr(n->block.block, type);
 

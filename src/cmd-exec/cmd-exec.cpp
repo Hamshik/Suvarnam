@@ -12,9 +12,9 @@
 #include <vector>
 
 extern std::vector<std::string> ir_out;
-std::vector<char*> I_src{};
+std::vector<char *> I_src{};
 int codegen(HIRNode *, const char *, char **, bool);
-SemanticSymTable* sym;
+SemanticSymTable *sym;
 
 static std::string make_object_path(const std::string &input_path) {
   std::string obj_path = input_path;
@@ -104,6 +104,11 @@ bool parse_arguments(int argc, char **argv, Options *opts) {
       if (i + 1 < argc) {
         opts->bin_output_path = argv[i + 1];
         i += 2;
+        if (!Importer::isexists(opts->bin_output_path))
+          syserr(("Directory does not exist: " +
+                  std::string(opts->bin_output_path))
+                     .c_str());
+
       } else {
         syserr("Missing argument for -o\nUsage:  SA [source] [-o bin_path] "
                "[--emit-ir ir_path]");
@@ -114,19 +119,24 @@ bool parse_arguments(int argc, char **argv, Options *opts) {
         opts->emitIR = true;
         opts->ir_output_path = argv[i + 1];
         i += 2;
+        if (!Importer::isexists(opts->ir_output_path))
+          syserr(
+              ("Directory does not exist: " + std::string(opts->ir_output_path))
+                  .c_str());
       } else {
         syserr("Missing argument for --emit-ir\nUsage:  SA [source] [-o"
                "bin_path] [--emit-ir ir_path]");
         return false;
       }
-    } else if(argv[i][0] == '-' && argv[i][1]=='I'){
-      char* path = argv[i] + 2;
-      if(*path == '\0'){
+    } else if (argv[i][0] == '-' && argv[i][1] == 'I') {
+      char *path = argv[i] + 2;
+      if (*path == '\0') {
         i++;
-        if(!argv[i]) syserr((char*)"Expected directory");
+        if (!argv[i])
+          syserr((char *)"Expected directory");
         path = argv[i];
       }
-      if(std::filesystem::is_directory(path)){
+      if (std::filesystem::is_directory(path)) {
         I_src.push_back(path);
         i++;
         continue;
@@ -171,10 +181,10 @@ bool setup_input_file(const Options *opts, File *file) {
 
 /* Compile and execute the AST */
 
-int compile_and_execute(ASTNode *root, const Options *opts, Importer* import) {
+int compile_and_execute(ASTNode *root, const Options *opts, Importer *import) {
   error_fatal = false; /* collect semantic errors like Rust */
 
-  SA::CompilerContext* ctx = import->getCtx();
+  SA::CompilerContext *ctx = import->getCtx();
   ctx->semantic.main(root);
 
   sym = &ctx->sym;
@@ -198,7 +208,7 @@ int compile_and_execute(ASTNode *root, const Options *opts, Importer* import) {
                                  ? opts->ir_output_path
                                  : "/tmp/temp_suvarnam_main.ll";
 
-  if (codegen(mast_root, main_ir_path, &ir_text, true) == EXIT_FAILURE){
+  if (codegen(mast_root, main_ir_path, &ir_text, true) == EXIT_FAILURE) {
     printf("Codegen is exited with 1");
     return 1;
   }
@@ -214,7 +224,8 @@ int compile_and_execute(ASTNode *root, const Options *opts, Importer* import) {
   }
   free(ir_text);
 
-  // Ensure output directory exists if bin_output_path contains a directory separator
+  // Ensure output directory exists if bin_output_path contains a directory
+  // separator
   std::string bin_path(opts->bin_output_path);
   size_t last_slash = bin_path.find_last_of("/\\");
   if (last_slash != std::string::npos) {

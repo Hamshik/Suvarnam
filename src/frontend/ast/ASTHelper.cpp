@@ -2,13 +2,6 @@
 #include "shared/structs.h"
 #include <stdlib.h>
 
-ASTNode *ast_alloc(void) {
-    ASTNode *n = (ASTNode*)calloc(1, sizeof(ASTNode));
-    if (!n) { perror("malloc"); exit(1); }
-    n->type = new SA::Type(UNKNOWN, NULL);
-    return n;
-}
-
 void ast_free(ASTNode *n) {
     if (!n) return;
 
@@ -72,6 +65,16 @@ void ast_free(ASTNode *n) {
 
         case AST_RETURN:
             ast_free(n->ret.value);
+            break;
+
+        case AST_FIELD:
+            ast_free(n->field.defaultField);
+            delete n->field.name;
+            break;
+
+        case AST_STRUCT:
+            free(n->structDecl.name);
+            ast_free(n->structDecl.fields);
             break;
 
         case AST_BOOL:

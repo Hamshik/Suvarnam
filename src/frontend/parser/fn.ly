@@ -6,12 +6,12 @@ fn_block_t:
 fn_def:
     FN recursive_type IDENTIFIER LPAREN opt_params RPAREN fn_block_t
     {
-        $$ = new_fn_def($3->var, $5.params, $5.count, $2, $7, @1 + @7);
+        $$ = newFn($3->var, $5.params, $5.count, $2, $7, @1 + @7);
         ast_free($3);
     }
   | FN IDENTIFIER LPAREN opt_params RPAREN fn_block_t
     {
-        $$ = new_fn_def($2->var, $4.params, $4.count, NULL, $6, @1 + @6);
+        $$ = newFn($2->var, $4.params, $4.count, NULL, $6, @1 + @6);
         ast_free($2);
     } 
 ;
@@ -85,8 +85,8 @@ param_tail:
 ;
 
 return_stmt:
-    RETURN with_non_expr                 { $$ = new_return($2, @1 + @2); }
-    | RETURN                    { $$ = new_return(NULL, @1); }
+    RETURN with_non_expr                 { $$ = newRet($2, @1 + @2); }
+    | RETURN                    { $$ = newRet(NULL, @1); }
 ;
 
 opt_args:
@@ -96,5 +96,5 @@ opt_args:
 
 args:
     with_non_expr                        { $$ = $1; }
-    | with_non_expr COMMA args           { $$ = new_seq($1, $3); }
+    | with_non_expr COMMA args           { $$ = newSeq($1, $3); }
 ;

@@ -32,4 +32,5 @@ public:
   ASTNode *parseFile();
 
   std::istringstream* getFileContent(FILE *f);
+  static bool isexists(std::string path);
 };

@@ -2,10 +2,12 @@
 
 #include "enums.h"
 #include <cstddef>
+#include <cstring>
 #include <sstream>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <string>
 
 struct File {
   char *filename;
@@ -49,12 +51,12 @@ inline Location operator+(const Location& a, const Location& b) {
     };
 }
 
-struct SA_Ptr {
+struct Ptr {
   size_t frame_id;
   char *name;
 };
 
-struct SA_Range {
+struct Range {
   int64_t start;
   int64_t end;
   int64_t step;
@@ -74,8 +76,8 @@ union Value {
   uint32_t u32;
   uint64_t u64;
   unsigned __int128 u128;
-  SA_Ptr ptr;
-  SA_Range range;
+  SA::Ptr ptr;
+  SA::Range range;
   bool bval;
   char *chars;
   void *raw;
@@ -88,13 +90,25 @@ struct idxExpr {
   struct idxExpr *next; // next of i[]of i[][]... <- this one
 };
 
+enum TypeKind {
+  PRIMITIVE,
+  USER_DEFINED,
+};
+
 struct Type {
-  DataTypes_t base;    // e.g., LIST, PTR, INT
+  TypeKind kind;
+
+  union{
+    DataTypes_t base;    // e.g., LIST, PTR, INT
+    std::string* objType; // for user-defined types (structs, enums, etc.)
+  };
+
   Type *inner; // Points to the next type (recursive)
   size_t size = 0;
   bool ismut = false;
 
-  Type(DataTypes_t base, Type *inner) : base(base), inner(inner) {}
+  Type(DataTypes_t base, Type *inner) : kind(PRIMITIVE), base(base), inner(inner) {}
+  Type(std::string* objType, Type *inner) : kind(USER_DEFINED), objType(new std::string(*objType)), inner(inner) {}
 };
 
 struct TypedVal {

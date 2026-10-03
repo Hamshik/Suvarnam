@@ -69,5 +69,7 @@ typedef struct ASTNode {
             SA::idxExpr* idx;      // The position (e.g., the number '0' or expr 'i+1')
             bool islhs;
         } index;
+        struct { struct ASTNode *defaultField; std::string* name; } field;
+        struct { char *name; struct ASTNode *fields; } structDecl;
     };
 } ASTNode;

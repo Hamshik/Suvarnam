@@ -1,5 +1,5 @@
 list_stmt:
-    LSQUARE args RSQUARE       { $$ = new_list($2, @1 + @3); }
+    LSQUARE args RSQUARE       { $$ = newList($2, @1 + @3); }
 ;
 
 indexing:
@@ -16,7 +16,7 @@ indexing:
 index_stmt:
     expr indexing 
     { 
-        $$ = new_index($1, $2, false, @1 + @2);
+        $$ = newIdx($1, $2, false, @1 + @2);
         $$->isglobal = $1->isglobal;
     }
 ;

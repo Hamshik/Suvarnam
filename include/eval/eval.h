@@ -112,7 +112,7 @@ void panic(SA::Location loc, errc_t code, const char *detail);
 SA::Type* make_type(DataTypes_t base, SA::Type* inner);
 
 /*for eval.c*/
-ASTNode* new_fn_call(const char *name, ASTNode *args, SA::Location loc);
+ASTNode* newFnCall(const char *name, ASTNode *args, SA::Location loc);
 void ast_free(ASTNode *n);
 SA::Value eval_assign(ASTNode *lhs, ASTNode *rhs, OP_kind_t op, SA::Type* type , SA::Location loc);
 void set_var_current(const char *name, SA::Value *val, DataTypes_t datatype);

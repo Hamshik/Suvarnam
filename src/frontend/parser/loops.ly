@@ -1,62 +1,62 @@
 range:
       expr DOT_DOT expr 
-        { $$ = new_range($1, $3, NULL, false); }
+        { $$ = newRange($1, $3, NULL, false); }
     | expr DOT_DOT expr DOT_DOT expr 
-        { $$ = new_range($1, $3, $5, false); }
+        { $$ = newRange($1, $3, $5, false); }
     | expr DOT_DOT ASSIGN expr 
-        { $$ = new_range($1, $4, NULL, 1); }
+        { $$ = newRange($1, $4, NULL, 1); }
     | expr DOT_DOT ASSIGN expr DOT_DOT expr 
-        { $$ = new_range($1, $4, $6, 1); }
+        { $$ = newRange($1, $4, $6, 1); }
 ;
 
 for_stmt:
     FOR IDENTIFIER IN with_non_expr block
     {
-        $$ = new_for($2->var, $4, $5, @1 + @5, false);
+        $$ = newFor($2->var, $4, $5, @1 + @5, false);
         ast_free($2);
     }
     | FOR MUT IDENTIFIER IN with_non_expr block
     { 
-        $$ = new_for($3->var, $5, $6, @1 + @6, true); 
+        $$ = newFor($3->var, $5, $6, @1 + @6, true); 
         ast_free($3);
     }
     | FOR range block
     {
-        $$ = new_for("__SA temp idx__", $2, $3, @1 + @3, false);
+        $$ = newFor("__SA temp idx__", $2, $3, @1 + @3, false);
     }
 
     | FOR IDENTIFIER IN with_non_expr COLON expr_stmt
     {
-        $$ = new_for($2->var, $4, $6, @1 + @6, false);
+        $$ = newFor($2->var, $4, $6, @1 + @6, false);
         ast_free($2);
     }
     | FOR MUT IDENTIFIER IN with_non_expr COLON expr_stmt
     { 
-        $$ = new_for($3->var, $5, $7, @1 + @7, true); 
+        $$ = newFor($3->var, $5, $7, @1 + @7, true); 
         ast_free($3);
     }
     | FOR range COLON expr_stmt
     {
-        $$ = new_for("__SA temp idx__", $2, $4, @1 + @4, false);
+        $$ = newFor("__SA temp idx__", $2, $4, @1 + @4, false);
     }
 
 ;
 
 while_stmt:
     WHILE expr block
-        { $$ = new_while($2, $3, NULL, @1 + @3); }
+        { $$ = newWhilw($2, $3, NULL, @1 + @3); }
     | WHILE expr COLON assign_expr block
     {
         if($4->assign.op == OP_ASSIGN)
             panic(@4, PARSE_SYNTAX, "with_non_expr expects operational assignment not just plain assign");
-        $$ = new_while($2, $5, $4, @1 + @5);
+        $$ = newWhilw($2, $5, $4, @1 + @5);
     }
     | WHILE expr COLON expr_stmt
-        { $$ = new_while($2, $4, NULL, @1 + @4); } 
+        { $$ = newWhilw($2, $4, NULL, @1 + @4); } 
     | WHILE expr COLON assign_expr COLON expr_stmt
     {
         if($4->assign.op == OP_ASSIGN)
             panic(@4, PARSE_SYNTAX, "with_non_expr expects operational assignment not just plain assign");
-        $$ = new_while($2, $6, $4, @1 + @6);    
+        $$ = newWhilw($2, $6, $4, @1 + @6);    
     }
 ;
