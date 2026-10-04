@@ -41,7 +41,7 @@ for link in "${!targets[@]}"; do
   # Create relative symlink
   relative_target="$(realpath --relative-to="$(dirname "$link")" "$source")"
   if [ -L "$link" ] && [ "$(readlink "$link")" = "$relative_target" ]; then
-    echo "✓ $link → $relative_target (unchanged)"
+    echo "✓ $link → $relative_target"
   else
     rm -f "$link"
     ln -s "$relative_target" "$link"

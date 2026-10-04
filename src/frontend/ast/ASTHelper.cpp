@@ -77,6 +77,16 @@ void ast_free(ASTNode *n) {
             ast_free(n->structDecl.fields);
             break;
 
+        case AST_STRUCT_INIT:
+            free(n->structInit.name);
+            ast_free(n->structInit.fields);
+            break;
+
+        case AST_MEMBER:
+            ast_free(n->member.target);
+            delete n->member.name;
+            break;
+
         case AST_BOOL:
             free(n->literal.raw);
             break;

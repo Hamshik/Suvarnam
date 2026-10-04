@@ -24,7 +24,7 @@ class Semantic {
 
   SA::Type *listHandle(ASTNode *, SA::Type *type = nullptr);
   bool isList(ASTNode *);
-  SA::Type *semanticIndexHandle(ASTNode *);
+  SA::Type *idxHandle(ASTNode *);
   void idxAssign(ASTNode *&, ASTNode *&, SA::Type *&);
 
   void typeError(ASTNode *, const char *);
@@ -55,6 +55,10 @@ class Semantic {
   SA::Type *checkWhileLoop(ASTNode *n, SA::Type *type);
   SA::Type *checkRange(ASTNode *n, SA::Type *type);
   SA::Type *checkForLoop(ASTNode *n, SA::Type *type);
+
+  SA::Type *checkStruct(ASTNode *n, SA::Type *&type);
+  SA::Type *checkStructInit(ASTNode *n, SA::Type *&type);
+  SA::Type *checkStructMember(ASTNode *n);
 
 public:
   bool importParseFailed = false;

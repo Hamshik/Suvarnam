@@ -29,6 +29,15 @@ bool Semantic::typesAreEqual(SA::Type *a, SA::Type *b) {
   if (!a || !b)
     return false;
 
+  if (a->kind != b->kind)
+    return false;
+
+  if (a->kind == SA::USER_DEFINED) {
+    if (!a->objType || !b->objType || *a->objType != *b->objType)
+      return false;
+    return typesAreEqual(a->inner, b->inner);
+  }
+
   if (Semantic::isNumeric(a->base) && Semantic::isNumeric(b->base))
     return true;
   if (a->base != b->base)

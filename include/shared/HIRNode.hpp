@@ -3,6 +3,29 @@
 #include "structs.h"
 #include <vector>
 #include <cstring>
+#include <string>
+
+class HIRNode;
+
+struct Fields {
+    enum class NodePtrKind {
+        AST,
+        HIR
+    };
+
+    union NodePointer {
+        ASTNode *astNode;
+        HIRNode *hirNode;
+
+        NodePointer() : astNode(nullptr) {}
+    } nodePtr;
+
+    NodePtrKind nodePtrKind = NodePtrKind::HIR;
+    std::string name;
+    size_t index = 0;
+    bool isMut = false;
+    SA::Type *type = nullptr;
+};
 
 class HIRNode {
     public:
@@ -73,6 +96,14 @@ class HIRNode {
         } fn;
 
         struct { struct HIRNode *value; } ret;
+
+        struct { char *name; std::vector<struct Fields*> *fields; } structInit;
+        struct { char* name; std::vector<struct Fields*> *fields; } structDec;
+        struct {
+            HIRNode *target;
+            size_t index;
+            std::string name;
+        } memberAccess;
     }; 
 
     // Clean Constructor Initialization Tracker

@@ -28,7 +28,9 @@ typedef enum ASTKind {
     AST_BLOCK,
     AST_DECL,
     AST_FIELD,
-    AST_STRUCT
+    AST_STRUCT,
+    AST_STRUCT_INIT,
+    AST_MEMBER
 } ASTKind_t;
 
 typedef enum DataTypes{

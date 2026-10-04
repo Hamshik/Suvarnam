@@ -71,5 +71,12 @@ typedef struct ASTNode {
         } index;
         struct { struct ASTNode *defaultField; std::string* name; } field;
         struct { char *name; struct ASTNode *fields; } structDecl;
+        struct { char *name; struct ASTNode *fields; } structInit;
+        struct {
+            struct ASTNode *target;
+            std::string *name;
+            size_t index;
+            bool is_mutable;
+        } member;
     };
 } ASTNode;

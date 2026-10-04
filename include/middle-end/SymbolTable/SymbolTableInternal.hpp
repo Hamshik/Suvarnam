@@ -5,8 +5,10 @@
 #include "shared/nodes.h"
 #include "shared/structs.h"
 #include <llvm-22/llvm/IR/Value.h>
+#include <map>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 extern File *file;
 struct SemanticSymbolRecord {
@@ -32,6 +34,9 @@ class SemanticSymTable {
   SemanticScopeRecord *scope_ = new SemanticScopeRecord();
   std::unordered_map<std::string, std::unique_ptr<FnSymbol>> fns;
   std::unordered_map<std::string, std::unique_ptr<ASTMod>> mod;
+  std::unordered_map<std::string, std::unique_ptr<std::map<std::string, ASTNode*>>> structs;
+  std::unordered_map<std::string, std::vector<ASTNode *>> structFieldOrder;
+  std::unordered_map<std::string, ASTNode *> structDefinitions;
   Importer* importer;
 
 public:
@@ -55,6 +60,18 @@ public:
   ASTMod *loadMod(char *, const char *, bool &);
   SemanticSymbolRecord *findSym(const char *);
   SemanticSymbolRecord *getTopScope(const char *);
+
+  exitcode structExists(const std::string& name) const;
+  void structDeclare(std::string& name, ASTNode *node);
+  ASTNode *structField(const std::string& structName,
+                       const std::string& fieldName) const;
+  ASTNode *structFieldAt(const std::string& structName, size_t index) const;
+  size_t structFieldCount(const std::string& structName) const;
+  ASTNode *structDefinition(const std::string& structName) const;
+  auto getfields(const std::string& name){
+    auto fields = structs.find(name);
+    return fields != structs.end() ? fields->second.get() : nullptr;
+  }
 };
 
 namespace Codegen {
@@ -141,4 +158,3 @@ public:
   bool is_global_scope() const { return parent == nullptr; }
 };
 } // namespace SA::Codegen
-

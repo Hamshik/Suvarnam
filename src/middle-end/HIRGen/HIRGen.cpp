@@ -113,6 +113,11 @@ HIRNode *HIRGenerator::generate(ASTNode *node) {
       break;
     }
 
+    case AST_MEMBER: {
+      target = generate(node->assign.lhs);
+      break;
+    }
+
     case AST_UNOP: {
       if (node->assign.lhs->unop.op != OP_DEREF)
         break;
@@ -185,6 +190,9 @@ HIRNode *HIRGenerator::generate(ASTNode *node) {
   case AST_INDEX:
     return emitIdx(node);
 
+  case AST_MEMBER:
+    return emitStructMember(node);
+
   case AST_FOR:
     return emitForLoop(node);
 
@@ -226,11 +234,16 @@ HIRNode *HIRGenerator::generate(ASTNode *node) {
     return new HIRNode(ASTKind::AST_BREAK);
 
   case AST_STRUCT: {
-    HIRNode *block = new HIRNode(ASTKind::AST_BLOCK);
-    block->blockStmts = new std::vector<HIRNode *>();
-    block->loc = node->loc;
-    return block;
+    HIRNode *declaration = new HIRNode(ASTKind::AST_STRUCT);
+    declaration->structDec.name = strdup(node->structDecl.name);
+    declaration->structDec.fields = new std::vector<Fields *>();
+    declaration->type = node->type;
+    declaration->loc = node->loc;
+    return declaration;
   }
+
+  case AST_STRUCT_INIT:
+    return emitStructInit(node);
 
   default:
     fprintf(stderr, "[HIRGen] Error: Unhandled AST node kind %d at line %zu\n",

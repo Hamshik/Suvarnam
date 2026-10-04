@@ -20,7 +20,8 @@ typedef enum exitcode{
     SUCCESS,
     TYPE_MISMATCH,
     IMMUTABLE_TYPING,
-    NOT_DEC_AT_GLOB_SCOPE
+    NOT_DEC_AT_GLOB_SCOPE,
+    REDECLARATION,
 } exitcode_t;
 
 typedef enum {

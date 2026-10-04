@@ -249,3 +249,25 @@ ASTNode* newStruct(const char* name, ASTNode* fields, SA::Location loc) {
     node->loc = loc;
     return node;
 }
+
+ASTNode* newStructInit(const char* name, ASTNode* fields, SA::Location loc) {
+    ASTNode* node = new ASTNode;
+    node->kind = AST_STRUCT_INIT;
+    node->structInit.name = strdup(name);
+    node->structInit.fields = fields;
+    node->type = nullptr;
+    node->loc = loc;
+    return node;
+}
+
+ASTNode* newMember(ASTNode* target, const char* name, SA::Location loc) {
+    ASTNode* node = new ASTNode;
+    node->kind = AST_MEMBER;
+    node->member.target = target;
+    node->member.name = new std::string(name);
+    node->member.index = 0;
+    node->member.is_mutable = false;
+    node->type = nullptr;
+    node->loc = loc;
+    return node;
+}

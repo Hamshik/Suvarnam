@@ -1,7 +1,6 @@
 #include "SymbolTable/BuiltinRegistry.hpp"
 #include "SymbolTable/SymbolTable.hpp"
 #include "SymbolTable/SymbolTableInternal.hpp"
-#include "ast/ast.h"
 #include "semantic/semantic.hpp"
 #include "shared/enums.h"
 #include "shared/nodes.h"
@@ -148,10 +147,16 @@ SA::Type *Semantic::checkExpr(ASTNode *n, SA::Type *&type) {
   }
 
   case AST_INDEX:
-    return semanticIndexHandle(n);
+    return idxHandle(n);
 
   case AST_STRUCT:
-    return nullptr;
+    return checkStruct(n, type);
+
+  case AST_STRUCT_INIT:
+    return checkStructInit(n, type);
+
+  case AST_MEMBER:
+    return checkStructMember(n);
 
   case AST_BLOCK:
     return checkExpr(n->block.block, type);

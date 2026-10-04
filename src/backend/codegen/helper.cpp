@@ -4,6 +4,8 @@
 #include <iostream>
 #include <math.h>
 
+extern SemanticSymTable *sym;
+
 __int128 parse_i128(const char *s, int *ok) {
   if (ok)
     *ok = 0;
@@ -118,6 +120,75 @@ llvm::Type *IRGen::irType(DataTypes_t t) {
   }
 }
 
+llvm::Type *IRGen::irType(SA::Type *type) {
+  if (!type)
+    return nullptr;
+  if (type->kind == SA::PRIMITIVE)
+    return irType(type->base);
+  if (!type->objType)
+    return nullptr;
+
+  const std::string llvmName = "struct." + *type->objType;
+  llvm::StructType *structTy = llvm::StructType::getTypeByName(ctx, llvmName);
+  if (!structTy)
+    structTy = llvm::StructType::create(ctx, llvmName);
+  if (!structTy->isOpaque())
+    return structTy;
+
+  if (!sym)
+    return structTy;
+
+  std::vector<llvm::Type *> fieldTypes;
+  const size_t count = sym->structFieldCount(*type->objType);
+  fieldTypes.reserve(count);
+  for (size_t index = 0; index < count; ++index) {
+    ASTNode *field = sym->structFieldAt(*type->objType, index);
+    llvm::Type *fieldType = field ? irType(field->type) : nullptr;
+    if (!fieldType || fieldType->isVoidTy())
+      return nullptr;
+    fieldTypes.push_back(fieldType);
+  }
+
+  structTy->setBody(fieldTypes, false);
+  return structTy;
+}
+
+llvm::Value *IRGen::coerceValue(llvm::Value *value, SA::Type *sourceType,
+                                SA::Type *targetType) {
+  if (!value || !sourceType || !targetType)
+    return nullptr;
+
+  llvm::Type *targetIRType = irType(targetType);
+  if (!targetIRType)
+    return nullptr;
+  if (value->getType() == targetIRType)
+    return value;
+
+  if (sourceType->kind != SA::PRIMITIVE ||
+      targetType->kind != SA::PRIMITIVE ||
+      !Semantic::isNumeric(sourceType->base) ||
+      !Semantic::isNumeric(targetType->base))
+    return nullptr;
+
+  llvm::Type *sourceIRType = value->getType();
+  if (sourceIRType->isIntegerTy() && targetIRType->isIntegerTy())
+    return b.CreateIntCast(value, targetIRType,
+                           !is_unsigned_dtype(sourceType->base));
+  if (sourceIRType->isIntegerTy() && targetIRType->isFloatingPointTy())
+    return is_unsigned_dtype(sourceType->base)
+               ? b.CreateUIToFP(value, targetIRType)
+               : b.CreateSIToFP(value, targetIRType);
+  if (sourceIRType->isFloatingPointTy() && targetIRType->isIntegerTy())
+    return is_unsigned_dtype(targetType->base)
+               ? b.CreateFPToUI(value, targetIRType)
+               : b.CreateFPToSI(value, targetIRType);
+  if (sourceIRType->isFloatingPointTy() &&
+      targetIRType->isFloatingPointTy())
+    return b.CreateFPCast(value, targetIRType);
+
+  return nullptr;
+}
+
 llvm::Value *IRGen::emitNum(HIRNode *n) {
   switch (n->type->base) {
   case I8:
@@ -181,6 +252,30 @@ llvm::Constant *IRGen::tryEmitConst(HIRNode *n) {
     return nullptr;
 
   switch (n->kind) {
+  case AST_STRUCT_INIT: {
+    if (!n->structInit.fields || !n->type)
+      return nullptr;
+    auto *structTy = llvm::dyn_cast_or_null<llvm::StructType>(irType(n->type));
+    if (!structTy || structTy->isOpaque())
+      return nullptr;
+
+    std::vector<llvm::Constant *> values;
+    values.reserve(structTy->getNumElements());
+    for (llvm::Type *fieldType : structTy->elements())
+      values.push_back(llvm::Constant::getNullValue(fieldType));
+    for (Fields *field : *n->structInit.fields) {
+      if (!field || field->nodePtrKind != Fields::NodePtrKind::HIR ||
+          !field->nodePtr.hirNode ||
+          field->index >= structTy->getNumElements())
+        return nullptr;
+      llvm::Constant *value = tryEmitConst(field->nodePtr.hirNode);
+      if (!value || value->getType() != structTy->getElementType(field->index))
+        return nullptr;
+      values[field->index] = value;
+    }
+    return llvm::ConstantStruct::get(structTy, values);
+  }
+
   case AST_NUM:
     return dyn_cast_or_null<llvm::Constant>(emitNum(n));
   case AST_BOOL:

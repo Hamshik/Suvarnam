@@ -56,6 +56,12 @@ HIRNode *HIRGenerator::cloneNode(const HIRNode *src) {
             dst->index.islhs = src->index.islhs;
             break;
 
+        case AST_MEMBER:
+            dst->memberAccess.target = cloneNode(src->memberAccess.target);
+            dst->memberAccess.index = src->memberAccess.index;
+            dst->memberAccess.name = src->memberAccess.name;
+            break;
+
         case AST_BINOP:
             dst->binary.op = src->binary.op;
             dst->binary.left = cloneNode(src->binary.left);
@@ -98,7 +104,7 @@ HIRNode *HIRGenerator::createAssign(HIRNode *target,
     
     default: break;
   }
-  node->type = value->type; // Assignment type matches value type
+  node->type = target ? target->type : value->type;
   node->assign.isDec = isDec;
   return node;
 }

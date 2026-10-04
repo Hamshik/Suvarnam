@@ -43,6 +43,8 @@ public:
   HIRNode *emitForRange(ASTNode *);
   HIRNode *emitForIterableObj(ASTNode *);
   HIRNode *cloneNode(const HIRNode *);
+  HIRNode *emitStructInit(ASTNode *);
+  HIRNode *emitStructMember(ASTNode *);
   void flattenSeq(ASTNode *, std::vector<HIRNode *> *);
 
   HIRNode *generate(ASTNode *node);

@@ -22,6 +22,7 @@ enum class Utf8Error {
 };
 
 #include "SymbolTable/SymbolTableInternal.hpp"
+#include "semantic/semantic.hpp"
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
@@ -102,11 +103,15 @@ public:
   StrHelper strHelper;
 
   llvm::Type *irType(DataTypes_t);
+  llvm::Type *irType(SA::Type *);
+  llvm::Value *coerceValue(llvm::Value *, SA::Type *, SA::Type *);
   void emitGlobVar(HIRNode *);
   llvm::Value *handleExternalGlobalVar(const char *varName);
 
   llvm::Value *emitExpr(HIRNode *, Codegen::Scope &);
   AllocaInst *getOrAddAlloca(const std::string &, DataTypes_t,
+                             Codegen::Scope &);
+  AllocaInst *getOrAddAlloca(const std::string &, llvm::Type *,
                              Codegen::Scope &);
 
   llvm::Value *emitNum(HIRNode *);
@@ -115,6 +120,7 @@ public:
   llvm::Value *emitBinop(HIRNode *, Codegen::Scope &);
   llvm::Value *emitUnop(HIRNode *, Codegen::Scope &);
   llvm::Value *emitAssign(HIRNode *, Codegen::Scope &);
+  llvm::Value *generateStructFieldPtr(HIRNode *, Codegen::Scope &);
   llvm::Value *emitIf(HIRNode *, Codegen::Scope &);
 
   llvm::Value *generateList(HIRNode *, Codegen::Scope &);

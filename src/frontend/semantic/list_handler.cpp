@@ -111,7 +111,7 @@ SA::Type *Semantic::listHandle(ASTNode *n, SA::Type *target_type) {
   return target_type;
 }
 
-SA::Type *Semantic::semanticIndexHandle(ASTNode *n) {
+SA::Type *Semantic::idxHandle(ASTNode *n) {
   // 1. Check the TARGET
   // We pass UNKNOWN because we don't know the required type yet
   SA::Type *target_base = checkExpr(n->index.target);

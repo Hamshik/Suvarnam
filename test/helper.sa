@@ -1,6 +1,0 @@
-fn i32 add(var i32 a, var mut i32 b) {
-    b += a;
-    return b;
-}
-
-var mut list = [1,2,3,4];

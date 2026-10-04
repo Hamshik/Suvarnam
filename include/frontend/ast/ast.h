@@ -31,6 +31,8 @@ ASTNode *newBreak(SA::Location);
 ASTNode *newCont(SA::Location);
 ASTNode* newField(SA::Type *type, ASTNode* defaultField, const std::string& name, SA::Location loc);
 ASTNode* newStruct(const char* name, ASTNode* fields, SA::Location loc);
+ASTNode* newStructInit(const char* name, ASTNode* fields, SA::Location loc);
+ASTNode* newMember(ASTNode* target, const char* name, SA::Location loc);
 
 void ast_free(ASTNode *n);
 ASTNode *ast_alloc(void);

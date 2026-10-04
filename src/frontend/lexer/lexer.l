@@ -105,6 +105,7 @@
 }
 
 ","                 { return Parser::COMMA; }
+"."                 { return Parser::DOT; }
 "++"                { return Parser::INC; }
 "--"                { return Parser::DEC; }
 ":"                 { return Parser::COLON; }

@@ -25,13 +25,13 @@
 %type <node>  top_level_stmts block ifStmt for_stmt while_stmt import_stmt expr_stmts
 %type <node>  fn_def param param_tail return_stmt opt_args args list_stmt with_non_expr expr_stmt top_level_stmt index_stmt fn_block_t
 %type <node>  assign_expr import_list expr assignment program range structs fields field opt_field_default
+%type <node>  struct_init struct_init_fields struct_init_field
 %type <paramlist> opt_params params
 %type <type>  recursive_type
 %type <size>  opt_list_size
 %type <idx_epr> indexing
 
 %right ASSIGN PLUS_ASSIGN MINUS_ASSIGN STAR_ASSIGN SLASH_ASSIGN MOD_ASSIGN POWER_ASSIGN LSHIFT_ASSIGN RSHIFT_ASSIGN
-%left NOT BITNOT
 %left OR
 %left AND
 %left PIPE
@@ -44,7 +44,9 @@
 %left STAR SLASH MOD
 %right POWER
 %left INC DEC 
+%left NOT BITNOT
 %left LPAREN RPAREN LSQUARE RSQUARE
+%left DOT
 
 %nonassoc LOWER_THAN_ELSE
 %nonassoc ELSE

@@ -15,7 +15,7 @@ void Semantic::resloveNestedNumeric(ASTNode *n, SA::Type *t) {
     n->type = t; // Force literal to match target width
     return;
   }
-  if (n->kind == AST_LIST && t->base == LIST) {
+  if (n->kind == AST_LIST && t->kind == SA::PRIMITIVE && t->base == LIST) {
     for (ASTNode *curr = n->list.elements; curr;) {
       ASTNode *elem = (curr->kind == AST_SEQ) ? curr->seq.a : curr;
       resloveNestedNumeric(elem, t->inner);
@@ -30,6 +30,8 @@ ASTNode *Semantic::getBaseVarNode(ASTNode *n) {
     return nullptr;
   if (n->kind == AST_VAR)
     return n;
+  if (n->kind == AST_MEMBER)
+    return getBaseVarNode(n->member.target);
   if (n->kind == AST_UNOP && n->unop.op == OP_DEREF)
     return getBaseVarNode(n->unop.operand);
   if (n->kind == AST_INDEX)
@@ -52,8 +54,8 @@ void Semantic::processDecl(ASTNode *n, SA::Type *&lhs_t, SA::Type *rhs_t) {
   ASTNode *rhs = n->assign.rhs;
   const char *var_name = getSafeName(n->assign.lhs);
 
-  if (n->assign.isDec && (lhs_t->base == UNKNOWN || !lhs_t)) {
-    free(lhs_t);
+  if (n->assign.isDec &&
+      (!lhs_t || (lhs_t->kind == SA::PRIMITIVE && lhs_t->base == UNKNOWN))) {
     lhs_t = rhs_t;
   }
 
@@ -62,8 +64,8 @@ void Semantic::processDecl(ASTNode *n, SA::Type *&lhs_t, SA::Type *rhs_t) {
   if (n->kind == AST_CHAR && !n->type)
     n->type = new SA::Type(CHARACTER, NULL);
 
-  if (lhs_t->base != UNKNOWN && Semantic::isNumeric(lhs_t->base) && rhs &&
-      rhs->kind == AST_NUM) {
+  if (lhs_t->kind == SA::PRIMITIVE && lhs_t->base != UNKNOWN &&
+      Semantic::isNumeric(lhs_t->base) && rhs && rhs->kind == AST_NUM) {
     if (!Semantic::literalFitsType(rhs, lhs_t->base) ||
         (Semantic::isSignedNumeric(rhs_t->base) &&
          Semantic::isUnsignedNumeric(lhs_t->base))) {
@@ -100,6 +102,9 @@ bool Semantic::verifyExprPathIsMut(ASTNode *n) {
     return n->ismut;
   }
 
+  if (n->kind == AST_MEMBER)
+    return n->member.is_mutable && verifyExprPathIsMut(n->member.target);
+
   // Dereference Case: e.g., *i1, **i2, ***i3
   if (n->kind == AST_UNOP && n->unop.op == OP_DEREF) {
     // 🎯 RUST RULE: To write through a pointer (*i = x),
@@ -129,12 +134,16 @@ bool Semantic::verifyExprPathIsMut(ASTNode *n) {
 
 // 3. RESPONSIBILITY: Final SA::Type & Pointer Consistency
 void Semantic::validateAssign(ASTNode *n, SA::Type *lhs_t, SA::Type *rhs_t) {
+  if (!lhs_t || !rhs_t)
+    return;
 
   if (lhs_t == rhs_t)
     return;
 
-  bool isnum = isNumeric(lhs_t->base) && isNumeric(rhs_t->base) ||
-               rhs_t->base == CHARACTER && lhs_t->base == CHARACTER;
+  bool isnum = lhs_t->kind == SA::PRIMITIVE &&
+               rhs_t->kind == SA::PRIMITIVE &&
+               (isNumeric(lhs_t->base) && isNumeric(rhs_t->base) ||
+                rhs_t->base == CHARACTER && lhs_t->base == CHARACTER);
 
   // Structural type validation
   if (!typesAreEqual(lhs_t, rhs_t) && !isnum) {
@@ -149,7 +158,8 @@ void Semantic::validateAssign(ASTNode *n, SA::Type *lhs_t, SA::Type *rhs_t) {
     }
   }
 
-  if (lhs_t->base == LIST && rhs_t->base == LIST) {
+  if (lhs_t->kind == SA::PRIMITIVE && rhs_t->kind == SA::PRIMITIVE &&
+      lhs_t->base == LIST && rhs_t->base == LIST) {
     SA::Type *l_curr = lhs_t;
     SA::Type *r_curr = rhs_t;
 
@@ -209,6 +219,8 @@ void Semantic::resolveTargetType(ASTNode *n, SA::Type *&type) {
 
   else if (lhs->kind == AST_INDEX) {
     idxAssign(n, lhs, type);
+  } else if (lhs->kind == AST_MEMBER) {
+    type = checkExpr(lhs);
   } else {
     panic(n->loc, SEM_ASSIGN_TARGET_NOT_VAR, NULL);
   }
@@ -225,7 +237,10 @@ SA::Type *Semantic::assign(ASTNode *n, SA::Type *type) {
   // Resolve target memory space type (Now correctly extracts STRINGS for *i1)
   resolveTargetType(n, lhs_t);
 
-  if (Semantic::isNumeric(lhs_t->base)) {
+  if (!lhs_t)
+    return nullptr;
+
+  if (lhs_t->kind == SA::PRIMITIVE && Semantic::isNumeric(lhs_t->base)) {
     Semantic::forceNumericType(n->assign.rhs, lhs_t->base);
   }
 
@@ -248,7 +263,7 @@ SA::Type *Semantic::assign(ASTNode *n, SA::Type *type) {
       panic(target->loc, SEM_ASSIGN_IMMUTABLE, target_name);
     }
 
-    if (!lhs_t || lhs_t->base == UNKNOWN) {
+    if (lhs_t->kind == SA::PRIMITIVE && lhs_t->base == UNKNOWN) {
       panic(n->loc, SEM_VAR_UNDECL, target_name);
     }
 

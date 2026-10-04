@@ -23,16 +23,17 @@ Function *FnHelper::getOrAddSymPrototype(const char *name) {
     if (!symbol->params || !symbol->params[i].type)
       return nullptr;
 
-    params.push_back(irGen.irType(symbol->params[i].type->base));
+    params.push_back(irGen.irType(symbol->params[i].type));
 
     if (symbol->params[i].is_variadic && symbol->params[i].type->base == LIST) {
       params.push_back(llvm::Type::getInt64Ty(ctx));
     }
   }
 
-  llvm::Type *return_type = symbol->ret ? irGen.irType(symbol->ret->base)
+  llvm::Type *return_type = symbol->ret ? irGen.irType(symbol->ret)
                                         : llvm::Type::getInt32Ty(ctx);
-  if (symbol->ret && return_type->isVoidTy() && symbol->ret->base == UNKNOWN)
+  if (symbol->ret && return_type->isVoidTy() &&
+      symbol->ret->kind == SA::PRIMITIVE && symbol->ret->base == UNKNOWN)
     return_type = llvm::Type::getInt32Ty(ctx);
 
   FunctionType *type = FunctionType::get(return_type, params, false);
@@ -42,10 +43,11 @@ Function *FnHelper::getOrAddSymPrototype(const char *name) {
 Function *FnHelper::getOrAddPrototypes(HIRNode *fn_ast) {
   std::vector<llvm::Type *> params;
   for (auto *p : *fn_ast->fn.params) {
-    params.push_back(irGen.irType(p->type->base));
+    params.push_back(irGen.irType(p->type));
   }
-  llvm::Type *retTy = irGen.irType(fn_ast->type->base);
-  if (retTy->isVoidTy() && fn_ast->type->base == UNKNOWN)
+  llvm::Type *retTy = irGen.irType(fn_ast->type);
+  if (retTy->isVoidTy() && fn_ast->type->kind == SA::PRIMITIVE &&
+      fn_ast->type->base == UNKNOWN)
     retTy = llvm::Type::getInt32Ty(ctx);
   FunctionType *ft = FunctionType::get(retTy, params, false);
   Function *fn = mod.getFunction(fn_ast->fn.name);

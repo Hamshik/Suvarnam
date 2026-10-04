@@ -45,6 +45,11 @@ expr:
 
     | IDENTIFIER INC %prec INC  { $$ = newUnop($1, @1, OP_INC); $$->isglobal = $1->isglobal;}
     | IDENTIFIER DEC %prec INC  { $$ = newUnop($1, @1, OP_DEC); $$->isglobal = $1->isglobal; }
+    | expr DOT IDENTIFIER %prec DOT
+      {
+          $$ = newMember($1, $3->var, @1 + @3);
+          ast_free($3);
+      }
 
     | LPAREN expr RPAREN         { $$ = $2; }
     | IDENTIFIER LPAREN opt_args RPAREN
@@ -53,6 +58,7 @@ expr:
           ast_free($1);
       }
 
+    | struct_init                { $$ = $1; }
     | list_stmt                  { $$ = $1; } 
     | index_stmt                 { $$ = $1; $$->isglobal = $1->isglobal;}
 ;

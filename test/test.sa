@@ -1,38 +1,11 @@
-import "helper.sa"
-import "helper2.sa"
+struct Human {
+    var mut i32 age = 0;
+    var str name;
+}
 
-fn i32 main() {
-    var mut i32 x = 10;
-    var i32 y = 20;
-    var mut i32& ptr = &x;
-
-    x = add(x, y);
-
-
-    process_data(x,10,30,203);
-
-    if x > 15:
-        *ptr = 100;
-    else:
-        *ptr = 0;
-
-    var mut i32[] list = [1, 2, 3, 4, 5];
-    
-    for i in 0..4:
-        list[i] = list[i] * 2;
-    
-    for i in list:
-        printf("elements: %d\n", i);
-    
-    for i in @list:
-        printf("global elements: %d\n", i);
-
-    var mut i32 count = 0;
-    while count < 5 : count += 1 {
-        printf("%d\n", count);
-        if (count == 2):
-            continue;
-    }
-
+fn main() {
+    var mut human = Human{age: 15, name: "Hamshik"};
+    human.age = 30;
+    printf("age: %d\n name: %s\n", human.age, human.name);
     return 0;
 }

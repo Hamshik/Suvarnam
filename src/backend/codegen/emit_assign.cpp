@@ -1,5 +1,45 @@
 #include "codegen/codegen.hpp"
 #include <llvm-22/llvm/IR/Instructions.h>
+#include "semantic/semantic.hpp"
+
+llvm::Value *IRGen::generateStructFieldPtr(HIRNode *member,
+                                           Codegen::Scope &locals) {
+  if (!member || member->kind != AST_MEMBER)
+    return nullptr;
+
+  HIRNode *target = member->memberAccess.target;
+  if (!target)
+    return nullptr;
+
+  llvm::Value *targetPtr = nullptr;
+  if (target->kind == AST_MEMBER) {
+    targetPtr = generateStructFieldPtr(target, locals);
+  } else if (target->kind == AST_UNOP &&
+             target->binary.op == OP_DEREF) {
+    targetPtr = emitExpr(target->binary.left, locals);
+  } else if (target->kind == AST_VAR) {
+    const char *name = target->name ? target->name : "";
+    Module *module = b.GetInsertBlock()->getModule();
+    targetPtr = target->isglobal ? module->getGlobalVariable(name, true)
+                                 : locals.lookup(name);
+    if (!targetPtr)
+      targetPtr = module->getGlobalVariable(name, true);
+  }
+
+  if (!targetPtr)
+    return nullptr;
+
+  auto *structType = llvm::dyn_cast_or_null<llvm::StructType>(
+      irType(target->type));
+  if (!structType || structType->isOpaque() ||
+      member->memberAccess.index >= structType->getNumElements())
+    return nullptr;
+
+  return b.CreateStructGEP(
+      structType, targetPtr,
+      static_cast<unsigned>(member->memberAccess.index),
+      member->memberAccess.name + ".ptr");
+}
 
 llvm::Value *IRGen::emitAssign(HIRNode *n, Codegen::Scope &locals) {
 
@@ -37,9 +77,13 @@ llvm::Value *IRGen::emitAssign(HIRNode *n, Codegen::Scope &locals) {
    * ----------------------------------------------------------------- */
   else if (lhs->kind == AST_VAR) {
     const char *name = lhs->name ? lhs->name : "tmp_assign";
-    DataTypes_t t = n->type->base != UNKNOWN
-                      ? n->type->base
-                      : (lhs->type ? lhs->type->base : UNKNOWN);
+    SA::Type *valueType = n->type;
+    if (!valueType ||
+        (valueType->kind == SA::PRIMITIVE && valueType->base == UNKNOWN))
+      valueType = lhs->type;
+    llvm::Type *llvmValueType = irType(valueType);
+    if (!llvmValueType)
+      return nullptr;
 
     if (n->assign.isDec) {
       if (n->isglobal) {
@@ -50,12 +94,12 @@ llvm::Value *IRGen::emitAssign(HIRNode *n, Codegen::Scope &locals) {
                                           : GlobalValue::InternalLinkage;
 
           targetPtr =
-              new GlobalVariable(*m, irType(t), false, linkage,
-                                 Constant::getNullValue(irType(t)), name);
+              new GlobalVariable(*m, llvmValueType, false, linkage,
+                                 Constant::getNullValue(llvmValueType), name);
         }
         locals.symbols[name] = targetPtr;
       } else if (b.GetInsertBlock() != nullptr) {
-        targetPtr = getOrAddAlloca(name, t, locals);
+        targetPtr = getOrAddAlloca(name, llvmValueType, locals);
         locals.symbols[name] = targetPtr;
       }
     } else {
@@ -69,6 +113,8 @@ llvm::Value *IRGen::emitAssign(HIRNode *n, Codegen::Scope &locals) {
    * ----------------------------------------------------------------- */
   else if (lhs->kind == AST_INDEX) {
     targetPtr = generateListElementPtr(lhs, locals);
+  } else if (lhs->kind == AST_MEMBER) {
+    targetPtr = generateStructFieldPtr(lhs, locals);
   }
 
   if (!targetPtr) {
@@ -84,12 +130,26 @@ llvm::Value *IRGen::emitAssign(HIRNode *n, Codegen::Scope &locals) {
     return nullptr;
 
   llvm::Value *result = rhs;
-  DataTypes_t t = n->type->base != UNKNOWN ? n->type->base : (lhs->type ? lhs->type->base : UNKNOWN);
+  SA::Type *valueType = n->type;
+  if (!valueType ||
+      (valueType->kind == SA::PRIMITIVE && valueType->base == UNKNOWN))
+    valueType = lhs->type;
 
-  if (t == STRINGS)
+  if (valueType && valueType->kind == SA::PRIMITIVE &&
+      valueType->base == STRINGS)
     result = strHelper.toI8Ptr(result);
-  else if (t == LIST)
+  else if (valueType && valueType->kind == SA::PRIMITIVE &&
+           valueType->base == LIST)
     result = b.CreateBitCast(result, irType(LIST));
+  else if (valueType && n->assign.value && n->assign.value->type &&
+           valueType->kind == SA::PRIMITIVE &&
+           n->assign.value->type->kind == SA::PRIMITIVE &&
+           Semantic::isNumeric(valueType->base) &&
+           Semantic::isNumeric(n->assign.value->type->base)) {
+    result = coerceValue(result, n->assign.value->type, valueType);
+    if (!result)
+      return nullptr;
+  }
 
   // This step creates the vital 'store i32 2000, ptr %targetPtr' instruction!
   b.CreateStore(result, targetPtr);
@@ -114,9 +174,13 @@ void IRGen::emitGlobVar(HIRNode *n) {
         continue; // Guard against "no symbol" linker errors
       }
       std::string name = target->name;
-      DataTypes_t t = stmt->type->base != UNKNOWN
-                          ? stmt->type->base
-                          : stmt->assign.target->type->base;
+      SA::Type *valueType = stmt->type;
+      if (!valueType ||
+          (valueType->kind == SA::PRIMITIVE &&
+           valueType->base == UNKNOWN))
+        valueType = stmt->assign.target->type;
+      if (!valueType)
+        continue;
       if (mod.getGlobalVariable(name))
         continue;
 
@@ -130,7 +194,7 @@ void IRGen::emitGlobVar(HIRNode *n) {
         panic(n->loc, SEM_INTERNAL_ERROR,
               "Failed to emit constant initializer for global variable");
 
-      if (t == LIST) {
+      if (valueType->kind == SA::PRIMITIVE && valueType->base == LIST) {
         if (!initializer || !initializer->getType()->isArrayTy()) {
           panic(n->loc, SEM_INTERNAL_ERROR,
                 "Global list initializer must lower to an array constant");
@@ -149,12 +213,24 @@ void IRGen::emitGlobVar(HIRNode *n) {
         continue;
       }
 
-      new GlobalVariable(mod, irType(t), false, linkage, initializer, name);
+      llvm::Type *llvmValueType = irType(valueType);
+      if (!llvmValueType)
+        panic(stmt->loc, SEM_INTERNAL_ERROR,
+              "Failed to resolve global variable type");
+      if (initializer->getType() != llvmValueType)
+        panic(stmt->loc, SEM_INTERNAL_ERROR,
+              "Global initializer type does not match variable type");
+      new GlobalVariable(mod, llvmValueType, false, linkage, initializer, name);
     }
   }
 }
 
 AllocaInst *IRGen::getOrAddAlloca(const std::string &name, DataTypes_t t,
+                                  Codegen::Scope &locals) {
+  return getOrAddAlloca(name, irType(t), locals);
+}
+
+AllocaInst *IRGen::getOrAddAlloca(const std::string &name, llvm::Type *type,
                                   Codegen::Scope &locals) {
 
   // If it already exists on the stack, return it right away
@@ -178,9 +254,8 @@ AllocaInst *IRGen::getOrAddAlloca(const std::string &name, DataTypes_t t,
   }
 
   // 3. Create the type and stack allocation safely at the top
-  llvm::Type *llvmTy = irType(t);
   AllocaInst *allocaInst =
-      entryBuilder.CreateAlloca(llvmTy, nullptr, name);
+      entryBuilder.CreateAlloca(type, nullptr, name);
 
   // 4. Restore the entryBuilder back to where it was so it doesn't disturb
   // anything else

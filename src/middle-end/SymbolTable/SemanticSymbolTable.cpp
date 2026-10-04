@@ -82,7 +82,8 @@ bool SemanticSymTable::declare(const char *name, bool *isglobal, SA::Type *type,
   }
 
   it->second.type = type;
-  it->second.max_type = type->base;
+  it->second.max_type =
+      type->kind == SA::PRIMITIVE ? type->base : UNKNOWN;
   it->second.last_maxed_type = UNKNOWN;
   it->second.is_mutable = is_mutable;
   it->second.is_used = false;
@@ -106,6 +107,21 @@ exitcode_t SemanticSymTable::exists(ASTNode *n) {
 
   if (symbol->isGlobal != n->isglobal)
     return NOT_DEC_AT_GLOB_SCOPE;
+
+  if (symbol->type->kind != n->type->kind)
+    return TYPE_MISMATCH;
+
+  if (symbol->type->kind == SA::USER_DEFINED &&
+      n->type->kind == SA::USER_DEFINED) {
+    if (!symbol->type->objType || !n->type->objType ||
+        !structExists(*symbol->type->objType))
+      return NOT_DECLARED;
+    if (*symbol->type->objType != *n->type->objType)
+      return TYPE_MISMATCH;
+    return SUCCESS;
+  } else if(symbol->type->kind != n->type->kind){
+    return TYPE_MISMATCH;
+  }
 
   if (symbol->type != n->type && !(Semantic::isNumeric(symbol->type->base) &&
                                    Semantic::isNumeric(n->type->base))) {

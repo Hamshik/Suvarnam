@@ -14,7 +14,7 @@ llvm::Value *IRGen::handleExternalGlobalVar(const char *varName) {
 
   if (!varInfo) return nullptr;
   // Create a new global variable in the LLVM module
-  llvm::Type *varType = irType(varInfo->type->base);
+  llvm::Type *varType = irType(varInfo->type);
   llvm::GlobalVariable *newGlobalVar = new llvm::GlobalVariable(
       mod, varType, false, llvm::GlobalValue::ExternalLinkage, nullptr,
       varName);
@@ -151,6 +151,49 @@ llvm::Value *IRGen::emitExpr(HIRNode *n, Codegen::Scope &locals) {
 
   case AST_LIST:
     return generateList(n, locals);
+
+  case AST_MEMBER: {
+    llvm::Value *target = emitExpr(n->memberAccess.target, locals);
+    if (!target || !target->getType()->isStructTy())
+      return nullptr;
+    auto *structType = llvm::cast<llvm::StructType>(target->getType());
+    if (n->memberAccess.index >= structType->getNumElements())
+      return nullptr;
+    return b.CreateExtractValue(
+        target, static_cast<unsigned>(n->memberAccess.index),
+        n->memberAccess.name + ".field");
+  }
+
+  case AST_STRUCT:
+    return nullptr;
+
+  case AST_STRUCT_INIT: {
+    if (!n->type || !n->structInit.fields)
+      return nullptr;
+
+    llvm::Type *valueType = irType(n->type);
+    if (!valueType || !valueType->isStructTy())
+      return nullptr;
+
+    llvm::Value *value = llvm::UndefValue::get(valueType);
+    for (Fields *field : *n->structInit.fields) {
+      if (!field || field->nodePtrKind != Fields::NodePtrKind::HIR ||
+          !field->nodePtr.hirNode)
+        return nullptr;
+      llvm::Value *fieldValue = emitExpr(field->nodePtr.hirNode, locals);
+      if (!fieldValue ||
+          field->index >= llvm::cast<llvm::StructType>(valueType)->getNumElements())
+        return nullptr;
+      fieldValue = coerceValue(fieldValue, field->nodePtr.hirNode->type,
+                               field->type);
+      if (!fieldValue)
+        return nullptr;
+      value = b.CreateInsertValue(value, fieldValue,
+                                  static_cast<unsigned>(field->index),
+                                  field->name + ".init");
+    }
+    return value;
+  }
 
   case AST_INDEX:
     return generateListAccess(n, locals);

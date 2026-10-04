@@ -16,6 +16,12 @@ void Semantic::regGlobalVarAndFn(ASTNode *n) {
     return;
   }
 
+  if (n->kind == AST_STRUCT) {
+    std::string struct_name = n->structDecl.name ? n->structDecl.name : "";
+    ctx->sym.structDeclare(struct_name, n);
+    return;
+  }
+
   // Capture every function signature early
   if (n->kind == AST_FN) {
     const char *fn_name = n->fn_def.name;
