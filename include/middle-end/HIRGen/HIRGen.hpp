@@ -21,6 +21,13 @@ class HIRGenerator {
   std::unordered_set<std::string> currParams;
   SA::CompilerContext* ctx;
 
+  std::vector<ASTNode *> collectStructInitEntries(ASTNode *fields) const;
+  ASTNode *resolveStructInitValue(
+      ASTNode *initializer, const Fields &declaration, size_t index,
+      const std::vector<ASTNode *> &entries, bool named);
+  Fields *emitStructInitField(const Fields &declaration, ASTNode *value,
+                              size_t index);
+
 public:
   explicit HIRGenerator(SA::CompilerContext* ctx): ctx(ctx) {}
 

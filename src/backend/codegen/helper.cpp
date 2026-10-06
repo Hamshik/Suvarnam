@@ -142,7 +142,7 @@ llvm::Type *IRGen::irType(SA::Type *type) {
   const size_t count = sym->structFieldCount(*type->objType);
   fieldTypes.reserve(count);
   for (size_t index = 0; index < count; ++index) {
-    ASTNode *field = sym->structFieldAt(*type->objType, index);
+    const Fields *field = sym->structFieldAt(*type->objType, index);
     llvm::Type *fieldType = field ? irType(field->type) : nullptr;
     if (!fieldType || fieldType->isVoidTy())
       return nullptr;

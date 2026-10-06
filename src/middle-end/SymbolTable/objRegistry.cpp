@@ -2,6 +2,7 @@
 #include "shared/enums.h"
 #include "utils/error_handler/error.h"
 #include <memory>
+#include <utility>
 
 exitcode SemanticSymTable::structExists(const std::string &name) const {
   if (structs.find(name) != structs.end())
@@ -9,8 +10,8 @@ exitcode SemanticSymTable::structExists(const std::string &name) const {
   return NOT_DECLARED;
 }
 
-void flattenField(ASTNode *node, std::map<std::string, ASTNode *> &fieldMap,
-                  std::vector<ASTNode *> &fieldOrder) {
+void flattenField(ASTNode *node, std::map<std::string, Fields> &fieldMap,
+                  std::vector<Fields *> &fieldOrder) {
   if (!node)
     return;
 
@@ -26,11 +27,21 @@ void flattenField(ASTNode *node, std::map<std::string, ASTNode *> &fieldMap,
   }
 
   if (node->kind == AST_FIELD && node->field.name) {
-    if (fieldMap.find(*node->field.name) != fieldMap.end())
+    const std::string &fieldName = *node->field.name;
+    if (fieldMap.find(fieldName) != fieldMap.end()) {
       panic(node->loc, SEM_VAR_REDECL, node->field.name->c_str());
-    else {
-      fieldMap[*node->field.name] = node;
-      fieldOrder.push_back(node);
+    } else {
+      Fields field;
+      field.nodePtrKind = Fields::NodePtrKind::AST;
+      field.nodePtr.astNode = node->field.defaultField;
+      field.name = fieldName;
+      field.index = fieldOrder.size();
+      field.isMut = node->ismut;
+      field.type = node->type;
+      auto [insertedField, inserted] =
+          fieldMap.emplace(fieldName, std::move(field));
+      if (inserted)
+        fieldOrder.push_back(&insertedField->second);
     }
   }
 }
@@ -41,7 +52,7 @@ void SemanticSymTable::structDeclare(std::string &name, ASTNode *node) {
     return;
   }
 
-  structs[name] = std::make_unique<std::map<std::string, ASTNode *>>();
+  structs[name] = std::make_unique<std::map<std::string, Fields>>();
   structFieldOrder[name] = {};
   structDefinitions[name] = node;
   flattenField(node, *structs[name], structFieldOrder[name]);
@@ -49,17 +60,17 @@ void SemanticSymTable::structDeclare(std::string &name, ASTNode *node) {
   return;
 }
 
-ASTNode *SemanticSymTable::structField(const std::string &structName,
-                                       const std::string &fieldName) const {
+const Fields *SemanticSymTable::structField(
+    const std::string &structName, const std::string &fieldName) const {
   auto fields = structs.find(structName);
   if (fields == structs.end())
     return nullptr;
   auto field = fields->second->find(fieldName);
-  return field == fields->second->end() ? nullptr : field->second;
+  return field == fields->second->end() ? nullptr : &field->second;
 }
 
-ASTNode *SemanticSymTable::structFieldAt(const std::string &structName,
-                                         size_t index) const {
+const Fields *SemanticSymTable::structFieldAt(const std::string &structName,
+                                              size_t index) const {
   auto fields = structFieldOrder.find(structName);
   if (fields == structFieldOrder.end() || index >= fields->second.size())
     return nullptr;

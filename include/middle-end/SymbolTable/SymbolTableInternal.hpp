@@ -34,8 +34,9 @@ class SemanticSymTable {
   SemanticScopeRecord *scope_ = new SemanticScopeRecord();
   std::unordered_map<std::string, std::unique_ptr<FnSymbol>> fns;
   std::unordered_map<std::string, std::unique_ptr<ASTMod>> mod;
-  std::unordered_map<std::string, std::unique_ptr<std::map<std::string, ASTNode*>>> structs;
-  std::unordered_map<std::string, std::vector<ASTNode *>> structFieldOrder;
+  std::unordered_map<std::string,
+                     std::unique_ptr<std::map<std::string, Fields>>> structs;
+  std::unordered_map<std::string, std::vector<Fields *>> structFieldOrder;
   std::unordered_map<std::string, ASTNode *> structDefinitions;
   Importer* importer;
 
@@ -63,9 +64,10 @@ public:
 
   exitcode structExists(const std::string& name) const;
   void structDeclare(std::string& name, ASTNode *node);
-  ASTNode *structField(const std::string& structName,
-                       const std::string& fieldName) const;
-  ASTNode *structFieldAt(const std::string& structName, size_t index) const;
+  const Fields *structField(const std::string& structName,
+                            const std::string& fieldName) const;
+  const Fields *structFieldAt(const std::string& structName,
+                              size_t index) const;
   size_t structFieldCount(const std::string& structName) const;
   ASTNode *structDefinition(const std::string& structName) const;
   auto getfields(const std::string& name){
