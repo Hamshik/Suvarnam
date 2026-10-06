@@ -1,38 +1,56 @@
 #ifndef PARSER_HELPERS_H
 #define PARSER_HELPERS_H
 
+#include "ast/ast.h"
 #include "shared/structs.h"
 #include <stdbool.h>
 #include <stdlib.h>
 
 extern ASTNode *root;
 
-#define SA_SET_NODE_LOC(node, loc)                                              \
+#define SA_SET_NODE_LOC(node, loc)                                             \
   do {                                                                         \
     if ((node) != NULL)                                                        \
       (node)->loc = (loc);                                                     \
   } while (0)
 
-
 static inline SA::Location SA_loc_start(SA::Location loc) {
-    loc.lastLn = loc.firstLn;
-    loc.lastCol = loc.firstCol;
-    loc.lastPos = loc.firstPos;
-    return loc;
+  loc.lastLn = loc.firstLn;
+  loc.lastCol = loc.firstCol;
+  loc.lastPos = loc.firstPos;
+  return loc;
 }
 
 /* Point at the position immediately following a parsed construct. */
 static inline SA::Location locBefore(SA::Location loc) {
-    loc.firstLn = loc.lastLn - 1;
-    loc.firstCol = loc.lastCol;
-    loc.firstPos = loc.lastPos - 1;
-    loc.lastLn = loc.firstLn;
-    loc.lastCol = loc.firstCol;
-    loc.lastPos = loc.firstPos;
-    return loc;
+  loc.firstLn = loc.lastLn - 1;
+  loc.firstCol = loc.lastCol;
+  loc.firstPos = loc.lastPos - 1;
+  loc.lastLn = loc.firstLn;
+  loc.lastCol = loc.firstCol;
+  loc.lastPos = loc.firstPos;
+  return loc;
 }
 
-extern File* file;
+static inline int pointerDepth(const SA::Type *type) {
+  int depth = 0;
+  while (type && type->kind == SA::PRIMITIVE && type->base == PTR) {
+    ++depth;
+    type = type->inner;
+  }
+  return depth;
+}
+
+static inline ASTNode *makeDerefMember(ASTNode *target,
+                                            const char *member_name,
+                                            size_t deref_count,
+                                            SA::Location loc) {
+  while (deref_count--)
+    target = newUnop(target, loc, OP_DEREF);
+  return newMember(target, member_name, loc);
+}
+
+extern File *file;
 /* ----------------- external function declaration --------------------------*/
 
 void panic(SA::Location, errc_t, const char *);

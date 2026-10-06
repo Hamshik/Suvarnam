@@ -1,11 +1,16 @@
+var mut human = Human{age: 15, name: "Hamshik"};
+
+fn main() {
+    updateAge(&human);
+    printf("age: %d\nname: %s\n", human.age, human.name);
+    return 0;
+}
+
 struct Human {
     var mut i32 age = 0;
     var str name;
 }
 
-fn main() {
-    var mut human = Human{age: 15, name: "Hamshik"};
-    human.age = 30;
-    printf("age: %d\n name: %s\n", human.age, human.name);
-    return 0;
+fn updateAge(Human& human){
+    human->age = 10;
 }

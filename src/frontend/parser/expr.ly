@@ -61,4 +61,17 @@ expr:
     | struct_init                { $$ = $1; }
     | list_stmt                  { $$ = $1; } 
     | index_stmt                 { $$ = $1; $$->isglobal = $1->isglobal;}
+
+    | expr ARROW IDENTIFIER {
+        $$ = makeDerefMember($1, $3->var, 1, @1 + @3);
+        ast_free($3);
+    }
+    | expr DOUBLE_DEREF_ARROW IDENTIFIER {
+        $$ = makeDerefMember($1, $3->var, 2, @1 + @3);
+        ast_free($3);
+    }
+    | expr TRIPLE_DEREF_ARROW IDENTIFIER {
+        $$ = makeDerefMember($1, $3->var, 3, @1 + @3);
+        ast_free($3);
+    }
 ;

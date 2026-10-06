@@ -47,6 +47,7 @@
 %left NOT BITNOT
 %left LPAREN RPAREN LSQUARE RSQUARE
 %left DOT
+%left ARROW DOUBLE_DEREF_ARROW TRIPLE_DEREF_ARROW
 
 %nonassoc LOWER_THAN_ELSE
 %nonassoc ELSE
@@ -160,10 +161,20 @@ recursive_type:
         $$->size = $3; 
     }
     | recursive_type AMP %prec AMP {
-        $$ = new SA::Type(PTR, $1);
+        if (pointerDepth($1) >= 3) {
+            panic(@2, PARSE_SYNTAX, "Pointer types may have at most 3 levels");
+            $$ = (SA::Type *)nullptr;
+        } else {
+            $$ = new SA::Type(PTR, $1);
+        }
     }
     | recursive_type AND %prec AMP {
-        SA::Type* first_ptr = new SA::Type(PTR, $1);
-        $$ = new SA::Type(PTR, first_ptr);
+        if (pointerDepth($1) + 2 > 3) {
+            panic(@2, PARSE_SYNTAX, "Pointer types may have at most 3 levels");
+            $$ = (SA::Type *)nullptr;
+        } else {
+            SA::Type* firstPtr = new SA::Type(PTR, $1);
+            $$ = new SA::Type(PTR, firstPtr);
+        }
     }
 ;

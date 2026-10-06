@@ -107,6 +107,9 @@
 ","                 { return Parser::COMMA; }
 "."                 { return Parser::DOT; }
 "++"                { return Parser::INC; }
+"--->"              { return Parser::TRIPLE_DEREF_ARROW; }
+"-->"               { return Parser::DOUBLE_DEREF_ARROW; }
+"->"                { return Parser::ARROW; }
 "--"                { return Parser::DEC; }
 ":"                 { return Parser::COLON; }
 "+"                 { return Parser::PLUS; }

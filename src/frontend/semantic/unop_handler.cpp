@@ -55,9 +55,9 @@ SA::Type* Semantic::unop(ASTNode *n, SA::Type* type) {
 
   case OP_DEREF:
     // If the operand is a nested deref, checkExpr will resolve it first!
-    if (!t) return nullptr;
+    if (!t) return t;
     
-    if (t->base != PTR) {
+    if (t->kind != SA::PRIMITIVE || t->base != PTR) {
         Semantic::typeError(n, "dereference requires a pointer type");
         return nullptr;
     }
