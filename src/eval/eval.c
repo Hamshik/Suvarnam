@@ -29,7 +29,8 @@ static void fn_register_runtime(ASTNode *fn) {
   if (!fn || fn->kind != AST_FN)
     return;
   if (!SA_runtime_fn_register(fn)) {
-    panic( fn->loc, SEM_FN_REDECL, fn->fn_def.name);
+    panic(fn->loc, SEM_OTHER_ERROR,
+          "function redeclaration during evaluation");
   }
 }
 

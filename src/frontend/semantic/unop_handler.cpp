@@ -79,8 +79,11 @@ SA::Type* Semantic::unop(ASTNode *n, SA::Type* type) {
     t = n->unop.operand->type;
   }
 
-  if (!Semantic::isNumeric(t->base))
+  if (t->kind != SA::PRIMITIVE || !Semantic::isNumeric(t->base)) {
     panic(n->loc, SEM_UNARY_NEEDS_NUM, NULL);
+    n->type = SA::Type::poison();
+    return n->type;
+  }
 
   if ((n->unop.op == OP_INC || n->unop.op == OP_DEC) && !ctx->sym.isMut(n->unop.operand->var))
     panic(n->loc, SEM_ASSIGN_IMMUTABLE, "cannot increment/decrement immutable variable");

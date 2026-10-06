@@ -32,7 +32,7 @@ SA::TypedVal handle_num(ASTNode *node, SA::TypedVal v) {
     int ok = 0;
     v.val.i128 = SA_parse_i128(node->literal.raw, &ok);
     if (!ok) {
-      panic( node->loc, RT_NUM_LITERAL_UNSUPPORTED,
+      panic( node->loc, NUM_LITERAL_UNSUPPORTED,
             NULL);
       return (SA::TypedVal){0};
     }
@@ -54,7 +54,7 @@ SA::TypedVal handle_num(ASTNode *node, SA::TypedVal v) {
     int ok = 0;
     v.val.u128 = SA_parse_u128(node->literal.raw, &ok);
     if (!ok) {
-      panic( node->loc, RT_NUM_LITERAL_UNSUPPORTED,
+      panic( node->loc, NUM_LITERAL_UNSUPPORTED,
             NULL);
       return (SA::TypedVal){0};
     }
@@ -79,7 +79,7 @@ SA::TypedVal handle_num(ASTNode *node, SA::TypedVal v) {
     v.val.f128 = strtold(node->literal.raw, NULL);
     break;
   default:
-    panic( node->loc, RT_NUM_LITERAL_UNSUPPORTED,
+    panic( node->loc, NUM_LITERAL_UNSUPPORTED,
           NULL);
     return (SA::TypedVal){0};
   }

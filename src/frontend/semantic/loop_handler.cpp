@@ -9,25 +9,28 @@ SA::TypedVal ast_eval(ASTNode *node) ;
 SA::Type *Semantic::checkForLoop(ASTNode *n, SA::Type *type) {
   // 1. Check the iterable expression
   SA::Type *iterable_type = checkExpr(n->fornode.iterable);
+  if (!iterable_type || iterable_type->isPoisonTy())
+    return iterable_type;
 
   // Ensure the iterable is a RANGE or LIST type
   if (!iterable_type ||
       (iterable_type->base != RANGE && iterable_type->base != LIST)) {
-    panic(n->loc, SEM_FOR_ITERABLE_NOT_RANGE,
-          "Loop iterable must be a range or a list.");
+    panic(n->loc, SEM_OTHER_ERROR,
+          "for-loop iterable must be a range or a list");
     return nullptr;
   }
 
   // The type of the iterator variable is the inner type of the iterable
   SA::Type *iterator_var_type = iterable_type->inner;
   if (!iterator_var_type) {
-    panic(n->loc, SEM_INTERNAL_ERROR, "Iterable inner type is null");
+    panic(n->loc, INTERNAL_ERROR, "Iterable inner type is null");
     return nullptr;
   }
 
   // Range iterables must be numeric, but List iterables can contain any type.
   if (iterable_type->base == RANGE && !Semantic::isNumeric(iterator_var_type->base)) {
-    panic(n->loc, SEM_FOR_ITERABLE_INVALID_TYPE, NULL);
+    panic(n->loc, SEM_OTHER_ERROR,
+          "range iterable must produce a numeric type");
     return nullptr;
   }
 
@@ -96,8 +99,10 @@ SA::Type *Semantic::checkRange(ASTNode *n, SA::Type *type) {
 
 SA::Type *Semantic::checkWhileLoop(ASTNode *n, SA::Type *type) {
   SA::Type *ct = checkExpr(n->whilenode.cond);
+  if (!ct || ct->isPoisonTy())
+    return ct;
   if (ct->base != BOOL)
-    panic(n->loc, SEM_WHILE_COND_NOT_BOOL, NULL);
+    panic(n->loc, SEM_OTHER_ERROR, "while condition must be boolean");
 
   inLoop++;
   checkExpr(n->whilenode.body);
@@ -109,9 +114,9 @@ SA::Type *Semantic::checkWhileLoop(ASTNode *n, SA::Type *type) {
 
 SA::Type *Semantic::checkUncondBranch(ASTNode *n, SA::Type *type) {
   if (inLoop <= 0) {
-    errc_t err = (n->kind == AST_BREAK) ? SEM_BREAK_OUTSIDE_LOOP
-                                        : SEM_CONTINUE_OUTSIDE_LOOP;
-    panic(n->loc, err, NULL);
+    panic(n->loc, SEM_OTHER_ERROR,
+          n->kind == AST_BREAK ? "break statement outside of a loop"
+                               : "continue statement outside of a loop");
   }
   return nullptr;
 }

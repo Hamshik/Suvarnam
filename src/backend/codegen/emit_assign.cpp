@@ -191,12 +191,12 @@ void IRGen::emitGlobVar(HIRNode *n) {
 
       llvm::Constant *initializer = tryEmitConst(stmt->assign.value);
       if (!initializer)
-        panic(n->loc, SEM_INTERNAL_ERROR,
+        panic(n->loc, INTERNAL_ERROR,
               "Failed to emit constant initializer for global variable");
 
       if (valueType->kind == SA::PRIMITIVE && valueType->base == LIST) {
         if (!initializer || !initializer->getType()->isArrayTy()) {
-          panic(n->loc, SEM_INTERNAL_ERROR,
+          panic(n->loc, INTERNAL_ERROR,
                 "Global list initializer must lower to an array constant");
         }
 

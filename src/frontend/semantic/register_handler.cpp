@@ -28,7 +28,7 @@ void Semantic::regGlobalVarAndFn(ASTNode *n) {
 
     // Ensure the function isn't duplicated
     if (ctx->sym.fnFind(fn_name) != nullptr) {
-      panic(n->loc, SEM_INTERNAL_ERROR, "Redefinition of function signature");
+      panic(n->loc, SEM_OTHER_ERROR, "Redefinition of function signature");
     }
 
     bool is_illegal = false;
@@ -37,11 +37,11 @@ void Semantic::regGlobalVarAndFn(ASTNode *n) {
         bool ok = !(i+1 < n->fn_def.paramCount &&
             n->fn_def.params[i].type->inner->base == n->fn_def.params[i+1].type->inner->base);
         if(!ok)
-          panic(n->loc, SEM_INTERNAL_ERROR, "both datatype of same kind is ambigous for varg param");
+          panic(n->loc, SEM_OTHER_ERROR, "both datatype of same kind is ambigous for varg param");
         
         is_illegal = true;
       } else if(is_illegal){
-        panic(n->loc, SEM_INTERNAL_ERROR, "normal datatype is not allowed b/w the vargs");
+        panic(n->loc, SEM_OTHER_ERROR, "normal datatype is not allowed b/w the vargs");
       }
     }
 

@@ -69,7 +69,9 @@ void Semantic::processDecl(ASTNode *n, SA::Type *&lhs_t, SA::Type *rhs_t) {
     if (!Semantic::literalFitsType(rhs, lhs_t->base) ||
         (Semantic::isSignedNumeric(rhs_t->base) &&
          Semantic::isUnsignedNumeric(lhs_t->base))) {
-      panic(n->loc, SEM_NUMERIC_LITERAL_OVERFLOW, var_name);
+      panic(n->loc, SEM_OTHER_ERROR,
+            logf_msg("numeric literal does not fit the type of '%s'",
+                     var_name));
     }
     rhs_t = rhs->type = lhs_t;
   }
@@ -231,14 +233,19 @@ SA::Type *Semantic::assign(ASTNode *n, SA::Type *type) {
   SA::Type *lhs_t = nullptr;
 
   if (n->isglobal && !globalVarAllowed)
-    panic(n->assign.lhs->loc, SEM_AT_SYM_IS_NOT_ALLOWED,
-          getSafeName(n->assign.lhs));
+    panic(n->assign.lhs->loc, SEM_OTHER_ERROR,
+          logf_msg("'@' variable '%s' is not allowed in this scope",
+                   getSafeName(n->assign.lhs)));
 
   // Resolve target memory space type (Now correctly extracts STRINGS for *i1)
   resolveTargetType(n, lhs_t);
 
   if (!lhs_t)
     return nullptr;
+  if (lhs_t->isPoisonTy()) {
+    n->type = lhs_t;
+    return n->type;
+  }
 
   if (lhs_t->kind == SA::PRIMITIVE && Semantic::isNumeric(lhs_t->base)) {
     Semantic::forceNumericType(n->assign.rhs, lhs_t->base);
@@ -290,12 +297,12 @@ SA::Type *Semantic::assign(ASTNode *n, SA::Type *type) {
     if (n->assign.lhs->kind == AST_INDEX) {
       SA::idxExpr *curr_idx = n->assign.lhs->index.idx;
       if (!curr_idx)
-        panic(n->loc, SEM_INTERNAL_ERROR,
+        panic(n->loc, INTERNAL_ERROR,
               "Array access missing index structure");
 
       while (curr_idx != nullptr) {
         if (!curr_idx->exprNode)
-          panic(n->loc, SEM_INTERNAL_ERROR, "Empty expression node in index");
+          panic(n->loc, INTERNAL_ERROR, "Empty expression node in index");
         SA::Type *itype = checkExpr(curr_idx->exprNode);
         if (!itype || (itype->base != I32 && itype->base != I64)) {
           panic(curr_idx->exprNode->loc, SEM_INDEX_NOT_INT,

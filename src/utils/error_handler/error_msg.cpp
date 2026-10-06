@@ -28,64 +28,26 @@ static const char *errc_msg_english(errc_t code) {
         case PARSE_INVALID_ARRAY_SIZE: return "invalid array size or number is too large";
 
         case SEM_VAR_UNDECL: return "variable not declared";
-        case SEM_VAR_TYPE_MISMATCH: return "variable type mismatch";
-        case SEM_BINOP_INVALID: return "invalid operands for binary operator";
-        case SEM_STRING_OP_INVALID: return "invalid string operation";
-        case SEM_CMP_NEEDS_NUM: return "comparison needs numeric operands";
-        case SEM_LOGIC_NEEDS_BOOL: return "logical operator needs bool operands";
         case SEM_NUMOP_NEEDS_NUM: return "numeric operator needs numeric operands";
-        case SEM_NOT_NEEDS_BOOL: return "operator ! expects bool";
         case SEM_UNARY_NEEDS_NUM: return "unary operator expects numeric operand";
         case SEM_ASSIGN_TARGET_NOT_VAR: return "assignment target must be a variable";
         case SEM_VAR_REDECL: return "redeclaration of variable";
         case SEM_ASSIGN_TYPE_MISMATCH: return "type mismatch in assignment";
         case SEM_ASSIGN_IMMUTABLE: return "cannot assign to immutable variable";
-        case SEM_IF_COND_NOT_BOOL: return "if cond must be boolean";
-        case SEM_FOR_INIT_INVALID: return "for init must be an assignment/declaration";
-        case SEM_FOR_INIT_NOT_NUM: return "for init variable must be numeric";
-        case SEM_FOR_END_TYPE_MISMATCH: return "for end value must match init type";
-        case SEM_FOR_STEP_TYPE_MISMATCH: return "for step value must match init type";
-        case SEM_WHILE_COND_NOT_BOOL: return "while cond must be boolean";
-        case SEM_FN_REDECL: return "redeclaration of function";
-        case SEM_DUP_PARAM: return "duplicate parameter name";
         case SEM_CALL_UNDEF_FN: return "call to undefined function";
         case SEM_ARGC_MISMATCH: return "argument count mismatch";
         case SEM_ARG_TYPE_MISMATCH: return "argument type mismatch";
-        case SEM_RETURN_OUTSIDE_FN: return "return outside of function";
         case SEM_RETURN_TYPE_MISMATCH: return "return type mismatch";
-        case SEM_NUMERIC_LITERAL_OVERFLOW: return "numeric literal overflow";
-        case SEM_UNKNOWN_AST: return "unknown AST node in semantic analysis";
-        case SEM_LIST_SIZE_MISMATCH: return "list literal size does not match expected size";
-        case SEM_LIST_EMPTY: return "list literal cannot be empty";
-        case SEM_LIST_NUM_IS_0: return "list literal size cannot be 0";
         case SEM_IMPORT_FILE_NOT_FOUND: return "import file not found";
+        case SEM_LIST_SIZE_MISMATCH: return "list literal size does not match expected size";
         case SEM_INDEX_NOT_ARRAY: return "indexing non-array type";
         case SEM_INDEX_NOT_INT: return "array index must be an integer";
-        case SEM_INTERNAL_ERROR: return "internal error";
-        case SEM_FOR_ITERABLE_INVALID_TYPE : return "Range iterable must produce numeric types.";
-        case SEM_FOR_ITERABLE_NOT_RANGE: return "Enhanced for loop iterable must be a range.";
-        case SEM_BREAK_OUTSIDE_LOOP: return "break statement outside of loop";
-        case SEM_CONTINUE_OUTSIDE_LOOP: return "continue statement outside of loop";
-        case SEM_RANGE_STEP_ERROR: return "Loop contradiction";
-        case SEM_AT_SYM_IS_NOT_ALLOWED: return "'@' symbol is not allowed in local scopes";
-        case SEM_VAR_UNDECL_AT_GLOB: return "variable is not declared at global scopes";
+        case INTERNAL_ERROR: return "internal error";
+        case SEM_OTHER_ERROR: return "semantic error";
 
         case INVAILD_UTF8_CHAR: return "a character literal must contain exactly one Unicode code point";
         case RET_NOT_DECLARED: return "return value is not declared in a function";
-        
-        case RT_NUM_LITERAL_UNSUPPORTED: return "unsupported numeric literal type";
-        case RT_BINOP_UNSUPPORTED: return "unsupported type for binary operation";
-        case RT_FOR_INIT_INVALID: return "invalid for loop init";
-        case RT_FOR_STEP_ZERO: return "for loop step cannot be zero";
-        case RT_CALL_UNDEF_FN: return "call to undefined function (runtime)";
-        case RT_ARGC_MISMATCH: return "argument count mismatch (runtime)";
-        case RT_UNKNOWN_AST: return "unknown AST node (runtime)";
-        case RT_VAR_NOT_DEFINED: return "variable not defined (runtime)";
-        case RT_VAR_TYPE_MISMATCH: return "type mismatch for variable (runtime)";
-        case RT_ASSIGN_TARGET_NOT_VAR: return "assignment target must be a variable (runtime)";
-        case RT_ASSIGN_UNSUPPORTED: return "unsupported assignment type (runtime)";
-        case RT_DANGLING_PTR: return "dangling pointer (runtime)";
-        case RT_INDEX_OUT_OF_BOUNDS: return "index out of bounds (runtime)";
+        case NUM_LITERAL_UNSUPPORTED: return "numeric literal is not supported in this context";
 
         default: return "?error?";
     }

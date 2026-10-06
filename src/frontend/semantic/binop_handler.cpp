@@ -32,7 +32,9 @@ SA::Type* Semantic::binop(ASTNode *n, SA::Type* type) {
     bool is_valid_add = (n->bin.op == OP_ADD) && (lt->base == STRINGS && rt->base == STRINGS);
 
     if (!is_valid_mul && !is_valid_add) {
-      panic(n->loc, SEM_STRING_OP_INVALID, NULL);
+      panic(n->loc, SEM_OTHER_ERROR, "invalid string operation");
+      n->type = SA::Type::poison();
+      return n->type;
     }
 
     // Re-use a global type pointer if possible to save memory
@@ -49,32 +51,44 @@ SA::Type* Semantic::binop(ASTNode *n, SA::Type* type) {
           if ((n->bin.op == OP_EQ || n->bin.op == OP_NEQ) && typesAreEqual(lt, rt)) {
               // Valid (e.g., comparing two lists or strings)
           } else {
-              panic(n->loc, SEM_CMP_NEEDS_NUM, NULL);
+              panic(n->loc, SEM_OTHER_ERROR,
+                    "comparison requires numeric operands or matching types");
+              n->type = SA::Type::poison();
+              return n->type;
           }
       }
       n->type = new SA::Type(BOOL, NULL);
       return n->type;
 
     case OP_AND: case OP_OR:
-      if (lt->base != BOOL || rt->base != BOOL)
-        panic(n->loc, SEM_LOGIC_NEEDS_BOOL, NULL);
+      if (lt->base != BOOL || rt->base != BOOL) {
+        panic(n->loc, SEM_OTHER_ERROR,
+              "logical operators require boolean operands");
+        n->type = SA::Type::poison();
+        return n->type;
+      }
       n->type = new SA::Type(BOOL, NULL);
       return n->type;
 
     default:
       // 5. Arithmetic & Bitwise
-      if (!isNumeric(lt->base) || !isNumeric(rt->base))
+      if (!isNumeric(lt->base) || !isNumeric(rt->base)) {
         panic(n->loc, SEM_NUMOP_NEEDS_NUM, NULL);
+        n->type = SA::Type::poison();
+        return n->type;
+      }
 
       if (n->bin.op == OP_LSHIFT || n->bin.op == OP_RSHIFT ||
           n->bin.op == OP_BITAND || n->bin.op == OP_BITOR || n->bin.op == OP_BITXOR) {
         if (!isInt(lt->base) || !isInt(rt->base)) {
           panic(n->loc, SEM_NUMOP_NEEDS_NUM, "bitwise ops require integer types");
+          n->type = SA::Type::poison();
+          return n->type;
         }
       }
 
       // Promote returns the dominant base type (e.g., f64 > i32)
-      DataTypes_t promted_t = promote(lt->base, rt->base);
+      DataTypes promted_t = promote(lt->base, rt->base);
       n->type = n->type->base == promted_t ? n->type : new SA::Type(promted_t, NULL);
       return n->type;
   }

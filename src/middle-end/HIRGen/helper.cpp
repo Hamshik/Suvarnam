@@ -44,7 +44,7 @@ void HIRGenerator::flattenSeq(ASTNode *node,
     if (m_node) {
       stmts->push_back(m_node);
     } else {
-      panic(node->loc, SEM_INTERNAL_ERROR,
+      panic(node->loc, INTERNAL_ERROR,
             "MASTGen: Failed to lower node kind");
     }
   }
@@ -157,7 +157,7 @@ SA::Value handle_num(ASTNode *node) {
       v.val.u128 = SA_parse_u128(raw, &ok);
 
     if (!ok) {
-      panic(node->loc, RT_NUM_LITERAL_UNSUPPORTED,
+      panic(node->loc, NUM_LITERAL_UNSUPPORTED,
             "Failed to parse 128-bit literal");
       return (SA::Value){0};
     }
@@ -180,7 +180,7 @@ SA::Value handle_num(ASTNode *node) {
     break;
 
   default:
-    panic(node->loc, RT_NUM_LITERAL_UNSUPPORTED,
+    panic(node->loc, NUM_LITERAL_UNSUPPORTED,
           "Unsupported numeric base type");
     return (SA::Value){0};
   }

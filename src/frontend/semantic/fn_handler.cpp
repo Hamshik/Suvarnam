@@ -350,7 +350,8 @@ SA::Type* Semantic::call(ASTNode *n) {
 
 SA::Type* Semantic::ret(ASTNode *n) {
   if (!isInFn) {
-    panic( n->loc, SEM_RETURN_OUTSIDE_FN, "Return statement outside of a function.");
+    panic(n->loc, SEM_OTHER_ERROR,
+          "return statement outside of a function");
   }
 
   // Case 1: Function declared to return VOID

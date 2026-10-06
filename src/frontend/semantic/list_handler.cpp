@@ -87,7 +87,7 @@ SA::Type *Semantic::listHandle(ASTNode *n, SA::Type *target_type) {
 
   // 3. Validation of counts and sizes
   if (actual_count == 0) {
-    panic(n->loc, SEM_LIST_EMPTY,
+    panic(n->loc, SEM_OTHER_ERROR,
           "Lists must contain at least one element");
     return nullptr;
   }
@@ -135,7 +135,7 @@ SA::Type *Semantic::idxHandle(ASTNode *n) {
     if (!expr) {
       // This is where you were seeing NULL because you were
       // looking in the wrong struct member previously.
-      panic(n->loc, SEM_INTERNAL_ERROR, "Expr node is null");
+      panic(n->loc, INTERNAL_ERROR, "Expr node is null");
     }
 
     // 2. Check the expression type. 

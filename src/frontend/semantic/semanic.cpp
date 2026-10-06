@@ -70,11 +70,16 @@ SA::Type *Semantic::checkExpr(ASTNode *n, SA::Type *&type) {
       return nullptr;
 
     case TYPE_MISMATCH:
-      panic(n->loc, SEM_VAR_TYPE_MISMATCH, n->var);
-      return nullptr;
+      panic(n->loc, SEM_OTHER_ERROR,
+            logf_msg("variable type mismatch: %s", n->var));
+      n->type = SA::Type::poison();
+      return n->type;
 
     case NOT_DEC_AT_GLOB_SCOPE:
-      panic(n->loc, SEM_VAR_UNDECL_AT_GLOB, n->var);
+      panic(n->loc, SEM_OTHER_ERROR,
+            logf_msg("variable is not declared at global scope: %s", n->var));
+      n->type = SA::Type::poison();
+      return n->type;
     case SUCCESS:
     default:
       break;
@@ -99,8 +104,11 @@ SA::Type *Semantic::checkExpr(ASTNode *n, SA::Type *&type) {
 
   case AST_IF: {
     SA::Type *ct = checkExpr(n->ifnode.cond);
-    if (ct->base != BOOL)
-      panic(n->loc, SEM_IF_COND_NOT_BOOL, NULL);
+    if (ct && !ct->isPoisonTy() && ct->kind == SA::PRIMITIVE &&
+        ct->base != BOOL) {
+      panic(n->loc, SEM_OTHER_ERROR, "if condition must be boolean");
+      n->ifnode.cond->type = SA::Type::poison();
+    }
 
     checkExpr(n->ifnode.thenBranch);
     if (n->ifnode.elseBranch)
@@ -162,7 +170,8 @@ SA::Type *Semantic::checkExpr(ASTNode *n, SA::Type *&type) {
     return checkExpr(n->block.block, type);
 
   default:
-    panic(n->loc, SEM_UNKNOWN_AST, NULL);
+    panic(n->loc, SEM_OTHER_ERROR,
+          "unknown AST node in semantic analysis");
     return nullptr;
   }
 }
