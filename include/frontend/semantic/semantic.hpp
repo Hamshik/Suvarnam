@@ -13,14 +13,16 @@ extern ASTNode *root;
 
 class Semantic {
   bool globalVarAllowed = true;
-  DataTypes_t fnRet = UNKNOWN;
+  DataTypes fnRet = UNKNOWN;
   int isInFn = 0;
   int inLoop = 0;
   SA::Type *currFnRet = nullptr;
   size_t checkDepth = 0;
 
   void regGlobalVarAndFn(ASTNode*);
+  void registerGlobalVariables(ASTNode*);
   SA::Type* handleNum(ASTNode*, SA::Type*&);
+  SA::Type *checkExprImpl(ASTNode *, SA::Type *&);
 
   SA::Type *listHandle(ASTNode *, SA::Type *type = nullptr);
   bool isList(ASTNode *);
@@ -58,19 +60,29 @@ class Semantic {
 
   SA::Type *checkStruct(ASTNode *n, SA::Type *&type);
   SA::Type *checkStructInit(ASTNode *n, SA::Type *&type);
+  const Fields *resolveStructInitField(
+      ASTNode *initializer, const std::string &structName, ASTNode *entry,
+      size_t index, bool named,
+      std::unordered_set<std::string> &initialized, ASTNode *&value);
+  bool validateStructInitFieldValue(ASTNode *initializer, const Fields *field,
+                                    ASTNode *value);
+  bool checkStructInitRequiredFields(
+      ASTNode *initializer, const std::string &structName,
+      const std::vector<ASTNode *> &entries, bool named,
+      const std::unordered_set<std::string> &initialized);
   SA::Type *checkStructMember(ASTNode *n);
 
 public:
   bool importParseFailed = false;
-  static bool isNumeric(DataTypes_t);
+  static bool isNumeric(DataTypes);
   static void checkErr();
-  static DataTypes_t promote(DataTypes_t, DataTypes_t);
-  static void forceNumericType(ASTNode *, DataTypes_t);
-  static bool literalFitsType(const ASTNode *, DataTypes_t);
-  static bool isUnsignedNumeric(DataTypes_t);
-  static bool isSignedNumeric(DataTypes_t);
-  static bool isInt(DataTypes_t);
-  static int numericBits(DataTypes_t);
+  static DataTypes promote(DataTypes, DataTypes);
+  static void forceNumericType(ASTNode *, DataTypes);
+  static bool literalFitsType(const ASTNode *, DataTypes);
+  static bool isUnsignedNumeric(DataTypes);
+  static bool isSignedNumeric(DataTypes);
+  static bool isInt(DataTypes);
+  static int numericBits(DataTypes);
 
   void main(ASTNode *);
   SA::Type *checkExpr(ASTNode *, SA::Type *&);

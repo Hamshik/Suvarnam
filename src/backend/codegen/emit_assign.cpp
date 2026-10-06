@@ -215,17 +215,17 @@ void IRGen::emitGlobVar(HIRNode *n) {
 
       llvm::Type *llvmValueType = irType(valueType);
       if (!llvmValueType)
-        panic(stmt->loc, SEM_INTERNAL_ERROR,
+        panic(stmt->loc, INTERNAL_ERROR,
               "Failed to resolve global variable type");
       if (initializer->getType() != llvmValueType)
-        panic(stmt->loc, SEM_INTERNAL_ERROR,
+        panic(stmt->loc, INTERNAL_ERROR,
               "Global initializer type does not match variable type");
       new GlobalVariable(mod, llvmValueType, false, linkage, initializer, name);
     }
   }
 }
 
-AllocaInst *IRGen::getOrAddAlloca(const std::string &name, DataTypes_t t,
+AllocaInst *IRGen::getOrAddAlloca(const std::string &name, DataTypes t,
                                   Codegen::Scope &locals) {
   return getOrAddAlloca(name, irType(t), locals);
 }

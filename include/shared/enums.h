@@ -2,7 +2,7 @@
 
 /* AST enums*/
 
-typedef enum ASTKind {
+enum ASTKind {
     AST_NUM,
     AST_BINOP,
     AST_UNOP,
@@ -31,9 +31,9 @@ typedef enum ASTKind {
     AST_STRUCT,
     AST_STRUCT_INIT,
     AST_MEMBER
-} ASTKind_t;
+};
 
-typedef enum DataTypes{
+enum DataTypes {
     I8,
     I16,
     I32,
@@ -62,8 +62,9 @@ typedef enum DataTypes{
     STRINGS,
     CHARACTER,
     VOID,
-    UNKNOWN
-} DataTypes_t;
+    UNKNOWN,
+    POISON,
+};
 
 typedef enum OP_kind {
     OP_ADD, OP_SUB, OP_MUL, OP_DIV, OP_MOD, OP_POW,

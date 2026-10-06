@@ -69,7 +69,7 @@ SA::Type *Semantic::checkRange(ASTNode *n, SA::Type *type) {
   }
 
   // Promote types for start and end
-  DataTypes_t promoted_base_type = Semantic::promote(start_t->base, end_t->base);
+  DataTypes promoted_base_type = Semantic::promote(start_t->base, end_t->base);
 
   // Force numeric type for start and end to the promoted type
   Semantic::forceNumericType(n->range.start, promoted_base_type);

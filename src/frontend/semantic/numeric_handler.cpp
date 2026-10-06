@@ -1,7 +1,7 @@
 #include "semantic/semantic.hpp"
 #include "semantic/typecheck.h"
 
-bool Semantic::literalFitsType(const ASTNode *lit, DataTypes_t t) {
+bool Semantic::literalFitsType(const ASTNode *lit, DataTypes t) {
   if (!lit)
     return false;
   switch (lit->kind) {
@@ -61,7 +61,7 @@ bool Semantic::literalFitsType(const ASTNode *lit, DataTypes_t t) {
   }
 }
 
-DataTypes_t Semantic::promote(DataTypes_t a, DataTypes_t b) {
+DataTypes Semantic::promote(DataTypes a, DataTypes b) {
   bool a_is_f = (a == F32 || a == F64 || a == F128);
   bool b_is_f = (b == F32 || b == F64 || b == F128);
   bool a_is_uf = (a == UF32 || a == UF64 || a == UF128);
@@ -109,7 +109,7 @@ DataTypes_t Semantic::promote(DataTypes_t a, DataTypes_t b) {
   return I8;
 }
 
-void Semantic::forceNumericType(ASTNode *n, DataTypes_t t) {
+void Semantic::forceNumericType(ASTNode *n, DataTypes t) {
     if (!n || t == UNKNOWN || !isNumeric(t)) return;
   
   if (!n->type) {

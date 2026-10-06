@@ -37,7 +37,7 @@ SA::TypedVal eval_unop(ASTNode *node) {
   return out;
 }
 
-void do_unop_operation(SA::Value *result, SA::Value *operand, DataTypes_t datatype,
+void do_unop_operation(SA::Value *result, SA::Value *operand, DataTypes datatype,
                        OP_kind_t op) {
   switch (datatype) {
   case I8:

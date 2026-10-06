@@ -101,12 +101,12 @@ HIRNode *HIRGenerator::emitIdx(ASTNode *node) {
 
 SA::Value handle_num(ASTNode *node) {
   if (!node || !node->literal.raw) {
-    panic(node ? node->loc : (SA::Location){0}, RT_NUM_LITERAL_UNSUPPORTED,
+    panic(node ? node->loc : (SA::Location){0}, NUM_LITERAL_UNSUPPORTED,
           "Numeric literal missing raw string value");
     return (SA::Value){0};
   }
 
-  DataTypes_t base =
+  DataTypes base =
       (node->type && node->type->base != UNKNOWN) ? node->type->base : I32;
   SA::TypedVal v = {.type = node->type ? node->type : new SA::Type(base, NULL)};
   const char *raw = node->literal.raw;

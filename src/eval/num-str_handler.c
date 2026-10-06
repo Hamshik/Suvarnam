@@ -4,12 +4,12 @@
 
 SA::TypedVal handle_num(ASTNode *node, SA::TypedVal v) {
   if (!node || !node->literal.raw) {
-    panic( node ? node->loc : (SA::Location){0}, RT_NUM_LITERAL_UNSUPPORTED,
+    panic( node ? node->loc : (SA::Location){0}, NUM_LITERAL_UNSUPPORTED,
           "Numeric literal missing raw string value");
     return (SA::TypedVal){0};
   }
   
-  DataTypes_t base = node->type ? node->type->base : UNKNOWN;
+  DataTypes base = node->type ? node->type->base : UNKNOWN;
   
   // If semantic analysis didn't assign a type, default to I32 for literals.
   // This prevents the interpreter from failing on simple indices like [0].

@@ -41,7 +41,7 @@ SA::TypedVal eval_binop(ASTNode *node, SA::TypedVal v) {
   }
 
   if (isBoolOP(node->bin.op) || node->type->base == BOOL) {
-    DataTypes_t cmp_t = SA_promote_runtime(l.type->base, r.type->base);
+    DataTypes cmp_t = SA_promote_runtime(l.type->base, r.type->base);
     SA::TypedVal lc = SA_cast_typed(l, l.type);
     SA::TypedVal rc = SA_cast_typed(r, r.type);
     v.type = new SA::Type(BOOL, NULL);
@@ -49,7 +49,7 @@ SA::TypedVal eval_binop(ASTNode *node, SA::TypedVal v) {
     return v;
   }
 
-  DataTypes_t op_t = node->type->base;
+  DataTypes op_t = node->type->base;
   SA::TypedVal lc = SA_cast_typed(l, node->type);
   SA::TypedVal rc = SA_cast_typed(r, node->type);
   v.type = new SA::Type(op_t, NULL);
@@ -57,7 +57,7 @@ SA::TypedVal eval_binop(ASTNode *node, SA::TypedVal v) {
   return v;
 }
 
-SA::Value SA_eval_binop_numeric(OP_kind_t op, DataTypes_t type, SA::Value a,
+SA::Value SA_eval_binop_numeric(OP_kind_t op, DataTypes type, SA::Value a,
                              SA::Value b) {
   type = SA_norm(type);
 
@@ -153,7 +153,7 @@ SA::Value SA_eval_binop_numeric(OP_kind_t op, DataTypes_t type, SA::Value a,
   DIE("Invalid datatype for numeric operation");
 }
 
-SA::Value eval_bool(OP_kind_t op, DataTypes_t type, SA::Value a, SA::Value b) {
+SA::Value eval_bool(OP_kind_t op, DataTypes type, SA::Value a, SA::Value b) {
   type = SA_norm(type);
   if (type == BOOL) {
     switch (op) {

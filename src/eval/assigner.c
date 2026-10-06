@@ -12,7 +12,7 @@ extern File* file;
 /* Prototype for semantic mutability check */
 bool SA_semantic_is_mutable(const char *name);
 
-void assign_value(DataTypes_t dt, SA::Value *dst, SA::Value src) {
+void assign_value(DataTypes dt, SA::Value *dst, SA::Value src) {
   switch (dt) {
   case I8:
     dst->i8 = src.i8;
@@ -102,7 +102,7 @@ static void update_val(SA::Value r, ASTNode *dst) {
   if (!dst)
     return;
   SA::Location loc = dst->loc;
-  DataTypes_t datatypes = dst->type->base;
+  DataTypes datatypes = dst->type->base;
   char buf[128];
   char *new_raw = NULL;
   switch (datatypes) {

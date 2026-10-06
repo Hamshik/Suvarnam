@@ -4,7 +4,7 @@
 #include "utils/error_handler/error.h"
 #include <cstring>
 
-bool Semantic::isNumeric(DataTypes_t t) {
+bool Semantic::isNumeric(DataTypes t) {
   switch (t) {
   case I8:
   case I16:
@@ -28,7 +28,7 @@ bool Semantic::isNumeric(DataTypes_t t) {
   }
 }
 
-bool Semantic::isInt(DataTypes_t t) {
+bool Semantic::isInt(DataTypes t) {
   switch (t) {
   case I8:
   case I16:
@@ -46,7 +46,7 @@ bool Semantic::isInt(DataTypes_t t) {
   }
 }
 
-int Semantic::numericBits(DataTypes_t t) {
+int Semantic::numericBits(DataTypes t) {
   switch (t) {
   case I8:
   case U8:
@@ -77,7 +77,7 @@ int Semantic::numericBits(DataTypes_t t) {
   }
 }
 
-bool Semantic::isUnsignedNumeric(DataTypes_t t) {
+bool Semantic::isUnsignedNumeric(DataTypes t) {
   switch (t) {
   case U8:
   case U16:
@@ -93,7 +93,7 @@ bool Semantic::isUnsignedNumeric(DataTypes_t t) {
   }
 }
 
-bool Semantic::isSignedNumeric(DataTypes_t t) {
+bool Semantic::isSignedNumeric(DataTypes t) {
   return Semantic::isNumeric(t) && !Semantic::isUnsignedNumeric(t);
 }
 

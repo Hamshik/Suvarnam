@@ -58,45 +58,45 @@ SA::TypedVal ast_eval(ASTNode *);
 SA::TypedVal ast_eval_main(ASTNode *);
 
 char *do_operation_str(const char *, const char *, OP_kind_t);
-SA::Value eval_bool(OP_kind_t, DataTypes_t, SA::Value, SA::Value);
-void do_unop_operation(SA::Value *, SA::Value *, DataTypes_t, OP_kind_t);
+SA::Value eval_bool(OP_kind_t, DataTypes, SA::Value, SA::Value);
+void do_unop_operation(SA::Value *, SA::Value *, DataTypes, OP_kind_t);
 SA::Value eval_binop_double(OP_kind_t, double, double);
 SA::Value eval_binop_float(OP_kind_t, float, float);
 SA::Value eval_binop_int(OP_kind_t, bool, int, int);
 OP_kind_t get_assign_op(OP_kind_t);
 bool isBoolOP(OP_kind_t);
 
-SA::Value default_step(DataTypes_t);
-bool step_is_positive(DataTypes_t, SA::Value);
-bool step_is_zero(DataTypes_t, SA::Value);
-bool should_continue_for(DataTypes_t, SA::Value, SA::Value, SA::Value);
-SA::Value add_step_for(DataTypes_t, SA::Value, SA::Value);
+SA::Value default_step(DataTypes);
+bool step_is_positive(DataTypes, SA::Value);
+bool step_is_zero(DataTypes, SA::Value);
+bool should_continue_for(DataTypes, SA::Value, SA::Value, SA::Value);
+SA::Value add_step_for(DataTypes, SA::Value, SA::Value);
 
 /* Numeric helpers (runtime) */
-DataTypes_t SA_promote_runtime(DataTypes_t a, DataTypes_t b);
+DataTypes SA_promote_runtime(DataTypes a, DataTypes b);
 SA::TypedVal SA_cast_typed(SA::TypedVal v, SA::Type* target);
 
-SA::Value SA_eval_binop_numeric(OP_kind_t op, DataTypes_t type, SA::Value a, SA::Value b);
+SA::Value SA_eval_binop_numeric(OP_kind_t op, DataTypes type, SA::Value a, SA::Value b);
 unsigned __int128  SA_parse_u128(const char *s, int *ok);
 __int128  SA_parse_i128(const char *s, int *ok);
-DataTypes_t SA_norm(DataTypes_t t);
-bool SA_is_signed_int(DataTypes_t t);
-bool SA_is_unsigned_int(DataTypes_t t);
+DataTypes SA_norm(DataTypes t);
+bool SA_is_signed_int(DataTypes t);
+bool SA_is_unsigned_int(DataTypes t);
 
-bool SA_is_float(DataTypes_t t);
-bool SA_is_float(DataTypes_t t);
+bool SA_is_float(DataTypes t);
+bool SA_is_float(DataTypes t);
 
-__int128 SA_as_i128( SA::Value v, DataTypes_t t);
-SA::Value SA_from_i128(__int128 x, DataTypes_t t);
-SA::Value SA_from_u128(unsigned __int128 x, DataTypes_t t);
-SA::Value SA_from_u128(unsigned __int128 x, DataTypes_t t);
-SA::Value SA_from_i128(__int128 x, DataTypes_t t);
+__int128 SA_as_i128( SA::Value v, DataTypes t);
+SA::Value SA_from_i128(__int128 x, DataTypes t);
+SA::Value SA_from_u128(unsigned __int128 x, DataTypes t);
+SA::Value SA_from_u128(unsigned __int128 x, DataTypes t);
+SA::Value SA_from_i128(__int128 x, DataTypes t);
 SA::Value SA_pow_i128(__int128 a, __int128 b);
 SA::Value SA_pow_u128(unsigned __int128 a, unsigned __int128 b);
-unsigned __int128 SA_as_u128( SA::Value v, DataTypes_t t);
+unsigned __int128 SA_as_u128( SA::Value v, DataTypes t);
 
-long double SA_as_f128( SA::Value v, DataTypes_t t);
-SA::Value SA_from_f128(long double x, DataTypes_t t);
+long double SA_as_f128( SA::Value v, DataTypes t);
+SA::Value SA_from_f128(long double x, DataTypes t);
 
 SA::TypedVal eval_binop(ASTNode *node, SA::TypedVal v);
 SA::TypedVal eval_unop(ASTNode *node);
@@ -109,13 +109,13 @@ SA::TypedVal eval_for(ASTNode *node, bool g_returning, SA::TypedVal g_return_val
 
 /*------------- external function declaration --------------------*/
 void panic(SA::Location loc, errc_t code, const char *detail);
-SA::Type* make_type(DataTypes_t base, SA::Type* inner);
+SA::Type* make_type(DataTypes base, SA::Type* inner);
 
 /*for eval.c*/
 ASTNode* newFnCall(const char *name, ASTNode *args, SA::Location loc);
 void ast_free(ASTNode *n);
 SA::Value eval_assign(ASTNode *lhs, ASTNode *rhs, OP_kind_t op, SA::Type* type , SA::Location loc);
-void set_var_current(const char *name, SA::Value *val, DataTypes_t datatype);
+void set_var_current(const char *name, SA::Value *val, DataTypes datatype);
 
 /*for fn_handler.c*/
 SA::TypedVal SA_std_call(const char *name, const SA::TypedVal *argv, int argc, SA::Location loc, bool *ok);

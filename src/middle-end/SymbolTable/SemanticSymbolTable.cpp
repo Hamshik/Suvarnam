@@ -138,8 +138,8 @@ exitcode_t SemanticSymTable::exists(ASTNode *n) {
 }
 
 exitcode_t SemanticSymTable::assignCheck(const char *name, bool isglobal,
-                                         DataTypes_t rhs_type,
-                                         DataTypes_t rhs_sub_type) {
+                                         DataTypes rhs_type,
+                                         DataTypes rhs_sub_type) {
   SemanticSymbolRecord *symbol = isglobal ? getTopScope(name) : findSym(name);
   if (!symbol) {
     return NOT_DECLARED;
@@ -220,7 +220,7 @@ void SemanticSymTable::clearFns() {
   fns.clear();
 }
 
-DataTypes_t SemanticSymTable::updateType(const char *name, DataTypes_t want) {
+DataTypes SemanticSymTable::updateType(const char *name, DataTypes want) {
   SemanticSymbolRecord *symbol = findSym(name);
   if (!symbol) {
     return UNKNOWN;

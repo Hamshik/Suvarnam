@@ -19,5 +19,5 @@ bool is_f32(const char *);
 bool is_f64(const char *);
 bool is_f128(const char *);
 
-DataTypes_t infer_smallest_numeric(const char *);
+DataTypes infer_smallest_numeric(const char *);
 bool has_max_numeric_type(const ASTNode *);

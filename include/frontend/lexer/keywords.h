@@ -19,7 +19,7 @@ typedef struct SA_Keyword {
     const char *text;
     SA_KeywordKind kind;
     int token;
-    DataTypes_t datatype;
+    DataTypes datatype;
     bool bool_value;
 } SA_Keyword;
 

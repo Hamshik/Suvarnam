@@ -13,8 +13,8 @@
 extern File *file;
 struct SemanticSymbolRecord {
   SA::Type *type = nullptr;
-  DataTypes_t max_type = UNKNOWN;
-  DataTypes_t last_maxed_type = UNKNOWN;
+  DataTypes max_type = UNKNOWN;
+  DataTypes last_maxed_type = UNKNOWN;
   bool is_mutable = false;
   bool is_used = false;
   ASTNode *node_ptr = nullptr;
@@ -47,7 +47,7 @@ public:
   SA::Type *lookup(const char *);
   bool declare(const char *, bool *, SA::Type *, ASTNode *, bool);
   exitcode_t exists(ASTNode *);
-  exitcode_t assignCheck(const char *, bool, DataTypes_t, DataTypes_t);
+  exitcode_t assignCheck(const char *, bool, DataTypes, DataTypes);
   bool isMut(const char *);
   void push();
   void pop();
@@ -55,7 +55,7 @@ public:
   bool fnDeclare(ASTNode *);
   FnSymbol *fnFind(const char *);
   void clearFns();
-  DataTypes_t updateType(const char *, DataTypes_t);
+  DataTypes updateType(const char *, DataTypes);
   ASTMod *getMod(const char *);
   ASTMod *loadMod(char *, const char *, bool &);
   SemanticSymbolRecord *findSym(const char *);

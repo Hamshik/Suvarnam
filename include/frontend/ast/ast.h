@@ -8,10 +8,10 @@
 #include <stdint.h>
 
 /* Constructors */
-ASTNode *newNum(const char *, DataTypes_t, SA::Location);
+ASTNode *newNum(const char *, DataTypes, SA::Location);
 ASTNode *newStr(char *, SA::Location);
 ASTNode *newChar(const char *, size_t, SA::Location);
-ASTNode *newVar(const char *, DataTypes_t, SA::Location);
+ASTNode *newVar(const char *, DataTypes, SA::Location);
 ASTNode *newBinop(ASTNode *, ASTNode *, SA::Location, OP_kind_t);
 ASTNode *newUnop(ASTNode *, SA::Location, OP_kind_t);
 ASTNode *newAssign(ASTNode *, ASTNode *, SA::Type *, bool, SA::Location, OP_kind_t);
@@ -36,4 +36,4 @@ ASTNode* newMember(ASTNode* target, const char* name, SA::Location loc);
 
 void ast_free(ASTNode *n);
 ASTNode *ast_alloc(void);
-SA::Type* make_type(DataTypes_t base, SA::Type* inner);
+SA::Type* make_type(DataTypes base, SA::Type* inner);

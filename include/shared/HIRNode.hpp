@@ -29,7 +29,7 @@ struct Fields {
 
 class HIRNode {
     public:
-    ASTKind_t kind;
+    ASTKind kind;
     SA::Type *type;      // Every mid-end node is strictly typed
     SA::Location loc;
     bool isglobal;
@@ -107,6 +107,6 @@ class HIRNode {
     }; 
 
     // Clean Constructor Initialization Tracker
-    HIRNode(ASTKind_t k) : kind(k), type(nullptr), isglobal(false) {
+    HIRNode(ASTKind k) : kind(k), type(nullptr), isglobal(false) {
     }
 };

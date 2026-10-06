@@ -99,7 +99,7 @@ struct Type {
   TypeKind kind;
 
   union{
-    DataTypes_t base;    // e.g., LIST, PTR, INT
+    DataTypes base;    // e.g., LIST, PTR, INT
     std::string* objType; // for user-defined types (structs, enums, etc.)
   };
 
@@ -107,8 +107,12 @@ struct Type {
   size_t size = 0;
   bool ismut = false;
 
-  Type(DataTypes_t base, Type *inner) : kind(PRIMITIVE), base(base), inner(inner) {}
+  Type(DataTypes base, Type *inner) : kind(PRIMITIVE), base(base), inner(inner) {}
   Type(std::string* objType, Type *inner) : kind(USER_DEFINED), objType(new std::string(*objType)), inner(inner) {}
+
+  static Type *poison() { return new Type(POISON, nullptr); }
+  inline bool isPoisonTy() const { return kind == PRIMITIVE && base == POISON;} 
+
 };
 
 struct TypedVal {

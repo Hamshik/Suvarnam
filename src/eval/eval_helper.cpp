@@ -1,19 +1,19 @@
 #include "eval/eval.h"
 #include "shared/structs.h"
 
-bool SA_is_float(DataTypes_t t) {
+bool SA_is_float(DataTypes t) {
     return t == F32 || t == F64 || t == F128 || t == UF32 || t == UF64 || t == UF128;
 }
 
-bool SA_is_unsigned_int(DataTypes_t t) {
+bool SA_is_unsigned_int(DataTypes t) {
     return t == U8 || t == U16 || t == U32 || t == U64 || t == U128;
 }
 
-bool SA_is_signed_int(DataTypes_t t) {
+bool SA_is_signed_int(DataTypes t) {
     return t == I8 || t == I16 || t == I32 || t == I64 ||t == I128 ;
 }
 
-DataTypes_t SA_norm(DataTypes_t t) {
+DataTypes SA_norm(DataTypes t) {
     switch (t) {
         case UF32: return F32;
         case UF64: return F64;
@@ -22,7 +22,7 @@ DataTypes_t SA_norm(DataTypes_t t) {
     }
 }
 
-DataTypes_t SA_promote_runtime(DataTypes_t a, DataTypes_t b) {
+DataTypes SA_promote_runtime(DataTypes a, DataTypes b) {
     bool a_is_f = (a == F32 || a == F64 || a == F128);
     bool b_is_f = (b == F32 || b == F64 || b == F128);
     bool a_is_uf = (a == UF32 || a == UF64 || a == UF128);
@@ -56,7 +56,7 @@ DataTypes_t SA_promote_runtime(DataTypes_t a, DataTypes_t b) {
     return I8;
 }
 
-long double SA_as_f128( SA::Value v, DataTypes_t t) {
+long double SA_as_f128( SA::Value v, DataTypes t) {
     t = SA_norm(t);
     switch (t) {
         case F32: return (long double)v.f32;
@@ -77,7 +77,7 @@ long double SA_as_f128( SA::Value v, DataTypes_t t) {
     }
 }
 
-__int128 SA_as_i128( SA::Value v, DataTypes_t t) {
+__int128 SA_as_i128( SA::Value v, DataTypes t) {
     t = SA_norm(t);
     switch (t) {
         case I8: return (__int128)v.i8;
@@ -98,7 +98,7 @@ __int128 SA_as_i128( SA::Value v, DataTypes_t t) {
     }
 }
 
-unsigned __int128 SA_as_u128( SA::Value v, DataTypes_t t) {
+unsigned __int128 SA_as_u128( SA::Value v, DataTypes t) {
     t = SA_norm(t);
     switch (t) {
         case U8: return (unsigned __int128)v.u8;
@@ -118,7 +118,7 @@ unsigned __int128 SA_as_u128( SA::Value v, DataTypes_t t) {
     }
 }
 
-SA::Value SA_from_f128(long double x, DataTypes_t t) {
+SA::Value SA_from_f128(long double x, DataTypes t) {
    SA::Value out = {0};
     switch (t) {
         case F32:
@@ -139,7 +139,7 @@ SA::Value SA_from_f128(long double x, DataTypes_t t) {
     return out;
 }
 
-SA::Value SA_from_i128(__int128 x, DataTypes_t t) {
+SA::Value SA_from_i128(__int128 x, DataTypes t) {
    SA::Value out = {0};
     switch (t) {
         case I8: out.i8 = (int8_t)x; break;
@@ -152,7 +152,7 @@ SA::Value SA_from_i128(__int128 x, DataTypes_t t) {
     return out;
 }
 
-SA::Value SA_from_u128(unsigned __int128 x, DataTypes_t t) {
+SA::Value SA_from_u128(unsigned __int128 x, DataTypes t) {
    SA::Value out = {0};
     switch (t) {
         case U8: out.u8 = (uint8_t)x; break;

@@ -6,7 +6,7 @@
 
 %polymorphic
     node: ASTNode*;
-    datatype: DataTypes_t;
+    datatype: DataTypes;
     paramlist: SA::ParamList;
     idx_epr: SA::idxExpr*;
     type: SA::Type*;

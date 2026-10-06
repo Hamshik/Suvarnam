@@ -5,7 +5,7 @@
 
 
 
-ASTNode* newNum(const char *rawval, DataTypes_t datatype, SA::Location loc) {
+ASTNode* newNum(const char *rawval, DataTypes datatype, SA::Location loc) {
     ASTNode *node = new ASTNode;
     node->kind = AST_NUM;
     node->type = new SA::Type(datatype, NULL);
@@ -49,7 +49,7 @@ ASTNode* newBool(bool val, SA::Location loc) {
     return node;
 }
 
-ASTNode* newVar(const char *name, DataTypes_t datatype, SA::Location loc) {
+ASTNode* newVar(const char *name, DataTypes datatype, SA::Location loc) {
     ASTNode *node = new ASTNode;
     node->kind = AST_VAR;
     node->isglobal = name[0] == '@';

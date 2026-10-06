@@ -2,7 +2,7 @@
 // #include "shared/structs.h"
 // 
 
-// SA::Value default_step(DataTypes_t type) {
+// SA::Value default_step(DataTypes type) {
 //   SA::Value step = {0};
 //   switch (type) {
 //   case I8:
@@ -57,7 +57,7 @@
 //   return step;
 // }
 
-// bool step_is_positive(DataTypes_t type, SA::Value step) {
+// bool step_is_positive(DataTypes type, SA::Value step) {
 //   switch (type) {
 //   case I8:
 //     return step.i8 > 0;
@@ -94,7 +94,7 @@
 //   }
 // }
 
-// bool step_is_zero(DataTypes_t type, SA::Value step) {
+// bool step_is_zero(DataTypes type, SA::Value step) {
 //   switch (type) {
 //   case I8:
 //     return step.i8 == 0;
@@ -131,7 +131,7 @@
 //   }
 // }
 
-// bool should_continue_for(DataTypes_t type, SA::Value cur, SA::Value end,
+// bool should_continue_for(DataTypes type, SA::Value cur, SA::Value end,
 //                          SA::Value step) {
 //   if (step_is_positive(type, step)) {
 //     switch (type) {
@@ -206,7 +206,7 @@
 //   }
 // }
 
-// SA::Value add_step_for(DataTypes_t type, SA::Value cur, SA::Value step) {
+// SA::Value add_step_for(DataTypes type, SA::Value cur, SA::Value step) {
 //   SA::Value next = cur;
 //   switch (type) {
 //   case I8:
@@ -270,7 +270,7 @@
 //   }
 
 //   ast_eval(node->fornode.init);
-//   DataTypes_t loop_type = node->fornode.init->type->base;
+//   DataTypes loop_type = node->fornode.init->type->base;
 //   const char *loop_name = node->fornode.init->assign.lhs->var;
 
 //   SA::TypedVal endt = SA_cast_typed(ast_eval(node->fornode.end), node->fornode.init->type);

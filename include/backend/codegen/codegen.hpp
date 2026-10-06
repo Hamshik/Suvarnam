@@ -41,8 +41,8 @@ struct RangeScalars {
   llvm::Value *start, *end, *step;
 };
 
-bool is_unsigned_dtype(DataTypes_t);
-bool is_float_dtype(DataTypes_t);
+bool is_unsigned_dtype(DataTypes);
+bool is_float_dtype(DataTypes);
 __int128 parse_i128(const char *, int *);
 __int128 parse_i128(const char *, int *);
 
@@ -102,14 +102,14 @@ public:
   FnHelper fnHelper;
   StrHelper strHelper;
 
-  llvm::Type *irType(DataTypes_t);
+  llvm::Type *irType(DataTypes);
   llvm::Type *irType(SA::Type *);
   llvm::Value *coerceValue(llvm::Value *, SA::Type *, SA::Type *);
   void emitGlobVar(HIRNode *);
   llvm::Value *handleExternalGlobalVar(const char *varName);
 
   llvm::Value *emitExpr(HIRNode *, Codegen::Scope &);
-  AllocaInst *getOrAddAlloca(const std::string &, DataTypes_t,
+  AllocaInst *getOrAddAlloca(const std::string &, DataTypes,
                              Codegen::Scope &);
   AllocaInst *getOrAddAlloca(const std::string &, llvm::Type *,
                              Codegen::Scope &);

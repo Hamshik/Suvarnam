@@ -72,11 +72,12 @@ SA::Type* Semantic::fn(ASTNode *n) {
     
     if (!ctx->sym.declare(n->fn_def.params[i].name, &n->isglobal,
        n->fn_def.params[i].type, nullptr, true))
-      panic( n->loc, SEM_DUP_PARAM,
-            n->fn_def.params[i].name);
+      panic(n->loc, SEM_OTHER_ERROR,
+            logf_msg("duplicate parameter name: %s",
+                     n->fn_def.params[i].name));
   }
 
-  DataTypes_t saved_g_fn_ret = fnRet;
+  DataTypes saved_g_fn_ret = fnRet;
   SA::Type* saved_current_fn_ret_type = currFnRet;
   int saved_in_fn = isInFn;
   fnRet = n->type ? n->type->base : UNKNOWN;

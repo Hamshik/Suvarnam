@@ -8,7 +8,7 @@
 #include <cstring>
 
 HIRNode *HIRGenerator::createLiteral(SA::Value value, SA::Type *type, ASTKind kind) {
-  DataTypes_t base = type->base;
+  DataTypes base = type->base;
 
   HIRNode *node = new HIRNode(kind);
 

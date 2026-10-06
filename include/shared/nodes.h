@@ -2,12 +2,12 @@
 #include "structs.h"
 
 typedef struct ASTNode {
-    ASTKind_t kind;
+    ASTKind kind;
 
     SA::Type* type;
-    bool isglobal;
-    bool is_variadic;
-    
+    bool isglobal = false;
+    bool is_variadic = false;
+
     bool ismut;
     SA::Location loc; /* 0-based byte offset (start) */ /* 0-based byte offset (end) */ 
 

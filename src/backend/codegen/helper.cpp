@@ -43,7 +43,7 @@ unsigned __int128 parse_u128(const char *s, int *ok) {
   return v;
 }
 
-bool is_unsigned_dtype(DataTypes_t t) {
+bool is_unsigned_dtype(DataTypes t) {
   switch (t) {
   case U8:
   case U16:
@@ -59,7 +59,7 @@ bool is_unsigned_dtype(DataTypes_t t) {
   }
 }
 
-bool is_float_dtype(DataTypes_t t) {
+bool is_float_dtype(DataTypes t) {
   switch (t) {
   case F32:
   case F64:
@@ -73,7 +73,7 @@ bool is_float_dtype(DataTypes_t t) {
   }
 }
 
-llvm::Type *IRGen::irType(DataTypes_t t) {
+llvm::Type *IRGen::irType(DataTypes t) {
   switch (t) {
   case I8:
   case U8:
