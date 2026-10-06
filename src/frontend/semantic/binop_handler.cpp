@@ -9,6 +9,10 @@ SA::Type* Semantic::binop(ASTNode *n, SA::Type* type) {
   // Use &type to allow inference to flow into children
   SA::Type* lt = checkExpr(n->bin.left, type);
   SA::Type* rt = checkExpr(n->bin.right, type);
+  if (!lt || !rt || lt->isPoisonTy() || rt->isPoisonTy()) {
+    n->type = SA::Type::poison();
+    return n->type;
+  }
 
   // 1. Numeric Literal Inference (Improved)
   if (n->bin.left->kind == AST_NUM && (!n->bin.left->type || n->bin.left->type->base == UNKNOWN)) {
@@ -21,6 +25,8 @@ SA::Type* Semantic::binop(ASTNode *n, SA::Type* type) {
   // 2. Disallow Pointer Arithmetic (as per your requirement)
   if (lt->base == PTR || rt->base == PTR) {
     panic(n->loc, SEM_NUMOP_NEEDS_NUM, "pointer arithmetic not supported");
+    n->type = SA::Type::poison();
+    return n->type;
   }
 
   // 3. String Concatenation & multiplication

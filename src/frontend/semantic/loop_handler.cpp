@@ -58,7 +58,11 @@ SA::Type *Semantic::checkForLoop(ASTNode *n, SA::Type *type) {
 SA::Type *Semantic::checkRange(ASTNode *n, SA::Type *type) {
   // Check start, end, and step expressions
   SA::Type *start_t = checkExpr(n->range.start);
+  if (!start_t || start_t->isPoisonTy())
+    return start_t;
   SA::Type *end_t = checkExpr(n->range.end);
+  if (!end_t || end_t->isPoisonTy())
+    return end_t;
   SA::Type *step_t = nullptr;
 
   if (!Semantic::isNumeric(start_t->base)) {
@@ -80,6 +84,8 @@ SA::Type *Semantic::checkRange(ASTNode *n, SA::Type *type) {
 
   if (n->range.step) {
     step_t = checkExpr(n->range.step);
+    if (!step_t || step_t->isPoisonTy())
+      return step_t;
     
     if (!Semantic::isNumeric(step_t->base)) {
       panic(n->range.step->loc, SEM_NUMOP_NEEDS_NUM,

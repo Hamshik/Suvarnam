@@ -34,6 +34,23 @@ void Semantic::main(ASTNode *root) {
 SA::Type *Semantic::checkExpr(ASTNode *n, SA::Type *&type) {
   if (!n)
     return nullptr;
+  if (n->type && n->type->isPoisonTy())
+    return n->type;
+
+  const size_t errorsBefore = err_no;
+  SA::Type *result = checkExprImpl(n, type);
+  if (err_no > errorsBefore) {
+    n->type = SA::Type::poison();
+    return n->type;
+  }
+  if (result && result->isPoisonTy())
+    n->type = result;
+  return result;
+}
+
+SA::Type *Semantic::checkExprImpl(ASTNode *n, SA::Type *&type) {
+  if (!n)
+    return nullptr;
 
   switch (n->kind) {
   case AST_BOOL:

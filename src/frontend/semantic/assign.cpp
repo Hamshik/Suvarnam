@@ -135,12 +135,14 @@ bool Semantic::verifyExprPathIsMut(ASTNode *n) {
 }
 
 // 3. RESPONSIBILITY: Final SA::Type & Pointer Consistency
-void Semantic::validateAssign(ASTNode *n, SA::Type *lhs_t, SA::Type *rhs_t) {
+bool Semantic::validateAssign(ASTNode *n, SA::Type *lhs_t, SA::Type *rhs_t) {
   if (!lhs_t || !rhs_t)
-    return;
+    return false;
+  if (lhs_t->isPoisonTy() || rhs_t->isPoisonTy())
+    return true;
 
   if (lhs_t == rhs_t)
-    return;
+    return true;
 
   bool isnum = lhs_t->kind == SA::PRIMITIVE &&
                rhs_t->kind == SA::PRIMITIVE &&
@@ -151,12 +153,16 @@ void Semantic::validateAssign(ASTNode *n, SA::Type *lhs_t, SA::Type *rhs_t) {
   if (!typesAreEqual(lhs_t, rhs_t) && !isnum) {
     panic(n->assign.rhs->loc, SEM_ASSIGN_TYPE_MISMATCH,
           getSafeName(n->assign.lhs));
+    n->type = SA::Type::poison();
+    return false;
   }
 
   // Double verification step for raw pointer mappings
   else if (lhs_t && lhs_t->base == PTR && rhs_t && rhs_t->base == PTR) {
     if (!typesAreEqual(lhs_t->inner, rhs_t->inner)) {
       panic(n->loc, SEM_ASSIGN_TYPE_MISMATCH, "Pointer target type mismatch");
+      n->type = SA::Type::poison();
+      return false;
     }
   }
 
@@ -171,7 +177,8 @@ void Semantic::validateAssign(ASTNode *n, SA::Type *lhs_t, SA::Type *rhs_t) {
           l_curr->size = r_curr->size;
         } else {
           panic(n->loc, SEM_LIST_SIZE_MISMATCH, "Dimension size mismatch");
-          return;
+          n->type = SA::Type::poison();
+          return false;
         }
       }
       l_curr = l_curr->inner;
@@ -256,6 +263,10 @@ SA::Type *Semantic::assign(ASTNode *n, SA::Type *type) {
 
   if (!lhs_t || !rhs_t)
     return nullptr;
+  if (rhs_t->isPoisonTy()) {
+    n->type = n->assign.lhs->type = rhs_t;
+    return n->type;
+  }
 
   const char *target_name = getSafeName(n->assign.lhs);
 
@@ -313,7 +324,10 @@ SA::Type *Semantic::assign(ASTNode *n, SA::Type *type) {
     }
   }
 
-  validateAssign(n, lhs_t, rhs_t);
+  if (!validateAssign(n, lhs_t, rhs_t)) {
+    n->assign.lhs->type = n->type;
+    return n->type;
+  }
 
   // Sync types down to AST layers cleanly
   n->type = n->assign.lhs->type = lhs_t;

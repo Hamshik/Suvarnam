@@ -17,13 +17,15 @@ typedef struct {
 
 /* Helpers */
 void Semantic::typeError(ASTNode *n, const char *msg) {
-  if (n && n->type)
-    n->type = new SA::Type(UNKNOWN, NULL);
-  panic(n ? n->loc : (SA::Location){0}, SEM_BINOP_INVALID, msg ? msg : NULL);
-  return;
+  if (n)
+    n->type = SA::Type::poison();
+  panic(n ? n->loc : (SA::Location){0}, SEM_OTHER_ERROR,
+        msg ? msg : "invalid operands for operator");
 }
 
 bool Semantic::typesAreEqual(SA::Type *a, SA::Type *b) {
+  if ((a && a->isPoisonTy()) || (b && b->isPoisonTy()))
+    return true;
   if (a == nullptr && b == nullptr)
     return true;
   if (!a || !b)
