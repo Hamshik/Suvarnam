@@ -1,4 +1,5 @@
 #include "cmd-exec/cmd-exec.hpp"
+#include "cmd-exec/compiler.hpp"
 #include "HIRGen/HIRGen.hpp"
 #include "semantic/import.hpp"
 #include "semantic/semantic.hpp"
@@ -23,42 +24,6 @@ static std::string make_object_path(const std::string &input_path) {
   }
   obj_path += ".o";
   return obj_path;
-}
-
-static bool compile_ir_to_object(const std::string &ir_path,
-                                 const std::string &obj_path) {
-  std::vector<std::string> args = {"clang++", "-c", "-x",    "ir",
-                                   ir_path,   "-o", obj_path};
-  std::vector<char *> argv;
-  argv.reserve(args.size());
-  for (auto &arg : args) {
-    argv.push_back(arg.data());
-  }
-  argv.push_back(nullptr);
-
-  return run_exec(argv[0], argv.data()) == 0;
-}
-
-/* Helper function to execute external commands */
-int run_exec(const char *prog, char *const argv[]) {
-  pid_t pid = fork();
-  if (pid == 0) {
-    execvp(prog, argv);
-    _exit(127);
-  }
-  if (pid < 0) {
-    perror("fork");
-    return -1;
-  }
-  int status;
-  if (waitpid(pid, &status, 0) < 0) {
-    perror("waitpid");
-    return -1;
-  }
-  if (WIFEXITED(status)) {
-    return WEXITSTATUS(status);
-  }
-  return 1;
 }
 
 /* Helper function to open and resolve input file */
@@ -182,6 +147,10 @@ bool setup_input_file(const Options *opts, File *file) {
 /* Compile and execute the AST */
 
 int compile_and_execute(ASTNode *root, const Options *opts, Importer *import) {
+  std::string compiler;
+  if (!compiler::findCompatibleClang(compiler))
+    return 1;
+
   error_fatal = false; /* collect semantic errors like Rust */
 
   SA::CompilerContext *ctx = import->getCtx();
@@ -236,7 +205,7 @@ int compile_and_execute(ASTNode *root, const Options *opts, Importer *import) {
 
   std::vector<std::string> object_paths;
   std::string main_obj_path = make_object_path(main_ir_path);
-  if (!compile_ir_to_object(main_ir_path, main_obj_path)) {
+  if (!compiler::compileIrToObject(compiler, main_ir_path, main_obj_path)) {
     if (!opts->emitIR)
       unlink(main_ir_path);
     return 1;
@@ -245,7 +214,7 @@ int compile_and_execute(ASTNode *root, const Options *opts, Importer *import) {
 
   for (const auto &import_ir : ir_out) {
     std::string import_obj_path = make_object_path(import_ir);
-    if (!compile_ir_to_object(import_ir, import_obj_path)) {
+    if (!compiler::compileIrToObject(compiler, import_ir, import_obj_path)) {
       if (!opts->emitIR)
         unlink(main_ir_path);
       return 1;
@@ -253,7 +222,7 @@ int compile_and_execute(ASTNode *root, const Options *opts, Importer *import) {
     object_paths.push_back(import_obj_path);
   }
 
-  std::vector<std::string> link_args = {"clang++", "lib/helper/StrHelper.cpp"};
+  std::vector<std::string> link_args = {compiler, "lib/helper/StrHelper.cpp"};
   for (const auto &obj_path : object_paths) {
     link_args.push_back(obj_path);
   }
