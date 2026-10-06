@@ -1,4 +1,5 @@
 #include "SymbolTable/SymbolTable.hpp"
+#include "shared/enums.h"
 #include "shared/nodes.h"
 #include "utils/error_handler/error.h"
 #include <cstdlib>

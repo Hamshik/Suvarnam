@@ -281,6 +281,26 @@ llvm::Constant *IRGen::tryEmitConst(HIRNode *n) {
   case AST_BOOL:
     return llvm::ConstantInt::get(llvm::Type::getInt1Ty(ctx),
                                  n->val.bval ? 1 : 0, false);
+  case AST_STR: {
+    const char *data = n->val.chars ? n->val.chars : "";
+    llvm::Constant *stringData =
+        llvm::ConstantDataArray::getString(ctx, data, true);
+
+    static size_t stringId = 0;
+    std::string name;
+    do {
+      name = ".str.global." + std::to_string(stringId++);
+    } while (mod.getNamedValue(name));
+
+    auto *stringGlobal = new llvm::GlobalVariable(
+        mod, stringData->getType(), true, llvm::GlobalValue::PrivateLinkage,
+        stringData, name);
+    llvm::Constant *zero =
+        llvm::ConstantInt::get(llvm::Type::getInt32Ty(ctx), 0);
+    llvm::Constant *indices[] = {zero, zero};
+    return llvm::ConstantExpr::getInBoundsGetElementPtr(
+        stringGlobal->getValueType(), stringGlobal, indices);
+  }
   case AST_LIST: {
     if (!n->element.elements || n->element.elements->empty())
       return nullptr;

@@ -73,10 +73,12 @@ SA::Type *Semantic::checkExprImpl(ASTNode *n, SA::Type *&type) {
     return n->type;
 
   case AST_VAR: {
+    SemanticSymbolRecord *symbol =
+        n->isglobal ? ctx->sym.getTopScope(n->var) : ctx->sym.findSym(n->var);
+    if (!n->isglobal && symbol && symbol->isGlobal)
+      n->isglobal = true;
+
     if (n->type->base == UNKNOWN) {
-      SemanticSymbolRecord *symbol =
-          n->isglobal ? ctx->sym.getTopScope(n->var)
-                      : ctx->sym.findSym(n->var);
       n->type = symbol ? symbol->type : nullptr;
     }
 

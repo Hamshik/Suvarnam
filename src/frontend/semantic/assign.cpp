@@ -24,6 +24,23 @@ void Semantic::resloveNestedNumeric(ASTNode *n, SA::Type *t) {
   }
 }
 
+void Semantic::checkNameConflictWithDec(const char *name,
+                                                 SA::Location loc) {
+  if (!name || !ctx)
+    return;
+
+  if (ctx->sym.structExists(name) == SUCCESS) {
+    panic(loc, SEM_OTHER_ERROR,
+          logf_msg("variable '%s' conflicts with a struct name", name));
+    return;
+  }
+
+  if (ctx->sym.fnFind(name)) {
+    panic(loc, SEM_OTHER_ERROR,
+          logf_msg("variable '%s' conflicts with a function name", name));
+  }
+}
+
 // Helper to find the base variable node at the bottom of derefs or indices
 ASTNode *Semantic::getBaseVarNode(ASTNode *n) {
   if (!n)
@@ -83,6 +100,8 @@ void Semantic::processDecl(ASTNode *n, SA::Type *&lhs_t, SA::Type *rhs_t) {
 
   if (!isreloved && !n->isglobal)
     panic(n->loc, SEM_VAR_REDECL, var_name);
+
+  checkNameConflictWithDec(var_name, n->loc);
 }
 
 bool Semantic::verifyExprPathIsMut(ASTNode *n) {
@@ -113,7 +132,7 @@ bool Semantic::verifyExprPathIsMut(ASTNode *n) {
     // the POINTER TYPE LAYER itself must be a mutable pointer type.
     // Check if the inner operand's type structure is marked mutable.
     if (n->unop.operand && n->unop.operand->type) {
-      if (n->unop.operand->type->base == PTR && n->unop.operand->var) {
+      if (n->unop.operand->type->base == PTR && n->unop.operand->var && n->unop.operand->kind == AST_VAR) {
         n->unop.operand->ismut =
             n->isglobal
                 ? ctx->sym.getTopScope(n->unop.operand->var)->is_mutable
@@ -190,8 +209,11 @@ bool Semantic::validateAssign(ASTNode *n, SA::Type *lhs_t, SA::Type *rhs_t) {
     if (!l_curr || !r_curr || l_curr->base != r_curr->base) {
       panic(n->loc, SEM_ASSIGN_TYPE_MISMATCH,
             "Cannot assign nested list to a list of different dimensions");
+      n->type = SA::Type::poison();
+      return false;
     }
   }
+  return true;
 }
 
 // 1. FIXED RESPONSIBILITY: Safely look up exactly what container type LHS is

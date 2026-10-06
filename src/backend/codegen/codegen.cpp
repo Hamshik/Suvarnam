@@ -1,6 +1,5 @@
 #include "codegen/codegen.hpp"
 #include "SymbolTable/HIR_SymbolTable.hpp"
-#include "SymbolTable/SymbolTableInternal.hpp"
 #include "shared/enums.h"
 #include "utils/colors.h"
 #include <iostream>

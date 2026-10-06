@@ -171,9 +171,12 @@ llvm::Value *IRGen::emitUnop(HIRNode *n, Codegen::Scope &locals) {
     // 2. 🎯 THE LLVM 22 OPAQUE POINTER FIX: 
     // If this specific dereference layer results in another pointer type, 
     // use b.getPtrTy() directly to maintain perfect opaque pointer stability.
-    llvm::Type *targetTy = (n->type && n->type->base == PTR) 
-                           ? b.getPtrTy() 
-                           : irType(n->type->base);
+    llvm::Type *targetTy =
+        n->type && n->type->kind == SA::PRIMITIVE && n->type->base == PTR
+            ? b.getPtrTy()
+            : irType(n->type);
+    if (!targetTy)
+      return nullptr;
 
     // 3. Emit the explicit element load instruction
     return b.CreateLoad(targetTy, ptr_val, "deref_val");

@@ -24,23 +24,27 @@ ASTNode* Semantic::getBaseVar(const char* name){
 SA::Type* Semantic::unop(ASTNode *n, SA::Type* type) {
 
   SA::Type* t = checkExpr(n->unop.operand, type);
+  if (!t || t->isPoisonTy()) {
+    n->type = SA::Type::poison();
+    return n->type;
+  }
 
   switch (n->unop.op) {
   case OP_NOT:
-    if (t->base != BOOL)
+    if (t->kind != SA::PRIMITIVE || t->base != BOOL) {
       Semantic::typeError(n, "Operator ! expects bool");
+      return n->type;
+    }
     n->type = new SA::Type(BOOL, nullptr);
     return n->type;
 
   case OP_ADDR:{
-    SA::Type *t = checkExpr(n->unop.operand, type);
-
     n->type = new SA::Type(PTR, t);
     auto node = getBaseVar(n->unop.operand->var);
-
-    std::string name = node->kind == AST_ASSIGN ? node->assign.lhs->var : node->var;
-    
-    if(!node) return nullptr;
+    if (!node)
+      return nullptr;
+    std::string name =
+        node->kind == AST_ASSIGN ? node->assign.lhs->var : node->var;
     if(!node->ismut && n->unop.operand->ismut) panic(n->loc, SEM_ASSIGN_IMMUTABLE, name.c_str());
 
     // 🎯 Save reference capability right inside the pointer type layout layer

@@ -5,6 +5,10 @@
 #include "shared/enums.h"
 #include "shared/structs.h"
 
+#include <string>
+#include <unordered_set>
+#include <vector>
+
 extern bool isError;
 extern size_t err_no;
 extern size_t warn_no;
@@ -38,13 +42,14 @@ class Semantic {
   SA::Type *binop(ASTNode *, SA::Type *type = nullptr);
 
   SA::Type *assign(ASTNode *, SA::Type *type = nullptr);
-  void validateAssign(ASTNode*, SA::Type*, SA::Type*);
+  bool validateAssign(ASTNode*, SA::Type*, SA::Type*);
   bool verifyExprPathIsMut(ASTNode*);
   void processDecl(ASTNode* ,SA::Type*& ,SA::Type*);
   void resolveTargetType(ASTNode *, SA::Type *&);
   const char* getSafeName(ASTNode *);
   void resloveNestedNumeric(ASTNode *, SA::Type *);
   ASTNode* getBaseVarNode(ASTNode *);
+  void checkNameConflictWithDec(const char *, SA::Location);
 
   SA::Type *fn(ASTNode *);
   SA::Type *ret(ASTNode *);

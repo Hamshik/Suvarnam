@@ -90,6 +90,7 @@ ASTNode* newAssign(ASTNode *lhs, ASTNode *rhs, SA::Type* datatype, bool is_mutab
     node->assign.op = op;
     node->assign.lhs = lhs;
     node->assign.rhs = rhs;
+    node->assign.isDec = false;
     node->type = datatype; // Already heap-allocated by the parser
     node->ismut = is_mutable;
     node->loc = loc;

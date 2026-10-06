@@ -157,10 +157,25 @@ llvm::Value *IRGen::emitExpr(HIRNode *n, Codegen::Scope &locals) {
     if (!target || !target->getType()->isStructTy())
       return nullptr;
     auto *structType = llvm::cast<llvm::StructType>(target->getType());
-    if (n->memberAccess.index >= structType->getNumElements())
+    size_t fieldIndex = n->memberAccess.index;
+    HIRNode *memberTarget = n->memberAccess.target;
+    if (sym && memberTarget && memberTarget->type &&
+        memberTarget->type->kind == SA::USER_DEFINED &&
+        memberTarget->type->objType) {
+      const Fields *field =
+          sym->structField(*memberTarget->type->objType, n->memberAccess.name);
+      if (!field) {
+        fprintf(stderr, "Codegen Error: Struct '%s' has no field '%s'\n",
+                memberTarget->type->objType->c_str(),
+                n->memberAccess.name.c_str());
+        return nullptr;
+      }
+      fieldIndex = field->index;
+    }
+    if (fieldIndex >= structType->getNumElements())
       return nullptr;
     return b.CreateExtractValue(
-        target, static_cast<unsigned>(n->memberAccess.index),
+        target, static_cast<unsigned>(fieldIndex),
         n->memberAccess.name + ".field");
   }
 
