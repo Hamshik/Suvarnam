@@ -60,9 +60,7 @@ public:
 
   FunctionCallee getBuiltinFn(const char *);
   void preDecAllUserFns(HIRNode *);
-  Function *emitInitFn(HIRNode *);
   Function *getOrAddSymPrototype(const char *);
-  bool emitEntryFn(Function *);
   Function *getMallocFn();
   llvm::Value *emitCall(HIRNode *, Codegen::Scope &);
   Function *getOrAddPrototypes(HIRNode *);

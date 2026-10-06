@@ -3,8 +3,9 @@
 #include "shared/enums.h"
 #include "shared/structs.h"
 
-#include <unordered_set>
 #include <string>
+#include <unordered_set>
+#include <vector>
 
 #define assignCases(assign_op, bin_op)                     \
     case OP_kind::assign_op:                               \
@@ -43,6 +44,7 @@ public:
   HIRNode *createIfStmt(HIRNode *, HIRNode *, HIRNode *);
   HIRNode *createVar(ASTNode *); 
 
+  HIRNode *generateModule(ASTNode *);
   HIRNode *emitForLoop(ASTNode *);
   HIRNode *emitCall(ASTNode *);
   HIRNode *emitWhileLoop(ASTNode *);

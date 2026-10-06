@@ -165,7 +165,7 @@ int compile_and_execute(ASTNode *root, const Options *opts, Importer *import) {
   Semantic::checkErr();
 
   HIRGenerator *mgen = new HIRGenerator(ctx);
-  HIRNode *mast_root = mgen->generate(root);
+  HIRNode *mast_root = mgen->generateModule(root);
   delete mgen;
 
   if (isError)

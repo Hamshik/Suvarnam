@@ -62,15 +62,25 @@ void Semantic::regGlobalVarAndFn(ASTNode *n) {
     ctx->sym.fnDeclare(n);
   }
 
+  if (n->kind == AST_IMPORT) {
+    importer->handleImport(n);
+  }
+}
+
+void Semantic::registerGlobalVariables(ASTNode *n) {
+  if (!n)
+    return;
+
+  if (n->kind == AST_SEQ) {
+    registerGlobalVariables(n->seq.a);
+    registerGlobalVariables(n->seq.b);
+    return;
+  }
+
   if (n->kind == AST_ASSIGN && n->assign.isDec) {
     if (n->assign.lhs && n->assign.lhs->kind == AST_VAR) {
-      const char *global_var_name = n->assign.lhs->var;
-
-      // Mark the node as global explicitly so the type checker and codegen know
-      // later
       n->isglobal = true;
       assign(n);
-
     }
   }
 }

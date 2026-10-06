@@ -83,7 +83,7 @@ HIRNode *HIRGenerator::generate(ASTNode *node) {
     m_node->loc = node->loc;
     auto module = ctx->sym.getMod(node->importNode.path);
     
-    HIRNode *imported_node = generate(module->ast);
+    HIRNode *imported_node = generateModule(module->ast);
     SA::HIR_SymbolTable::loadOrCreateMod(m_node->name, imported_node);
     
     return m_node;
@@ -250,4 +250,18 @@ HIRNode *HIRGenerator::generate(ASTNode *node) {
             node->kind, (size_t)node->loc.firstLn);
     return nullptr;
   }
+}
+
+HIRNode *HIRGenerator::generateModule(ASTNode *node) {
+  HIRNode *lowered = generate(node);
+  if (lowered && lowered->kind == AST_BLOCK)
+    return lowered;
+
+  auto *module = new HIRNode(ASTKind::AST_BLOCK);
+  module->blockStmts = new std::vector<HIRNode *>();
+  if (lowered)
+    module->blockStmts->push_back(lowered);
+  if (node)
+    module->loc = node->loc;
+  return module;
 }

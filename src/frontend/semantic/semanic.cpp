@@ -22,6 +22,7 @@ void Semantic::main(ASTNode *root) {
 
   BuiltinRegistry::instance().bootstrap();
   regGlobalVarAndFn(root);
+  registerGlobalVariables(root);
   ctx->sym.push();
 
   checkExpr(root);
