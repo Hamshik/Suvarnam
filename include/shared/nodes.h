@@ -7,7 +7,8 @@ typedef struct ASTNode {
     SA::Type* type;
     bool isglobal = false;
     bool is_variadic = false;
-
+    bool isDynamic = false;
+    
     bool ismut;
     SA::Location loc; /* 0-based byte offset (start) */ /* 0-based byte offset (end) */ 
 

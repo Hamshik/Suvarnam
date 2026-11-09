@@ -13,11 +13,11 @@ int main(int argc, char **argv) {
     file = new File;
     
     Options opts;
-    if (!parse_arguments(argc, argv, &opts)) {
+    if (!parseArguments(argc, argv, &opts)) {
         return EXIT_FAILURE;
     }
 
-    if (!setup_input_file(&opts, file)) {
+    if (!setupInputFile(&opts, file)) {
         return EXIT_FAILURE;
     }
     error_fatal = false;
@@ -26,13 +26,15 @@ int main(int argc, char **argv) {
     auto importer = new Importer(file->source);
     importer->getCtx()->setup(importer);
     root = importer->parseFile();
-    
-    if (root && !isError)
-        status = compile_and_execute(root, &opts, importer);
+
+    if (root && !isError) {
+        status = compileAndExecute(root, &opts, importer);
+    }
     
     if (file->source != stdin)
         fclose(file->source);
-    if (opts.input_filename && file->filename && file->filename != opts.input_filename)
+    if (!opts.inputFilename.empty() && file->filename &&
+        file->filename != opts.inputFilename.c_str())
         free(file->filename);
 
     return status;

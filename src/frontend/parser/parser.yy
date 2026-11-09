@@ -172,6 +172,10 @@ recursive_type:
         if (pointerDepth($1) + 2 > 3) {
             panic(@2, PARSE_SYNTAX, "Pointer types may have at most 3 levels");
             $$ = (SA::Type *)nullptr;
+        } else if (!nonStaticType) {
+            panic(@2, PARSE_SYNTAX,
+                  "more than one-depth ptr is not allowed with non-static mode");
+            $$ = (SA::Type *)nullptr;
         } else {
             SA::Type* firstPtr = new SA::Type(PTR, $1);
             $$ = new SA::Type(PTR, firstPtr);

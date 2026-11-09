@@ -11,7 +11,7 @@ fn_def:
     }
   | FN IDENTIFIER LPAREN opt_params RPAREN fn_block_t
     {
-        $$ = newFn($2->var, $4.params, $4.count, NULL, $6, @1 + @6);
+        $$ = newFn($2->var, $4.params, $4.count, nullptr, $6, @1 + @6);
         ast_free($2);
     } 
 ;
@@ -54,19 +54,32 @@ params:
 
 param:
     VAR MUT recursive_type param_tail {
+        if ($3->kind == SA::PRIMITIVE && $3->base == ANY &&
+            !emitDesugaredSource)
+            panic(@1 + @4, PARSE_SYNTAX,
+                  "any function parameters require --emit-desugared");
         $4->type = $4->is_variadic ? new SA::Type(LIST, $3) : $3;
         $4->type->ismut = true;
         $4->ismut = true;
         $$ = $4;
     }
     | VAR recursive_type param_tail {
+        if ($2->kind == SA::PRIMITIVE && $2->base == ANY &&
+            !emitDesugaredSource)
+            panic(@1 + @3, PARSE_SYNTAX,
+                  "any function parameters require --emit-desugared");
         $3->type = $3->is_variadic ? new SA::Type(LIST, $2) : $2;
         $3->type->ismut = false;
         $3->ismut = false;
         $$ = $3;
     }
-    | recursive_type param_tail {
-        $2->type = $2->is_variadic ? new SA::Type(LIST, $1) : $1;
+    | VAR param_tail {
+        if (!emitDesugaredSource)
+            panic(@1 + @2, PARSE_SYNTAX,
+                  "untyped function parameters require --emit-desugared");
+
+        $2->type = $2->is_variadic ? new SA::Type(LIST, new SA::Type(ANY, nullptr)) :
+            new SA::Type(ANY, nullptr);
         $2->type->ismut = false;
         $2->ismut = false;
         $$ = $2;
@@ -86,7 +99,7 @@ param_tail:
 
 return_stmt:
     RETURN with_non_expr                 { $$ = newRet($2, @1 + @2); }
-    | RETURN                    { $$ = newRet(NULL, @1); }
+    | RETURN                    { $$ = newRet(nullptr, @1); }
 ;
 
 opt_args:

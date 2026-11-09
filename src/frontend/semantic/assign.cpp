@@ -70,9 +70,15 @@ const char *Semantic::getSafeName(ASTNode *lhs) {
 void Semantic::processDecl(ASTNode *n, SA::Type *&lhs_t, SA::Type *rhs_t) {
   ASTNode *rhs = n->assign.rhs;
   const char *var_name = getSafeName(n->assign.lhs);
+  n->isDynamic =
+      nonStaticType && n->type && n->type->kind == SA::PRIMITIVE &&
+      n->type->base == ANY;
 
   if (n->assign.isDec &&
       (!lhs_t || (lhs_t->kind == SA::PRIMITIVE && lhs_t->base == UNKNOWN))) {
+    lhs_t = rhs_t;
+  } else if (n->assign.isDec && nonStaticType && lhs_t &&
+             lhs_t->kind == SA::PRIMITIVE && lhs_t->base == ANY) {
     lhs_t = rhs_t;
   }
 
@@ -276,12 +282,27 @@ SA::Type *Semantic::assign(ASTNode *n, SA::Type *type) {
     return n->type;
   }
 
-  if (lhs_t->kind == SA::PRIMITIVE && Semantic::isNumeric(lhs_t->base)) {
+  SemanticSymbolRecord *targetSymbol = nullptr;
+  if (!n->assign.isDec && n->assign.lhs->kind == AST_VAR) {
+    targetSymbol =
+        n->assign.lhs->isglobal
+            ? ctx->sym.getTopScope(n->assign.lhs->var)
+            : ctx->sym.findSym(n->assign.lhs->var);
+  }
+  const bool dynamicDeclaration =
+      n->assign.isDec && n->isDynamic;
+  const bool dynamicReassignment =
+      nonStaticType && !n->assign.isDec &&
+      n->assign.op == OP_ASSIGN && targetSymbol && targetSymbol->isAny;
+
+  if (!dynamicDeclaration && !dynamicReassignment &&
+      lhs_t->kind == SA::PRIMITIVE && Semantic::isNumeric(lhs_t->base)) {
     Semantic::forceNumericType(n->assign.rhs, lhs_t->base);
   }
 
-  // Resolves to STRINGS correctly
-  SA::Type *rhs_t = checkExpr(n->assign.rhs, lhs_t);
+  SA::Type *expectedType =
+      (dynamicDeclaration || dynamicReassignment) ? nullptr : lhs_t;
+  SA::Type *rhs_t = checkExpr(n->assign.rhs, expectedType);
 
   if (!lhs_t || !rhs_t)
     return nullptr;
@@ -346,7 +367,10 @@ SA::Type *Semantic::assign(ASTNode *n, SA::Type *type) {
     }
   }
 
-  if (!validateAssign(n, lhs_t, rhs_t)) {
+  if (dynamicReassignment) {
+    targetSymbol->type = rhs_t;
+    lhs_t = rhs_t;
+  } else if (!validateAssign(n, lhs_t, rhs_t)) {
     n->assign.lhs->type = n->type;
     return n->type;
   }

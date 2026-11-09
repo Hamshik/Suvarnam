@@ -59,3 +59,5 @@ public:
   HIRNode *generate(ASTNode *node);
 
 };
+
+bool writeDesugaredSource(const HIRNode *root, const std::string &path);

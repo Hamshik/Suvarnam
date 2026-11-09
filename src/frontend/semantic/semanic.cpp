@@ -90,8 +90,11 @@ SA::Type *Semantic::checkExprImpl(ASTNode *n, SA::Type *&type) {
       return nullptr;
 
     case TYPE_MISMATCH:
-      panic(n->loc, SEM_OTHER_ERROR,
-            logf_msg("variable type mismatch: %s", n->var));
+      if (!nonStaticType || n->type->base != ANY)
+        panic(n->loc, SEM_OTHER_ERROR,
+              logf_msg("variable type mismatch: %s", n->var));
+      else
+        return type;
       n->type = SA::Type::poison();
       return n->type;
 

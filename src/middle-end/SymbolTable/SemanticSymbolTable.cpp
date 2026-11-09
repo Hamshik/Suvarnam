@@ -14,7 +14,7 @@
 #include <filesystem>
 #include <memory>
 
-extern std::vector<char *> I_src;
+extern std::vector<char *> importSources;
 
 namespace {
 
@@ -82,6 +82,9 @@ bool SemanticSymTable::declare(const char *name, bool *isglobal, SA::Type *type,
   }
 
   it->second.type = type;
+  it->second.isAny =
+      node && node->type && node->type->kind == SA::PRIMITIVE &&
+      node->type->base == ANY;
   it->second.max_type =
       type->kind == SA::PRIMITIVE ? type->base : UNKNOWN;
   it->second.last_maxed_type = UNKNOWN;
@@ -242,8 +245,8 @@ ASTMod *SemanticSymTable::loadMod(char *requested_path,
   std::vector<fs::path> *import_vec = new std::vector<fs::path>{
       fs::path(requested_path), fs::path(importer_file_path)};
 
-  for (auto i : I_src) {
-    import_vec->push_back(fs::path(i));
+  for (const auto *importSource : importSources) {
+    import_vec->push_back(fs::path(importSource));
   }
 
   fs::path parent_path =

@@ -33,6 +33,9 @@ class HIRNode {
     SA::Type *type;      // Every mid-end node is strictly typed
     SA::Location loc;
     bool isglobal;
+    bool isDynamic;
+    bool isMutable;
+    bool hasMutableInfo;
 
     // Tracks sequential statements inside a MASTKind::BLOCK node.
     // This must stay OUTSIDE the union to prevent memory corruption.
@@ -107,6 +110,8 @@ class HIRNode {
     }; 
 
     // Clean Constructor Initialization Tracker
-    HIRNode(ASTKind k) : kind(k), type(nullptr), isglobal(false) {
+    HIRNode(ASTKind k)
+        : kind(k), type(nullptr), isglobal(false), isDynamic(false),
+          isMutable(false), hasMutableInfo(false) {
     }
 };

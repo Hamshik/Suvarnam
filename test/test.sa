@@ -1,16 +1,9 @@
-var mut human = Human{age: 15, name: "Hamshik"};
-
 fn main() {
-    updateAge(&human);
-    printf("age: %d\nname: %s\n", human.age, human.name);
+    var mut human = "100";
+    human = 100;
+    var i = human * human;
+    anyTyped(100, "1000");
     return 0;
 }
 
-struct Human {
-    var mut i32 age = 0;
-    var str name;
-}
-
-fn updateAge(Human& human){
-    human->age = 10;
-}
+fn anyTyped(var... params) {}

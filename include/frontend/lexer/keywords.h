@@ -61,6 +61,7 @@ static const std::unordered_map<std::string_view, SA_Keyword> SA_keywords = {
     TYPE_KEYWORD("char", CHARACTER),
     TYPE_KEYWORD("bool", BOOL),
     TYPE_KEYWORD("void", VOID),
+    TYPE_KEYWORD("any", ANY),
     TOKEN_KEYWORD("while", Tokens::WHILE),
     TOKEN_KEYWORD("in", Tokens::IN),
     TOKEN_KEYWORD("break", Tokens::BREAK),

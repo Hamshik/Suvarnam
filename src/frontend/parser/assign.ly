@@ -12,12 +12,12 @@ assignment:
     }
     | VAR IDENTIFIER ASSIGN expr {
         ASTNode* id = $2;
-        $$ = newAssign(id, $4, NULL, false, @1 + @4, OP_ASSIGN);
+        $$ = newAssign(id, $4, nonStaticType ? new SA::Type(ANY, nullptr) : nullptr, false, @1 + @4, OP_ASSIGN);
         $$->assign.isDec = true;
     }
     | VAR MUT IDENTIFIER ASSIGN expr {
         ASTNode* id = $3;
-        $$ = newAssign(id, $5, NULL, true, @1 + @5, OP_ASSIGN);
+        $$ = newAssign(id, $5, nonStaticType ? new SA::Type(ANY, nullptr) : nullptr, true, @1 + @5, OP_ASSIGN);
         $$->assign.isDec = true;
     }
 ;

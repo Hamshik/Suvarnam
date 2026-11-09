@@ -9,7 +9,7 @@
 #include <unordered_set>
 #include <vector>
 
-std::vector<std::string> ir_out;
+std::vector<std::string> irOut;
 
 /* ===================== TARGET SETUP ===================== */
 
@@ -123,7 +123,7 @@ void IRGen::preDecImportStmts(HIRNode *root, const char *outPath) {
     if (imported_mod && imported_mod->hirNode) {
       codegen(imported_mod->hirNode, name.c_str(), nullptr,
               false /* is_main_module */);
-      ir_out.push_back(name);
+      irOut.push_back(name);
     }
   }
 }

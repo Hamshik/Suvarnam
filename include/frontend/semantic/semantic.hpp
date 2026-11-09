@@ -14,6 +14,7 @@ extern size_t err_no;
 extern size_t warn_no;
 extern bool isWarning;
 extern ASTNode *root;
+extern bool nonStaticType;
 
 class Semantic {
   bool globalVarAllowed = true;

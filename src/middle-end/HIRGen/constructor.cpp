@@ -39,6 +39,9 @@ HIRNode *HIRGenerator::cloneNode(const HIRNode *src) {
     dst->type = src->type;
     dst->loc = src->loc;
     dst->isglobal = src->isglobal;
+    dst->isDynamic = src->isDynamic;
+    dst->isMutable = src->isMutable;
+    dst->hasMutableInfo = src->hasMutableInfo;
 
     switch (src->kind) {
         case AST_VAR:

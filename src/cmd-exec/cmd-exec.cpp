@@ -1,260 +1,77 @@
 #include "cmd-exec/cmd-exec.hpp"
-#include "cmd-exec/compiler.hpp"
 #include "HIRGen/HIRGen.hpp"
+#include "linker.hpp"
 #include "semantic/import.hpp"
 #include "semantic/semantic.hpp"
 #include "shared/structs.h"
+#include "utils/colors.h"
 #include "utils/error_handler/error.h"
-#include <cstdlib>
-#include <filesystem>
-#include <stdlib.h>
-#include <string.h>
+
+#include <print>
 #include <string>
 #include <vector>
 
-extern std::vector<std::string> ir_out;
-std::vector<char *> I_src{};
+extern std::vector<std::string> irOut;
 int codegen(HIRNode *, const char *, char **, bool);
+SemanticSymTable *semanticSymbols;
 SemanticSymTable *sym;
 
-static std::string make_object_path(const std::string &input_path) {
-  std::string obj_path = input_path;
-  if (obj_path.size() >= 3 && obj_path.substr(obj_path.size() - 3) == ".ll") {
-    obj_path.resize(obj_path.size() - 3);
-  }
-  obj_path += ".o";
-  return obj_path;
-}
+int compileAndExecute(ASTNode *root, const Options *options,
+                      Importer *importer) {
+  error_fatal = false;
 
-/* Helper function to open and resolve input file */
-FILE *open_file(const char *filename, char **resolved_path_out) {
-  char resolved[PATH_MAX];
-  const char *open_path = filename;
-  if (realpath(filename, resolved))
-    open_path = resolved;
+  SA::CompilerContext *context = importer->getCtx();
+  context->semantic.main(root);
 
-  FILE *input = fopen(open_path, "rb");
-  if (!input) {
-    int saved_errno = err_no;
-    fprintf(stderr, "Failed to open input: %s\n", filename);
-    if (open_path != filename)
-      fprintf(stderr, "Resolved path: %s\n", open_path);
-    err_no = saved_errno;
-    perror("fopen");
-    return NULL;
-  }
-  if (resolved_path_out)
-    *resolved_path_out = strdup(open_path);
-  return input;
-}
+  semanticSymbols = &context->sym;
+  sym = semanticSymbols;
+  delete importer;
 
-/* Parse command-line arguments */
-bool parse_arguments(int argc, char **argv, Options *opts) {
-  // Set defaults
-  opts->input_filename = NULL;
-  opts->bin_output_path = (char *)"SA.bin";
-  opts->emitIR = false;
-  opts->ir_output_path = (char *)"out.ll";
-
-  int i = 1;
-  // Parse optional source file
-  if (argc > 1 && argv[1][0] != '-') {
-    opts->input_filename = argv[1];
-    i = 2;
-  }
-
-  // Parse flags
-  while (i < argc) {
-    if (strcmp(argv[i], "-o") == 0) {
-      if (i + 1 < argc) {
-        opts->bin_output_path = argv[i + 1];
-        i += 2;
-        if (!Importer::isexists(opts->bin_output_path))
-          syserr(("Directory does not exist: " +
-                  std::string(opts->bin_output_path))
-                     .c_str());
-
-      } else {
-        syserr("Missing argument for -o\nUsage:  SA [source] [-o bin_path] "
-               "[--emit-ir ir_path]");
-        return false;
-      }
-    } else if (strcmp(argv[i], "--emit-ir") == 0) {
-      if (i + 1 < argc) {
-        opts->emitIR = true;
-        opts->ir_output_path = argv[i + 1];
-        i += 2;
-        if (!Importer::isexists(opts->ir_output_path))
-          syserr(
-              ("Directory does not exist: " + std::string(opts->ir_output_path))
-                  .c_str());
-      } else {
-        syserr("Missing argument for --emit-ir\nUsage:  SA [source] [-o"
-               "bin_path] [--emit-ir ir_path]");
-        return false;
-      }
-    } else if (argv[i][0] == '-' && argv[i][1] == 'I') {
-      char *path = argv[i] + 2;
-      if (*path == '\0') {
-        i++;
-        if (!argv[i])
-          syserr((char *)"Expected directory");
-        path = argv[i];
-      }
-      if (std::filesystem::is_directory(path)) {
-        I_src.push_back(path);
-        i++;
-        continue;
-      }
-      syserr(("Missing directory:" + std::string(path)).c_str());
-      return false;
-
-    } else {
-      syserr(logf_msg("Unknown argument: %s\nUsage:  SA [source] [-o bin_path] "
-                      "[--emit-ir ir_path]",
-                      argv[i]));
-      return false;
-    }
-  }
-
-  if (opts->emitIR) {
-    char resolved[PATH_MAX];
-    if (realpath(opts->ir_output_path, resolved)) {
-      opts->ir_output_path = strdup(resolved);
-    }
-  }
-  return true;
-}
-
-/* Set up input file and File structure */
-bool setup_input_file(const Options *opts, File *file) {
-  if (!opts->input_filename) {
-    file->filename = (char *)"<stdin>";
-    file->source = stdin;
-    return true;
-  }
-
-  char *resolved_path = NULL;
-  FILE *input = open_file(opts->input_filename, &resolved_path);
-  if (!input) {
-    return false;
-  }
-  file->filename = resolved_path ? resolved_path : (char *)opts->input_filename;
-  file->source = input;
-  return true;
-}
-
-/* Compile and execute the AST */
-
-int compile_and_execute(ASTNode *root, const Options *opts, Importer *import) {
-  std::string compiler;
-  if (!compiler::findCompatibleClang(compiler))
-    return 1;
-
-  error_fatal = false; /* collect semantic errors like Rust */
-
-  SA::CompilerContext *ctx = import->getCtx();
-  ctx->semantic.main(root);
-
-  sym = &ctx->sym;
-  delete import;
-
-  error_fatal = true; /* runtime errors should still stop */
-  char *ir_text = NULL;
+  error_fatal = true;
+  char *irText = nullptr;
 
   Semantic::checkErr();
 
-  HIRGenerator *mgen = new HIRGenerator(ctx);
-  HIRNode *mast_root = mgen->generateModule(root);
-  delete mgen;
+  HIRGenerator *hirGenerator = new HIRGenerator(context);
+  HIRNode *mastRoot = hirGenerator->generateModule(root);
+  delete hirGenerator;
 
   if (isError)
     return -1;
 
-  ir_out.clear();
+  irOut.clear();
+  if (options->emitDesugaredSource) {
+    const bool emitted =
+        writeDesugaredSource(mastRoot, options->desugaredSourcePath);
+    ast_free(root);
+    if (emitted) {
+      std::println(SA_GREEN "SUCESS: Desuggering the source code" SA_RESET);
+      return 0;
+    }
+    syserr("ERROR: Desugering the source code");
+    return 1;
+  }
 
-  const char *main_ir_path = (opts->emitIR && opts->ir_output_path)
-                                 ? opts->ir_output_path
-                                 : "/tmp/temp_suvarnam_main.ll";
+  const char *mainIrPath =
+      (options->emitIr && !options->irOutputPath.empty())
+          ? options->irOutputPath.c_str()
+          : "/tmp/temp_suvarnam_main.ll";
 
-  if (codegen(mast_root, main_ir_path, &ir_text, true) == EXIT_FAILURE) {
+  if (codegen(mastRoot, mainIrPath, &irText, true) == EXIT_FAILURE) {
     printf("Codegen is exited with 1");
     return 1;
   }
 
   ast_free(root);
 
-  if (opts->emitIR && opts->ir_output_path) {
-    FILE *irf = fopen(opts->ir_output_path, "w");
-    if (irf) {
-      fputs(ir_text ? ir_text : "", irf);
-      fclose(irf);
+  if (options->emitIr && !options->irOutputPath.empty()) {
+    FILE *irFile = fopen(options->irOutputPath.c_str(), "w");
+    if (irFile) {
+      fputs(irText ? irText : "", irFile);
+      fclose(irFile);
     }
   }
-  free(ir_text);
+  free(irText);
 
-  // Ensure output directory exists if bin_output_path contains a directory
-  // separator
-  std::string bin_path(opts->bin_output_path);
-  size_t last_slash = bin_path.find_last_of("/\\");
-  if (last_slash != std::string::npos) {
-    std::string dir_path = bin_path.substr(0, last_slash);
-    std::string mkdir_cmd = "mkdir -p " + dir_path;
-    system(mkdir_cmd.c_str());
-  }
-
-  std::vector<std::string> object_paths;
-  std::string main_obj_path = make_object_path(main_ir_path);
-  if (!compiler::compileIrToObject(compiler, main_ir_path, main_obj_path)) {
-    if (!opts->emitIR)
-      unlink(main_ir_path);
-    return 1;
-  }
-  object_paths.push_back(main_obj_path);
-
-  for (const auto &import_ir : ir_out) {
-    std::string import_obj_path = make_object_path(import_ir);
-    if (!compiler::compileIrToObject(compiler, import_ir, import_obj_path)) {
-      if (!opts->emitIR)
-        unlink(main_ir_path);
-      return 1;
-    }
-    object_paths.push_back(import_obj_path);
-  }
-
-  std::vector<std::string> link_args = {compiler, "lib/helper/StrHelper.cpp"};
-  for (const auto &obj_path : object_paths) {
-    link_args.push_back(obj_path);
-  }
-  link_args.push_back("-g");
-  link_args.push_back("-O0");
-  link_args.push_back("-o");
-  link_args.push_back(opts->bin_output_path);
-
-  std::vector<char *> link_argv;
-  link_argv.reserve(link_args.size());
-  for (auto &arg : link_args) {
-    link_argv.push_back(arg.data());
-  }
-  link_argv.push_back(nullptr);
-
-  for (const auto &arg : link_args) {
-  }
-  fprintf(stderr, "\n");
-
-  int link_res = run_exec(link_argv[0], link_argv.data());
-
-  if (!opts->emitIR)
-    unlink(main_ir_path);
-
-  // Clean up object files
-  for (const auto &obj_path : object_paths) {
-    unlink(obj_path.c_str());
-  }
-
-  if (link_res != 0) {
-    return 1;
-  }
-
-  return 0;
+  return compileAndLink(mainIrPath, options->binOutputPath, options->emitIr);
 }

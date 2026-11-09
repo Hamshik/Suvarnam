@@ -291,7 +291,7 @@ SA::Type* Semantic::call(ASTNode *n) {
     auto type_matches = [](SA::Type *expected, SA::Type *actual) {
       if (!expected) return true;
       if (!actual) return false;
-      return expected->base == actual->base;
+      return expected->base == ANY || expected->base == actual->base;
     };
 
     while (arg) {
@@ -315,7 +315,8 @@ SA::Type* Semantic::call(ASTNode *n) {
         forceNumericType(cur, want->base);
       SA::Type *at2 = checkExpr(cur, want);
       if (!at2) return nullptr;
-      if (at2 && want && want->base != UNKNOWN && !typesAreEqual(at2, want)) {
+      if (at2 && want && want->base != UNKNOWN && want->base != ANY &&
+          !typesAreEqual(at2, want)) {
         panic(n->loc, SEM_ARG_TYPE_MISMATCH, n->call.name);
         return nullptr;
       }

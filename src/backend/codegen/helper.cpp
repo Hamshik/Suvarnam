@@ -4,7 +4,7 @@
 #include <iostream>
 #include <math.h>
 
-extern SemanticSymTable *sym;
+extern SemanticSymTable *semanticSymbols;
 
 __int128 parse_i128(const char *s, int *ok) {
   if (ok)
@@ -135,14 +135,14 @@ llvm::Type *IRGen::irType(SA::Type *type) {
   if (!structTy->isOpaque())
     return structTy;
 
-  if (!sym)
+  if (!semanticSymbols)
     return structTy;
 
   std::vector<llvm::Type *> fieldTypes;
-  const size_t count = sym->structFieldCount(*type->objType);
+  const size_t count = semanticSymbols->structFieldCount(*type->objType);
   fieldTypes.reserve(count);
   for (size_t index = 0; index < count; ++index) {
-    const Fields *field = sym->structFieldAt(*type->objType, index);
+    ASTNode *field = semanticSymbols->structFieldAt(*type->objType, index);
     llvm::Type *fieldType = field ? irType(field->type) : nullptr;
     if (!fieldType || fieldType->isVoidTy())
       return nullptr;

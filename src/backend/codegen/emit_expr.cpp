@@ -8,9 +8,9 @@ struct LoopContext {
   BasicBlock *exitBB;
 };
 extern std::vector<LoopContext> loopStack;
-extern SemanticSymTable *sym;
+extern SemanticSymTable *semanticSymbols;
 llvm::Value *IRGen::handleExternalGlobalVar(const char *varName) {
-  auto varInfo = sym->getTopScope(varName);
+  auto varInfo = semanticSymbols->getTopScope(varName);
 
   if (!varInfo) return nullptr;
   // Create a new global variable in the LLVM module
@@ -61,20 +61,18 @@ llvm::Value *IRGen::emitExpr(HIRNode *n, Codegen::Scope &locals) {
     }
 
     if (foundVal) {
-      // 🏠 Check if it is a local Stack variable allocation
-      // 🌍 Check if it is a module Global Variable allocation (This will now
-      // succeed!)
+      llvm::Type *valueType = n->type ? irType(n->type) : nullptr;
+
       if (GlobalVariable *global_var = dyn_cast<GlobalVariable>(foundVal)) {
-        return b.CreateLoad(global_var->getValueType(), global_var, varName);
+        return b.CreateLoad(valueType ? valueType : global_var->getValueType(),
+                            global_var, varName);
       }
 
       if (AllocaInst *alloca_inst = dyn_cast<AllocaInst>(foundVal)) {
-        return b.CreateLoad(alloca_inst->getAllocatedType(), alloca_inst,
-                            varName);
+        return b.CreateLoad(valueType ? valueType : alloca_inst->getAllocatedType(),
+                            alloca_inst, varName);
       }
 
-      // Fallback if it is a direct loaded register or standard parameter
-      // pointer
       return foundVal;
     }
 

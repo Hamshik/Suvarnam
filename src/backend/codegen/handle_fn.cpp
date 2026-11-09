@@ -2,7 +2,7 @@
 #include "codegen/codegen.hpp"
 #include <cstring>
 
-extern SemanticSymTable* sym;
+extern SemanticSymTable *semanticSymbols;
 
 FnHelper::FnHelper(IRGen &irGen)
     : irGen(irGen), mod(irGen.mod), ctx(irGen.ctx), b(irGen.b),
@@ -13,7 +13,7 @@ FnHelper::FnHelper(IRGen &irGen)
 // source of truth for those signatures, so use it to materialize an external
 // declaration in this module when necessary.
 Function *FnHelper::getOrAddSymPrototype(const char *name) {
-  FnSymbol *symbol = sym->fnFind(name);
+  FnSymbol *symbol = semanticSymbols->fnFind(name);
   if (!symbol)
     return nullptr;
 

@@ -63,7 +63,8 @@ enum DataTypes {
     CHARACTER,
     VOID,
     UNKNOWN,
-    POISON,
+    ANY,
+    POISON
 };
 
 typedef enum OP_kind {

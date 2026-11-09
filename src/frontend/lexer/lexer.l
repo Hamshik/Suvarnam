@@ -157,12 +157,17 @@
     if (keyword) {
         if (keyword->kind == SA_KEYWORD_TOKEN) return keyword->token;
         if (keyword->kind == SA_KEYWORD_DATATYPE) {
+            if(strcmp(keyword->text, "any") == 0 && !nonStaticType &&
+               !emitDesugaredSource)
+                goto createID;
+            
             VAL(datatype, keyword->datatype);
             return keyword->token;
         }
         VAL(node, newBool(keyword->bool_value, tokenLoc()));
         return keyword->token;
     }
+    createID:
     VAL(node, newVar(matched().c_str(), UNKNOWN, tokenLoc()));
     return Parser::IDENTIFIER;
 }

@@ -8,4 +8,6 @@
 #include "shared/structs.h"
 #include "ast/ast.h"
 
+extern bool emitDesugaredSource;
+
 #endif

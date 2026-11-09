@@ -9,7 +9,8 @@
 #include <vector>
 
 #define VAL(type, action) val->assign<Tag_::type>(action)
-
+extern bool nonStaticType;
+extern bool emitDesugaredSource;
 
 // $insert classHead
 class Scanner: public ScannerBase

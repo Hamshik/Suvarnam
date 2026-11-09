@@ -13,6 +13,7 @@
 extern File *file;
 struct SemanticSymbolRecord {
   SA::Type *type = nullptr;
+  bool isAny = false;
   DataTypes max_type = UNKNOWN;
   DataTypes last_maxed_type = UNKNOWN;
   bool is_mutable = false;

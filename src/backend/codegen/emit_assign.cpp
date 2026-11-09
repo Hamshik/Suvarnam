@@ -99,7 +99,13 @@ llvm::Value *IRGen::emitAssign(HIRNode *n, Codegen::Scope &locals) {
         }
         locals.symbols[name] = targetPtr;
       } else if (b.GetInsertBlock() != nullptr) {
-        targetPtr = getOrAddAlloca(name, llvmValueType, locals);
+        llvm::Type *storageType =
+            n->isDynamic
+                ? llvm::ArrayType::get(llvm::Type::getInt8Ty(ctx), 32)
+                : llvmValueType;
+        targetPtr = getOrAddAlloca(name, storageType, locals);
+        if (n->isDynamic)
+          llvm::cast<llvm::AllocaInst>(targetPtr)->setAlignment(llvm::Align(16));
         locals.symbols[name] = targetPtr;
       }
     } else {
@@ -189,7 +195,13 @@ void IRGen::emitGlobVar(HIRNode *n) {
       auto linkage = (name.find("\003") == 0) ? GlobalValue::InternalLinkage
                                             : GlobalValue::ExternalLinkage;
 
-      llvm::Constant *initializer = tryEmitConst(stmt->assign.value);
+      llvm::Type *storageType =
+          stmt->isDynamic
+              ? llvm::ArrayType::get(llvm::Type::getInt8Ty(ctx), 32)
+              : irType(valueType);
+      llvm::Constant *initializer =
+          stmt->isDynamic ? llvm::Constant::getNullValue(storageType)
+                          : tryEmitConst(stmt->assign.value);
       if (!initializer)
         panic(n->loc, INTERNAL_ERROR,
               "Failed to emit constant initializer for global variable");
@@ -220,7 +232,10 @@ void IRGen::emitGlobVar(HIRNode *n) {
       if (initializer->getType() != llvmValueType)
         panic(stmt->loc, INTERNAL_ERROR,
               "Global initializer type does not match variable type");
-      new GlobalVariable(mod, llvmValueType, false, linkage, initializer, name);
+      auto *global =
+          new GlobalVariable(mod, storageType, false, linkage, initializer, name);
+      if (stmt->isDynamic)
+        global->setAlignment(llvm::Align(16));
     }
   }
 }

@@ -139,6 +139,9 @@ HIRNode *HIRGenerator::generate(ASTNode *node) {
                                node->assign.isDec);
 
     n->isglobal = node->isglobal;
+    n->isDynamic = node->isDynamic;
+    n->isMutable = node->ismut;
+    n->hasMutableInfo = true;
     n->loc = node->loc;
 
     return n;
@@ -239,6 +242,21 @@ HIRNode *HIRGenerator::generate(ASTNode *node) {
     declaration->structDec.fields = new std::vector<Fields *>();
     declaration->type = node->type;
     declaration->loc = node->loc;
+    const size_t fieldCount = ctx->sym.structFieldCount(node->structDecl.name);
+    for (size_t index = 0; index < fieldCount; ++index) {
+      ASTNode *fieldNode =
+          ctx->sym.structFieldAt(node->structDecl.name, index);
+      if (!fieldNode || !fieldNode->field.name || !fieldNode->type)
+        continue;
+      auto *field = new Fields;
+      field->nodePtrKind = Fields::NodePtrKind::HIR;
+      field->nodePtr.hirNode = generate(fieldNode->field.defaultField);
+      field->name = *fieldNode->field.name;
+      field->index = index;
+      field->isMut = fieldNode->ismut;
+      field->type = fieldNode->type;
+      declaration->structDec.fields->push_back(field);
+    }
     return declaration;
   }
 
