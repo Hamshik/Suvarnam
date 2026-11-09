@@ -43,8 +43,6 @@ struct RangeScalars {
 
 bool is_unsigned_dtype(DataTypes);
 bool is_float_dtype(DataTypes);
-__int128 parse_i128(const char *, int *);
-__int128 parse_i128(const char *, int *);
 
 class IRGen;
 

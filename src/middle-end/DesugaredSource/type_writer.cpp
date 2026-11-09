@@ -8,7 +8,7 @@
 namespace DesugaredSource {
 namespace {
 
-const char *typeName(DataTypes_t type) {
+const char *typeName(DataTypes type) {
   switch (type) {
   case I8: return "i8";
   case I16: return "i16";
@@ -35,6 +35,7 @@ const char *typeName(DataTypes_t type) {
   case VOID: return "void";
   case UNKNOWN: return "unknown";
   case ANY: return "any";
+  case POISON: return nullptr;
   }
   return nullptr;
 }

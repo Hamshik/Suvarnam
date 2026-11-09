@@ -244,16 +244,19 @@ HIRNode *HIRGenerator::generate(ASTNode *node) {
     declaration->loc = node->loc;
     const size_t fieldCount = ctx->sym.structFieldCount(node->structDecl.name);
     for (size_t index = 0; index < fieldCount; ++index) {
-      ASTNode *fieldNode =
+      const Fields *fieldNode =
           ctx->sym.structFieldAt(node->structDecl.name, index);
-      if (!fieldNode || !fieldNode->field.name || !fieldNode->type)
+      if (!fieldNode || !fieldNode->type)
         continue;
       auto *field = new Fields;
       field->nodePtrKind = Fields::NodePtrKind::HIR;
-      field->nodePtr.hirNode = generate(fieldNode->field.defaultField);
-      field->name = *fieldNode->field.name;
-      field->index = index;
-      field->isMut = fieldNode->ismut;
+      field->nodePtr.hirNode =
+          generate(fieldNode->nodePtrKind == Fields::NodePtrKind::AST
+                       ? fieldNode->nodePtr.astNode
+                       : nullptr);
+      field->name = fieldNode->name;
+      field->index = fieldNode->index;
+      field->isMut = fieldNode->isMut;
       field->type = fieldNode->type;
       declaration->structDec.fields->push_back(field);
     }

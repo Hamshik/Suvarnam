@@ -14,7 +14,6 @@
 extern std::vector<std::string> irOut;
 int codegen(HIRNode *, const char *, char **, bool);
 SemanticSymTable *semanticSymbols;
-SemanticSymTable *sym;
 
 int compileAndExecute(ASTNode *root, const Options *options,
                       Importer *importer) {
@@ -24,7 +23,6 @@ int compileAndExecute(ASTNode *root, const Options *options,
   context->semantic.main(root);
 
   semanticSymbols = &context->sym;
-  sym = semanticSymbols;
   delete importer;
 
   error_fatal = true;

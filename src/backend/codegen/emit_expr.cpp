@@ -157,11 +157,12 @@ llvm::Value *IRGen::emitExpr(HIRNode *n, Codegen::Scope &locals) {
     auto *structType = llvm::cast<llvm::StructType>(target->getType());
     size_t fieldIndex = n->memberAccess.index;
     HIRNode *memberTarget = n->memberAccess.target;
-    if (sym && memberTarget && memberTarget->type &&
+    if (semanticSymbols && memberTarget && memberTarget->type &&
         memberTarget->type->kind == SA::USER_DEFINED &&
         memberTarget->type->objType) {
       const Fields *field =
-          sym->structField(*memberTarget->type->objType, n->memberAccess.name);
+          semanticSymbols->structField(*memberTarget->type->objType,
+                                       n->memberAccess.name);
       if (!field) {
         fprintf(stderr, "Codegen Error: Struct '%s' has no field '%s'\n",
                 memberTarget->type->objType->c_str(),

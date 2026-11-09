@@ -1,10 +1,12 @@
 #include "cmd-exec/compiler.hpp"
-#include "cmd-exec/cmd-exec.hpp"
 
 #include <cerrno>
 #include <cctype>
 #include <cstdio>
 #include <string>
+#include <sys/wait.h>
+#include <unistd.h>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -154,21 +156,21 @@ bool compileIrToObject(const std::string &compilerPath,
                        const std::string &objectPath) {
   std::vector<std::string> args = {compilerPath, "-c", "-x", "ir",
                                    irPath,       "-o", objectPath};
-  std::vector<char *> argv;
-  argv.reserve(args.size() + 1);
-  for (std::string &arg : args)
-    argv.push_back(arg.data());
-  argv.push_back(nullptr);
-
-  return run_exec(argv[0], argv.data()) == 0;
+  return runCommand(std::move(args)) == 0;
 }
 
-} // namespace compiler
+int runCommand(std::vector<std::string> arguments) {
+  std::vector<char *> argv;
+  argv.reserve(arguments.size() + 1);
+  for (std::string &argument : arguments)
+    argv.push_back(argument.data());
+  if (argv.empty())
+    return -1;
+  argv.push_back(nullptr);
 
-int run_exec(const char *prog, char *const argv[]) {
   pid_t pid = fork();
   if (pid == 0) {
-    execvp(prog, argv);
+    execvp(argv[0], argv.data());
     _exit(127);
   }
   if (pid < 0) {
@@ -187,3 +189,5 @@ int run_exec(const char *prog, char *const argv[]) {
   }
   return WIFEXITED(status) ? WEXITSTATUS(status) : 1;
 }
+
+} // namespace compiler
