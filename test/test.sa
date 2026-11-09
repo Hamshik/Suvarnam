@@ -6,4 +6,8 @@ fn main() {
     return 0;
 }
 
-fn anyTyped(var... params) {}
+fn anyTyped(var... params) {
+    var mut i = params[0];
+    i = i*i;
+    return i;
+}

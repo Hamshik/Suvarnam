@@ -102,6 +102,7 @@ public:
 
   llvm::Type *irType(DataTypes);
   llvm::Type *irType(SA::Type *);
+  llvm::StructType *sliceType();
   llvm::Value *coerceValue(llvm::Value *, SA::Type *, SA::Type *);
   void emitGlobVar(HIRNode *);
   llvm::Value *handleExternalGlobalVar(const char *varName);

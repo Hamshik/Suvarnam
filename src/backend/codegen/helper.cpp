@@ -120,6 +120,12 @@ llvm::Type *IRGen::irType(DataTypes t) {
   }
 }
 
+llvm::StructType *IRGen::sliceType() {
+  return llvm::StructType::get(
+      ctx, {llvm::PointerType::getUnqual(ctx),
+            llvm::Type::getInt64Ty(ctx)});
+}
+
 llvm::Type *IRGen::irType(SA::Type *type) {
   if (!type)
     return nullptr;

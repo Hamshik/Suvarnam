@@ -23,11 +23,10 @@ Function *FnHelper::getOrAddSymPrototype(const char *name) {
     if (!symbol->params || !symbol->params[i].type)
       return nullptr;
 
-    params.push_back(irGen.irType(symbol->params[i].type));
-
-    if (symbol->params[i].is_variadic && symbol->params[i].type->base == LIST) {
-      params.push_back(llvm::Type::getInt64Ty(ctx));
-    }
+    const SA::Param &param = symbol->params[i];
+    params.push_back(param.is_variadic && param.type->base == LIST
+                         ? irGen.sliceType()
+                         : irGen.irType(param.type));
   }
 
   llvm::Type *return_type = symbol->ret ? irGen.irType(symbol->ret)
@@ -43,7 +42,9 @@ Function *FnHelper::getOrAddSymPrototype(const char *name) {
 Function *FnHelper::getOrAddPrototypes(HIRNode *fn_ast) {
   std::vector<llvm::Type *> params;
   for (auto *p : *fn_ast->fn.params) {
-    params.push_back(irGen.irType(p->type));
+    params.push_back(p->is_variadic && p->type && p->type->base == LIST
+                         ? irGen.sliceType()
+                         : irGen.irType(p->type));
   }
   llvm::Type *retTy = irGen.irType(fn_ast->type);
   if (retTy->isVoidTy() && fn_ast->type->kind == SA::PRIMITIVE &&
@@ -75,13 +76,27 @@ void FnHelper::emitFn(HIRNode *fn_ast) {
   // Add function arguments to local scope if necessary
   size_t idx = 0;
   for (auto &arg : fn->args()) {
-    const char *pname = (*fn_ast->fn.params)[idx]->name;
-    llvm::Type *t = arg.getType();
+    const SA::Param *param = (*fn_ast->fn.params)[idx];
+    const char *pname = param->name;
+    if (param->is_variadic && param->type && param->type->base == LIST) {
+      llvm::Value *data = b.CreateExtractValue(&arg, 0, "slice.data");
+      llvm::Value *length = b.CreateExtractValue(&arg, 1, "slice.length");
+      auto *dataStorage = entryBuilder.CreateAlloca(
+          irGen.irType(param->type), nullptr, pname);
+      b.CreateStore(data, dataStorage);
+      locals[pname] = dataStorage;
 
-    // Use entryBuilder to safely allocate arguments at the function head
-    AllocaInst *alloca_inst = entryBuilder.CreateAlloca(t, nullptr, pname);
-    b.CreateStore(&arg, alloca_inst);
-    locals[pname] = alloca_inst;
+      const std::string countName = std::string(pname) + "\003_count";
+      auto *lengthStorage = entryBuilder.CreateAlloca(
+          llvm::Type::getInt64Ty(ctx), nullptr, countName);
+      b.CreateStore(length, lengthStorage);
+      locals[countName] = lengthStorage;
+    } else {
+      llvm::Type *t = arg.getType();
+      AllocaInst *alloca_inst = entryBuilder.CreateAlloca(t, nullptr, pname);
+      b.CreateStore(&arg, alloca_inst);
+      locals[pname] = alloca_inst;
+    }
     idx++;
   }
 

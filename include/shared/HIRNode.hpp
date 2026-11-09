@@ -36,6 +36,7 @@ class HIRNode {
     bool isDynamic;
     bool isMutable;
     bool hasMutableInfo;
+    bool isSlice;
 
     // Tracks sequential statements inside a MASTKind::BLOCK node.
     // This must stay OUTSIDE the union to prevent memory corruption.
@@ -112,6 +113,6 @@ class HIRNode {
     // Clean Constructor Initialization Tracker
     HIRNode(ASTKind k)
         : kind(k), type(nullptr), isglobal(false), isDynamic(false),
-          isMutable(false), hasMutableInfo(false) {
+          isMutable(false), hasMutableInfo(false), isSlice(false) {
     }
 };

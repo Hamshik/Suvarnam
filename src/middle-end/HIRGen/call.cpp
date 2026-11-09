@@ -131,26 +131,15 @@ HIRNode *makeVarargList(std::vector<HIRNode *> *elements,
   varargList->type = new SA::Type(LIST, nullptr);
   varargList->type->inner = innerType;
   varargList->type->size = elements->size();
+  varargList->isSlice = true;
   return varargList;
 }
 
-void appendVarargCount(HIRGenerator &generator, HIRNode *callNode,
-                       size_t count) {
-  SA::Value rawCount = {0};
-  rawCount.i64 = static_cast<int64_t>(count);
-  SA::Type *countType = new SA::Type(I64, nullptr);
-  HIRNode *countArg =
-      generator.createLiteral(rawCount, countType, ASTKind::AST_NUM);
-  callNode->call.args->push_back(countArg);
-}
-
-void appendVarargGroup(HIRGenerator &generator, const VarargCallState &state,
-                       size_t groupIndex) {
+void appendVarargGroup(const VarargCallState &state, size_t groupIndex) {
   const auto &group = state.varargGroups[groupIndex];
   auto *elements = new std::vector<HIRNode *>(group.begin(), group.end());
   state.callNode->call.args->push_back(
       makeVarargList(elements, state.varargTypes[groupIndex]));
-  appendVarargCount(generator, state.callNode, elements->size());
 }
 
 SA::Type *packedVarargType(const VarargCallState &state) {
@@ -163,30 +152,28 @@ SA::Type *packedVarargType(const VarargCallState &state) {
   return paramType ? paramType->inner : nullptr;
 }
 
-void appendPackedVarargs(HIRGenerator &generator,
-                         const VarargCallState &state) {
+void appendPackedVarargs(const VarargCallState &state) {
   state.callNode->call.args->push_back(
       makeVarargList(state.packedArgs, packedVarargType(state)));
-  appendVarargCount(generator, state.callNode, state.packedArgs->size());
 }
 
 void appendBuiltinVarargs(const VarargCallState &state) {
   state.callNode->call.args->push_back(makeVarargList(state.packedArgs, nullptr));
 }
 
-// Emit grouped user varargs or packed builtin varargs with their hidden lengths.
-void appendUserVarargs(HIRGenerator &generator, const VarargCallState &state) {
+// Emit user variadic arguments as slice values.
+void appendUserVarargs(const VarargCallState &state) {
   if (!state.callNode) return;
 
   if (!state.varargGroups.empty()) {
     for (size_t i = 0; i < state.varargGroups.size(); ++i) {
-      appendVarargGroup(generator, state, i);
+      appendVarargGroup(state, i);
     }
     return;
   }
 
   if (state.packedArgs)
-    appendPackedVarargs(generator, state);
+    appendPackedVarargs(state);
 }
 
 VarargCallState makeVarargState(HIRNode *callNode, const char *name,
@@ -238,7 +225,7 @@ void lowerArgs(HIRGenerator &generator, ASTNode *node,
 
 void appendCallVarargs(HIRGenerator &generator, const VarargCallState &state) {
   if (state.hasUserVarargs) {
-    appendUserVarargs(generator, state);
+    appendUserVarargs(state);
   } else if (state.isBuiltinVararg && state.packedArgs &&
              !state.packedArgs->empty()) {
     appendBuiltinVarargs(state);

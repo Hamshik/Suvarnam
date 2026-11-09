@@ -62,6 +62,11 @@ struct Range {
   int64_t step;
 };
 
+struct Slice {
+  void *data;
+  uint64_t length;
+};
+
 union Value {
   int8_t i8;
   short i16;

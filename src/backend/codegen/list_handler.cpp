@@ -67,22 +67,24 @@ llvm::Value *IRGen::generateList(HIRNode *n, Codegen::Scope &locals) {
 
   ArrayType *arrayType = ArrayType::get(elemType, n->type->size);
   Function *currentFn = b.GetInsertBlock()->getParent();
-  Module *m = b.GetInsertBlock()->getModule();
 
   llvm::Value *allocatedPtr = nullptr;
   llvm::Value *typedPtr = nullptr;
 
-  static size_t list_heap = 0;
-  static size_t list_stack = 0;
+  const size_t elementCount =
+      n->element.elements ? n->element.elements->size() : 0;
+  if (elementCount > 0) {
+    BasicBlock *entryBB = &currentFn->getEntryBlock();
+    IRBuilder<> allocaBuilder(entryBB, entryBB->begin());
+    allocatedPtr =
+        allocaBuilder.CreateAlloca(arrayType, nullptr, "list_stack_alloc");
+    typedPtr = b.CreateInBoundsGEP(arrayType, allocatedPtr,
+                                   {b.getInt32(0), b.getInt32(0)});
+  } else {
+    typedPtr = llvm::ConstantPointerNull::get(PointerType::getUnqual(ctx));
+  }
 
-  BasicBlock *entryBB = &currentFn->getEntryBlock();
-  IRBuilder<> allocaBuilder(entryBB, entryBB->begin());
-  allocatedPtr =
-      allocaBuilder.CreateAlloca(arrayType, nullptr, "list_stack_alloc");
-  typedPtr = b.CreateInBoundsGEP(arrayType, allocatedPtr,
-                                 {b.getInt32(0), b.getInt32(0)});
-
-  for (uint32_t index = 0; index < n->element.elements->size(); ++index) {
+  for (uint32_t index = 0; index < elementCount; ++index) {
     HIRNode *exprNode = (*n->element.elements)[index];
     llvm::Value *elementVal = emitExpr(exprNode, locals);
 
@@ -90,6 +92,14 @@ llvm::Value *IRGen::generateList(HIRNode *n, Codegen::Scope &locals) {
     llvm::Value *elementAddr =
         b.CreateInBoundsGEP(elemType, typedPtr, b.getInt32(index));
     b.CreateStore(elementVal, elementAddr);
+  }
+
+  if (n->isSlice) {
+    llvm::Value *slice = llvm::UndefValue::get(sliceType());
+    slice = b.CreateInsertValue(slice, typedPtr, 0, "slice.data");
+    slice = b.CreateInsertValue(slice, b.getInt64(elementCount), 1,
+                                "slice.length");
+    return slice;
   }
 
   // Return as generic pointer (i8*)
