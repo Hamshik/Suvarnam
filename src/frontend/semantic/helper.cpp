@@ -23,6 +23,22 @@ void Semantic::typeError(ASTNode *n, const char *msg) {
         msg ? msg : "invalid operands for operator");
 }
 
+bool Semantic::hasUnresolvedAny(const ASTNode *node) const {
+  if (!node)
+    return false;
+  if (node->type && node->type->kind == SA::PRIMITIVE &&
+      node->type->base == ANY)
+    return true;
+  if (node->kind != AST_VAR || !node->var)
+    return false;
+
+  SemanticSymbolRecord *symbol =
+      node->isglobal ? ctx->sym.getTopScope(node->var)
+                     : ctx->sym.findSym(node->var);
+  return symbol && symbol->type && symbol->type->kind == SA::PRIMITIVE &&
+         symbol->type->base == ANY;
+}
+
 bool Semantic::typesAreEqual(SA::Type *a, SA::Type *b) {
   if ((a && a->isPoisonTy()) || (b && b->isPoisonTy()))
     return true;

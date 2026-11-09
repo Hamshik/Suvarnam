@@ -19,7 +19,8 @@ void Writer::indent(size_t level) {
     text("    ");
 }
 
-bool Writer::writeBlock(const HIRNode *node, size_t level) {
+bool Writer::writeBlock(const HIRNode *node, size_t level,
+                        const HIRNode *trailingStatement) {
   text("{\n");
   if (node) {
     if (node->kind == AST_BLOCK && node->blockStmts) {
@@ -31,6 +32,9 @@ bool Writer::writeBlock(const HIRNode *node, size_t level) {
       return false;
     }
   }
+  if (trailingStatement &&
+      !writeStatement(trailingStatement, level + 1))
+    return false;
   indent(level);
   character('}');
   return true;
@@ -153,7 +157,7 @@ bool Writer::writeStatement(const HIRNode *node, size_t level) {
     if (!writeExpression(node->whileLoop.cond))
       return false;
     character(' ');
-    if (!writeBlock(node->whileLoop.body, level))
+    if (!writeBlock(node->whileLoop.body, level, node->whileLoop.expr))
       return false;
     character('\n');
     return true;
@@ -194,6 +198,22 @@ bool Writer::writeStatement(const HIRNode *node, size_t level) {
     text("}\n");
     return true;
   case AST_CALL:
+    if (!writeExpression(node))
+      return false;
+    text(";\n");
+    return true;
+  case AST_UNOP:
+  case AST_BINOP:
+  case AST_VAR:
+  case AST_NUM:
+  case AST_STR:
+  case AST_CHAR:
+  case AST_BOOL:
+  case AST_LIST:
+  case AST_INDEX:
+  case AST_MEMBER:
+  case AST_STRUCT_INIT:
+  case AST_RANGE:
     if (!writeExpression(node))
       return false;
     text(";\n");

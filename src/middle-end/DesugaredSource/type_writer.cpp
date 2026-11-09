@@ -92,7 +92,7 @@ bool writeType(std::ostream &out, const SA::Type *type) {
       return false;
     out << '[';
     if (type->size)
-      out << ';' << type->size;
+      out << type->size;
     out << ']';
     return true;
   }

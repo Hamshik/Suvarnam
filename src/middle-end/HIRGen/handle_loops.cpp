@@ -223,7 +223,7 @@ HIRNode *rangeBody(HIRGenerator &generator, RangeForLoop &loop) {
       OP_kind::OP_ADD, iteratorId, loop.stepVal, iteratorId->type);
   HIRNode *stepAssign = generator.createAssign(
       makeVar(loop.iteratorName.c_str(), iteratorId->type), stepExpr,
-      OP_kind::OP_ASSIGN);
+      OP_kind::OP_ASSIGN, false);
   stepAssign->loc = loop.node->loc;
   bodyBlock->blockStmts->push_back(stepAssign);
   return bodyBlock;

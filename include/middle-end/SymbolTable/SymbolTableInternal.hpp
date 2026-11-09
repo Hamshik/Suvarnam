@@ -27,6 +27,12 @@ struct SemanticScopeRecord {
   SemanticScopeRecord *parent = nullptr;
 };
 
+struct SemanticTypeState {
+  SemanticSymbolRecord *symbol;
+  SA::Type *type;
+  bool isAny;
+};
+
 class SemanticSymTable {
 
   SemanticScopeRecord *top();
@@ -62,6 +68,8 @@ public:
   ASTMod *loadMod(char *, const char *, bool &);
   SemanticSymbolRecord *findSym(const char *);
   SemanticSymbolRecord *getTopScope(const char *);
+  std::vector<SemanticTypeState> snapshotTypes() const;
+  void restoreTypes(const std::vector<SemanticTypeState> &);
 
   exitcode structExists(const std::string& name) const;
   void structDeclare(std::string& name, ASTNode *node);

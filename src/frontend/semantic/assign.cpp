@@ -70,12 +70,18 @@ const char *Semantic::getSafeName(ASTNode *lhs) {
 void Semantic::processDecl(ASTNode *n, SA::Type *&lhs_t, SA::Type *rhs_t) {
   ASTNode *rhs = n->assign.rhs;
   const char *var_name = getSafeName(n->assign.lhs);
+  const bool declaredAny =
+      n->type && n->type->kind == SA::PRIMITIVE && n->type->base == ANY;
   n->isDynamic =
-      nonStaticType && n->type && n->type->kind == SA::PRIMITIVE &&
+      (nonStaticType || emitDesugaredSource) && n->type &&
+      n->type->kind == SA::PRIMITIVE &&
       n->type->base == ANY;
 
   if (n->assign.isDec &&
       (!lhs_t || (lhs_t->kind == SA::PRIMITIVE && lhs_t->base == UNKNOWN))) {
+    lhs_t = rhs_t;
+  } else if (n->assign.isDec && declaredAny &&
+             !(rhs_t->kind == SA::PRIMITIVE && rhs_t->base == ANY)) {
     lhs_t = rhs_t;
   } else if (n->assign.isDec && nonStaticType && lhs_t &&
              lhs_t->kind == SA::PRIMITIVE && lhs_t->base == ANY) {
@@ -292,7 +298,7 @@ SA::Type *Semantic::assign(ASTNode *n, SA::Type *type) {
   const bool dynamicDeclaration =
       n->assign.isDec && n->isDynamic;
   const bool dynamicReassignment =
-      nonStaticType && !n->assign.isDec &&
+      (nonStaticType || emitDesugaredSource) && !n->assign.isDec &&
       n->assign.op == OP_ASSIGN && targetSymbol && targetSymbol->isAny;
 
   if (!dynamicDeclaration && !dynamicReassignment &&

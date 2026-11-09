@@ -14,7 +14,7 @@
     op: OP_kind_t;
 
 %token LEX_ERROR
-%token LBRACE RBRACE SEMICOLON COLON IN COMMA ELLIPSIS
+%token RBRACE SEMICOLON COLON IN COMMA ELLIPSIS
 %token IF FOR WHILE MUT VAR FN RETURN IMPORT STRUCT
 %token CONTINUE BREAK 
 
@@ -22,7 +22,7 @@
 %token <node> IDENTIFIER NUMBER STRING_LITERAL BOOL_LITERAL CHAR_LITERAL
 
 %type <op> assign_op
-%type <node>  top_level_stmts block ifStmt for_stmt while_stmt import_stmt expr_stmts
+%type <node>  top_level_stmts block body ifStmt for_stmt for_iterable while_stmt import_stmt expr_stmts
 %type <node>  fn_def param param_tail return_stmt opt_args args list_stmt with_non_expr expr_stmt top_level_stmt index_stmt fn_block_t
 %type <node>  assign_expr import_list expr assignment program range structs fields field opt_field_default
 %type <node>  struct_init struct_init_fields struct_init_field
@@ -46,6 +46,8 @@
 %left INC DEC 
 %left NOT BITNOT
 %left LPAREN RPAREN LSQUARE RSQUARE
+%left LBRACE
+%left FOR_ITERABLE_END
 %left DOT
 %left ARROW DOUBLE_DEREF_ARROW TRIPLE_DEREF_ARROW
 
@@ -137,15 +139,10 @@ block:
 ;
 
 ifStmt:
-    IF expr block %prec LOWER_THAN_ELSE
+    IF expr body %prec LOWER_THAN_ELSE
         { $$ = newIf($2, $3, NULL, @1 + @3); }
-    | IF expr block ELSE expr_stmt
+    | IF expr body ELSE expr_stmt
         { $$ = newIf($2, $3, $5, @1 + @5); }
-    
-    | IF expr COLON expr_stmt %prec LOWER_THAN_ELSE
-        { $$ = newIf($2, $4, NULL, @1 + @4); }
-    | IF expr COLON expr_stmt ELSE COLON expr_stmt
-        { $$ = newIf($2, $4, $7, @1 + @7); }
 ;
 
 recursive_type:
@@ -181,4 +178,12 @@ recursive_type:
             $$ = new SA::Type(PTR, firstPtr);
         }
     }
+;
+
+
+body:
+    block
+    { $$ = $1; }
+    | COLON expr_stmt
+    { $$ = $2; }
 ;

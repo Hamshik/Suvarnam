@@ -8,9 +8,42 @@
 #include "utils/error_handler/error.h"
 #include <cctype>
 #include <cstddef>
+#include <string>
 #include <string.h>
 
 extern ASTNode *root;
+
+namespace {
+
+bool sameBranchType(const SA::Type *left, const SA::Type *right) {
+  if (left == right)
+    return true;
+  if (!left || !right || left->kind != right->kind)
+    return false;
+  if (left->kind == SA::USER_DEFINED) {
+    return left->objType && right->objType &&
+           *left->objType == *right->objType &&
+           sameBranchType(left->inner, right->inner);
+  }
+  if (left->base != right->base)
+    return false;
+  if ((left->base == LIST || left->base == PTR) &&
+      left->size != right->size)
+    return false;
+  return sameBranchType(left->inner, right->inner);
+}
+
+const SemanticTypeState *findTypeState(
+    const std::vector<SemanticTypeState> &states,
+    const SemanticSymbolRecord *symbol) {
+  for (const SemanticTypeState &state : states) {
+    if (state.symbol == symbol)
+      return &state;
+  }
+  return nullptr;
+}
+
+} // namespace
 
 void Semantic::main(ASTNode *root) {
   if (!root)
@@ -90,7 +123,7 @@ SA::Type *Semantic::checkExprImpl(ASTNode *n, SA::Type *&type) {
       return nullptr;
 
     case TYPE_MISMATCH:
-      if (!nonStaticType || n->type->base != ANY)
+      if (!emitDesugaredSource || !symbol || !symbol->isAny)
         panic(n->loc, SEM_OTHER_ERROR,
               logf_msg("variable type mismatch: %s", n->var));
       else
@@ -128,14 +161,51 @@ SA::Type *Semantic::checkExprImpl(ASTNode *n, SA::Type *&type) {
   case AST_IF: {
     SA::Type *ct = checkExpr(n->ifnode.cond);
     if (ct && !ct->isPoisonTy() && ct->kind == SA::PRIMITIVE &&
-        ct->base != BOOL) {
+        ct->base != BOOL &&
+        !(emitDesugaredSource && ct->base == ANY)) {
       panic(n->loc, SEM_OTHER_ERROR, "if condition must be boolean");
       n->ifnode.cond->type = SA::Type::poison();
     }
 
+    const std::vector<SemanticTypeState> before = ctx->sym.snapshotTypes();
+    ctx->sym.push();
     checkExpr(n->ifnode.thenBranch);
+    ctx->sym.pop();
+    const std::vector<SemanticTypeState> thenTypes = ctx->sym.snapshotTypes();
+
+    ctx->sym.restoreTypes(before);
+    std::vector<SemanticTypeState> elseTypes = before;
     if (n->ifnode.elseBranch)
+    {
+      ctx->sym.push();
       checkExpr(n->ifnode.elseBranch);
+      ctx->sym.pop();
+      elseTypes = ctx->sym.snapshotTypes();
+    }
+
+    ctx->sym.restoreTypes(before);
+    for (const SemanticTypeState &initial : before) {
+      if (!initial.symbol || !initial.isAny)
+        continue;
+      const SemanticTypeState *thenState =
+          findTypeState(thenTypes, initial.symbol);
+      const SemanticTypeState *elseState =
+          findTypeState(elseTypes, initial.symbol);
+      if (!thenState || !elseState ||
+          sameBranchType(thenState->type, elseState->type)) {
+        if (thenState)
+          initial.symbol->type = thenState->type;
+        continue;
+      }
+
+      if (emitDesugaredSource) {
+        initial.symbol->type = new SA::Type(ANY, nullptr);
+      } else {
+        panic(n->loc, SEM_ASSIGN_TYPE_MISMATCH,
+              "variable has different types across if branches");
+        initial.symbol->type = SA::Type::poison();
+      }
+    }
 
     return nullptr;
   }

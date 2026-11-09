@@ -23,5 +23,5 @@ index_stmt:
 
 opt_list_size:
     /* empty */                 { $$ = static_cast<size_t>(0); } 
-    | SEMICOLON NUMBER          { $$ = (size_t)SA_parse_u128($2->literal.raw, NULL); }
+    | NUMBER                    { $$ = (size_t)SA_parse_u128($1->literal.raw, NULL); }
 ;

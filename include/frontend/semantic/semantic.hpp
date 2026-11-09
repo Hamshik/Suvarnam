@@ -15,6 +15,7 @@ extern size_t warn_no;
 extern bool isWarning;
 extern ASTNode *root;
 extern bool nonStaticType;
+extern bool emitDesugaredSource;
 
 class Semantic {
   bool globalVarAllowed = true;
@@ -35,6 +36,7 @@ class Semantic {
   void idxAssign(ASTNode *&, ASTNode *&, SA::Type *&);
 
   void typeError(ASTNode *, const char *);
+  bool hasUnresolvedAny(const ASTNode *) const;
   bool typesAreEqual(SA::Type *, SA::Type *);
 
   SA::Type *unop(ASTNode *, SA::Type *type = nullptr);

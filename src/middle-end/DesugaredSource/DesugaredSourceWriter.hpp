@@ -22,7 +22,8 @@ private:
   void character(char value);
   void indent(size_t level);
   void writeName(const char *name);
-  bool writeBlock(const HIRNode *node, size_t level);
+  bool writeBlock(const HIRNode *node, size_t level,
+                  const HIRNode *trailingStatement = nullptr);
   bool writeBlock(const std::vector<HIRNode *> &statements, size_t level);
   bool writeNumber(const HIRNode *node);
   bool writeExpression(const HIRNode *node);

@@ -14,6 +14,26 @@ SA::Type* Semantic::binop(ASTNode *n, SA::Type* type) {
     return n->type;
   }
 
+  if (emitDesugaredSource &&
+      (hasUnresolvedAny(n->bin.left) || hasUnresolvedAny(n->bin.right))) {
+    switch (n->bin.op) {
+    case OP_LT:
+    case OP_LE:
+    case OP_GT:
+    case OP_GE:
+    case OP_EQ:
+    case OP_NEQ:
+    case OP_AND:
+    case OP_OR:
+      n->type = new SA::Type(BOOL, nullptr);
+      break;
+    default:
+      n->type = new SA::Type(ANY, nullptr);
+      break;
+    }
+    return n->type;
+  }
+
   // 1. Numeric Literal Inference (Improved)
   if (n->bin.left->kind == AST_NUM && (!n->bin.left->type || n->bin.left->type->base == UNKNOWN)) {
       if (isNumeric(rt->base)) { n->bin.left->type = rt; lt = rt; }

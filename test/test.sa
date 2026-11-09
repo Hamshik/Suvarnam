@@ -1,13 +1,64 @@
-fn main() {
-    var mut human = "100";
-    human = 100;
-    var i = human * human;
-    anyTyped(100, "1000");
+fn i32 main() {
+    var mut any knownNumber = 100;
+    var i32 knownResult = knownNumber * 2;
+    var i32 variadicResult = firstValue(7, 9);
+
+    var mut any sameBranchType = 0;
+    if true {
+        sameBranchType = 1;
+    } else {
+        sameBranchType = 2;
+    }
+    var i32 sameBranchResult = sameBranchType + knownResult;
+
+    var mut any conflictingType = 1;
+    if true {
+        conflictingType = 2;
+    } else {
+        conflictingType = "two";
+    }
+    var unresolvedResult = conflictingType * conflictingType;
+
+    var i32[] values = [1, 2, 3];
+    var mut i32 total = 0;
+    for value in values {
+        total += value;
+    }
+
+    for index in 0..3 {
+        total += index;
+    }
+
+    var mut i32 whileCount = 0;
+    while whileCount < 2 {
+        whileCount++;
+    }
+
+    while whileCount < 4 : whileCount += 1 {
+        total = total + whileCount;
+    }
+
+    if total > 0 {
+        total = total + knownResult;
+    } else {
+        total = 0;
+    }
+
+    var bool comparisonResult = total >= variadicResult && total != 0;
+    var i32 bitwiseResult = (knownResult & 3) | (knownResult ^ 1);
+    var i32 unaryResult = -knownResult + +variadicResult;
+    var joined = "value: " + "test";
+    var Pair pair = Pair { left: 1, right: 2 };
+    var i32 memberResult = pair.left + pair.right;
+
     return 0;
 }
 
-fn anyTyped(var... params) {
-    var mut i = params[0];
-    i = i*i;
-    return i;
+struct Pair {
+    var i32 left;
+    var mut i32 right;
+}
+
+fn i32 firstValue(var i32 ...values) {
+    return values[0];
 }

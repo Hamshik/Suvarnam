@@ -29,6 +29,14 @@ SA::Type* Semantic::unop(ASTNode *n, SA::Type* type) {
     return n->type;
   }
 
+  if (emitDesugaredSource && hasUnresolvedAny(n->unop.operand) &&
+      n->unop.op != OP_ADDR && n->unop.op != OP_INC &&
+      n->unop.op != OP_DEC) {
+    n->type = n->unop.op == OP_NOT ? new SA::Type(BOOL, nullptr)
+                                   : new SA::Type(ANY, nullptr);
+    return n->type;
+  }
+
   switch (n->unop.op) {
   case OP_NOT:
     if (t->kind != SA::PRIMITIVE || t->base != BOOL) {

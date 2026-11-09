@@ -23,6 +23,20 @@ void die_allocation(const char *what) {
   std::exit(1);
 }
 
+SA::Type *cloneType(const SA::Type *type) {
+  if (!type)
+    return nullptr;
+  if (type->kind == SA::USER_DEFINED) {
+    if (!type->objType)
+      return nullptr;
+    return new SA::Type(type->objType, cloneType(type->inner));
+  }
+  auto *copy = new SA::Type(type->base, cloneType(type->inner));
+  copy->size = type->size;
+  copy->ismut = type->ismut;
+  return copy;
+}
+
 } // namespace
 
 SemanticScopeRecord *SemanticSymTable::top() {
@@ -59,6 +73,28 @@ SemanticSymbolRecord *SemanticSymTable::findSym(const char *name) {
   return nullptr;
 }
 
+std::vector<SemanticTypeState> SemanticSymTable::snapshotTypes() const {
+  std::vector<SemanticTypeState> snapshot;
+  for (SemanticScopeRecord *scope = scope_; scope; scope = scope->parent) {
+    snapshot.reserve(snapshot.size() + scope->symbols.size());
+    for (const auto &[name, symbol] : scope->symbols) {
+      (void)name;
+      snapshot.push_back(
+          {const_cast<SemanticSymbolRecord *>(&symbol), cloneType(symbol.type),
+           symbol.isAny});
+    }
+  }
+  return snapshot;
+}
+
+void SemanticSymTable::restoreTypes(
+    const std::vector<SemanticTypeState> &snapshot) {
+  for (const SemanticTypeState &state : snapshot) {
+    if (state.symbol)
+      state.symbol->type = cloneType(state.type);
+  }
+}
+
 SA::Type *SemanticSymTable::lookup(const char *name) {
   SemanticSymbolRecord *symbol = findSym(name);
   return symbol ? symbol->type : nullptr;
@@ -83,8 +119,9 @@ bool SemanticSymTable::declare(const char *name, bool *isglobal, SA::Type *type,
 
   it->second.type = type;
   it->second.isAny =
-      node && node->type && node->type->kind == SA::PRIMITIVE &&
-      node->type->base == ANY;
+      (type && type->kind == SA::PRIMITIVE && type->base == ANY) ||
+      (node && node->type && node->type->kind == SA::PRIMITIVE &&
+       node->type->base == ANY);
   it->second.max_type =
       type->kind == SA::PRIMITIVE ? type->base : UNKNOWN;
   it->second.last_maxed_type = UNKNOWN;
