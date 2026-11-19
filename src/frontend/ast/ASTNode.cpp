@@ -148,7 +148,9 @@ ASTNode *newFn(const char *name, SA::Param *params, int paramCount, SA::Type *re
     node->fn_def.params = params;
     node->fn_def.paramCount = paramCount;
     node->type = ret_type;
-    node->fn_def.body = body;
+    // if(body->kind != AST_BLOCK)
+    //     node->fn_def.body = null;
+     node->fn_def.body = body;
     node->type = ret_type; // The type of a function definition is its return type
     node->loc = loc;
     return node;

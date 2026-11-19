@@ -1,7 +1,6 @@
 #include "cmd-exec/cmd-exec.hpp"
 #include "parser/parser_helpers.h"
 #include "semantic/import.hpp"
-#include "semantic/semantic.hpp"
 #include "shared/structs.h"
 #include <stdlib.h>
 

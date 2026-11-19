@@ -25,7 +25,7 @@
 %type <node>  top_level_stmts block body ifStmt for_stmt for_iterable while_stmt import_stmt expr_stmts
 %type <node>  fn_def param param_tail return_stmt opt_args args list_stmt with_non_expr expr_stmt top_level_stmt index_stmt fn_block_t
 %type <node>  assign_expr import_list expr assignment program range structs fields field opt_field_default
-%type <node>  struct_init struct_init_fields struct_init_field
+%type <node>  struct_init struct_init_fields struct_init_field standAloneExpr
 %type <paramlist> opt_params params
 %type <type>  recursive_type
 %type <size>  opt_list_size
@@ -94,7 +94,6 @@ top_level_stmts:
 
 expr_stmt:
     assignment SEMICOLON         { $$ = $1; }
-    | with_non_expr SEMICOLON            { $$ = $1; }
     | block                     { $$ = $1; }
     | return_stmt SEMICOLON     { $$ = $1; }
     | LEX_ERROR SEMICOLON       { scanner.lexTakeErr(); $$ = null(ASTNode*); }
@@ -106,6 +105,7 @@ expr_stmt:
     | BREAK SEMICOLON           { $$ = newBreak(@1); }
     | assign_expr SEMICOLON       { $$ = $1; }
     | structs                   { $$ = $1; }
+    | standAloneExpr SEMICOLON  { $$ = $1; }
 ;
 
 import_list:
@@ -139,10 +139,16 @@ block:
 ;
 
 ifStmt:
-    IF expr body %prec LOWER_THAN_ELSE
+      IF LPAREN expr RPAREN expr_stmt %prec LOWER_THAN_ELSE
+        { $$ = newIf($3, $5, NULL, @1 + @3); }
+    | IF LPAREN expr RPAREN expr_stmt ELSE expr_stmt
+        { $$ = newIf($3, $5, $7, @1 + @5); }
+    
+    | IF expr body %prec LOWER_THAN_ELSE
         { $$ = newIf($2, $3, NULL, @1 + @3); }
     | IF expr body ELSE expr_stmt
         { $$ = newIf($2, $3, $5, @1 + @5); }
+
 ;
 
 recursive_type:
@@ -182,8 +188,6 @@ recursive_type:
 
 
 body:
-    block
-    { $$ = $1; }
-    | COLON expr_stmt
-    { $$ = $2; }
+    COLON expr_stmt { $$ = $2; }
+    | block           { $$ = $1; }
 ;

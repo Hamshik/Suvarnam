@@ -1,6 +1,8 @@
 assignment:
     /* Explicitly list IDENTIFIER for declarations to prevent shift/reduce ambiguity */
     VAR recursive_type IDENTIFIER ASSIGN expr {
+        if($2->kind == SA::PRIMITIVE && $2->base == ANY)
+            panic(@2, PARSE_SYNTAX, "Having 'any' type in immutable variable is illgal, since it never change its value nor types");
         ASTNode* id = $3;
         $$ = newAssign(id, $5, $2, false, @1 + @5, OP_ASSIGN);
         $$->assign.isDec = true;

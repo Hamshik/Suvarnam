@@ -71,15 +71,6 @@ IterableForLoop makeIterableLoop(HIRGenerator &generator, ASTNode *node) {
 }
 
 void initIterableLoop(HIRGenerator &generator, IterableForLoop &loop) {
-  HIRNode *iteratorDecl = new HIRNode(ASTKind::AST_ASSIGN);
-  iteratorDecl->assign.isDec = true;
-  iteratorDecl->assign.target = makeVar(loop.iteratorName.c_str(), loop.elementType);
-  iteratorDecl->assign.value =
-      generator.createLiteral((SA::Value){0}, loop.elementType, ASTKind::AST_NUM);
-  iteratorDecl->type = loop.elementType;
-  iteratorDecl->loc = loop.node->loc;
-  loop.rootBlock->blockStmts->push_back(iteratorDecl);
-
   if (loop.hasParamCount) {
     HIRNode *arrayCount =
         makeVar((loop.arrayName + "\003_count").c_str(), loop.indexType);
@@ -135,7 +126,7 @@ HIRNode *iterableBody(HIRGenerator &generator, IterableForLoop &loop) {
 
   HIRNode *iteratorUpdate = generator.createAssign(
       makeVar(loop.iteratorName.c_str(), loop.elementType), indexExpr,
-      OP_kind::OP_ASSIGN, false);
+      OP_kind::OP_ASSIGN, true);
   iteratorUpdate->loc = loop.node->loc;
   bodyBlock->blockStmts->push_back(iteratorUpdate);
   generator.flattenSeq(loop.node->fornode.body, bodyBlock->blockStmts);

@@ -43,25 +43,22 @@ expr:
     | NOT expr                  { $$ = newUnop($2, @1 + @2, OP_NOT); }
     | BITNOT expr               { $$ = newUnop($2, @1 + @2, OP_BITNOT); }
 
-    | IDENTIFIER INC %prec INC  { $$ = newUnop($1, @1, OP_INC); $$->isglobal = $1->isglobal;}
-    | IDENTIFIER DEC %prec INC  { $$ = newUnop($1, @1, OP_DEC); $$->isglobal = $1->isglobal; }
-    | expr DOT IDENTIFIER %prec DOT
-      {
-          $$ = newMember($1, $3->var, @1 + @3);
-          ast_free($3);
-      }
-
     | LPAREN expr RPAREN         { $$ = $2; }
-    | IDENTIFIER LPAREN opt_args RPAREN
-      {
-          $$ = newFnCall($1->var, $3, @1 + @4);
-          ast_free($1);
-      }
 
     | struct_init                { $$ = $1; }
     | list_stmt                  { $$ = $1; } 
     | index_stmt                 { $$ = $1; $$->isglobal = $1->isglobal;}
+    | standAloneExpr             { $$ = $1; }
+;
 
+standAloneExpr:
+      IDENTIFIER INC %prec INC  { $$ = newUnop($1, @1, OP_INC); $$->isglobal = $1->isglobal;}
+    | IDENTIFIER DEC %prec INC  { $$ = newUnop($1, @1, OP_DEC); $$->isglobal = $1->isglobal; }
+    | expr DOT IDENTIFIER %prec DOT
+    {
+      $$ = newMember($1, $3->var, @1 + @3);
+      ast_free($3);
+    }
     | expr ARROW IDENTIFIER {
         $$ = makeDerefMember($1, $3->var, 1, @1 + @3);
         ast_free($3);
@@ -74,4 +71,9 @@ expr:
         $$ = makeDerefMember($1, $3->var, 3, @1 + @3);
         ast_free($3);
     }
+    | IDENTIFIER LPAREN opt_args RPAREN
+      {
+          $$ = newFnCall($1->var, $3, @1 + @4);
+          ast_free($1);
+      }
 ;

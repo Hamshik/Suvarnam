@@ -19,21 +19,18 @@ static bool typesMatch(SA::Type *lhs, SA::Type *rhs) {
 
   while (l != nullptr && r != nullptr) {
     // 1. If base types differ (e.g., LIST vs I32) or are both numeric but different, they don't match
-    if (l->base != r->base)
-      return false;
+    if (l->base != r->base) return false;
 
     // 2. If they are both LISTs, check sizes (if fixed)
     if (l->base == LIST) {
-      if (l->size != r->size) {
-        return false;
-      }
+      if (l->size != r->size)  return false;
+
       // Move to the next dimension
       l = l->inner;
       r = r->inner;
-    } else {
+    } else 
       // They are both primitive types (I32, F32, etc.) and they match
       return true;
-    }
   }
 
   // If one reached nullptr before the other, dimensions don't match
@@ -42,10 +39,13 @@ static bool typesMatch(SA::Type *lhs, SA::Type *rhs) {
 
 SA::Type *Semantic::listHandle(ASTNode *n, SA::Type *target_type) {
   // 1. Guard: Ensure we are actually looking for a list
-  if (!target_type || target_type->base == UNKNOWN) {
+  if (!target_type ||
+      (target_type->kind == SA::PRIMITIVE &&
+       (target_type->base == UNKNOWN || target_type->base == ANY))) {
     target_type = new SA::Type(LIST, nullptr);
-  } else if (target_type->base != LIST) {
-     return nullptr;
+  } else if (target_type->kind != SA::PRIMITIVE ||
+             target_type->base != LIST) {
+    return nullptr;
   }
 
   ASTNode *curr = n->list.elements;
@@ -60,9 +60,13 @@ SA::Type *Semantic::listHandle(ASTNode *n, SA::Type *target_type) {
     // Validate the element against the inner type
     // If element is a list, checkExpr calls list_handle (AST recursion)
     // If element is an i32, checkExpr handles it directly.
-    if (!expected_inner) {
+    if (!expected_inner ||
+          (expected_inner->kind == SA::PRIMITIVE &&
+           (expected_inner->base == UNKNOWN || expected_inner->base == ANY))) {
         // Auto-inference: use the first element to define the list's inner type
         expected_inner = checkExpr(element);
+        if (!expected_inner)
+          return nullptr;
         target_type->inner = expected_inner;
     }
 
@@ -78,24 +82,12 @@ SA::Type *Semantic::listHandle(ASTNode *n, SA::Type *target_type) {
     actual_count++;
 
     // Move to next sequence node or stop
-    if (curr->kind == AST_SEQ && curr->seq.b) {
-      curr = curr->seq.b;
-    } else {
-      break;
-    }
+    if (curr->kind == AST_SEQ && curr->seq.b) curr = curr->seq.b;
+    else break;
   }
 
-  // 3. Validation of counts and sizes
-  if (actual_count == 0) {
-    panic(n->loc, SEM_OTHER_ERROR,
-          "Lists must contain at least one element");
-    return nullptr;
-  }
-
-  // 🔹 Strict Size Locking: If the target type is unsized, lock it to the actual count.
-  if (target_type->size == 0) {
+  if (target_type->size == 0) 
     target_type->size = actual_count;
-  }
 
   // If the type has a fixed size (e.g., list[i32; 3]), check it
   if (target_type->size != 0 && target_type->size != actual_count) {
@@ -132,23 +124,23 @@ SA::Type *Semantic::idxHandle(ASTNode *n) {
     // 1. Get the expression node for this specific dimension
     ASTNode *expr = current_idx->exprNode;
 
-    if (!expr) {
+    if (!expr) 
       // This is where you were seeing NULL because you were
       // looking in the wrong struct member previously.
       panic(n->loc, INTERNAL_ERROR, "Expr node is null");
-    }
+    
 
     // 2. Check the expression type. 
     // We MUST NOT pass the list's inner type here, as indices are always integers.
     // If it's a literal number with no type yet, default it to I32.
-    if (expr->kind == AST_NUM && (!expr->type || expr->type->base == UNKNOWN)) {
-        expr->type = new SA::Type(I32, nullptr);
-    }
+    if (expr->kind == AST_NUM && (!expr->type || expr->type->base == UNKNOWN)) 
+      expr->type = new SA::Type(I32, nullptr);
+    
     SA::Type *idx_type = checkExpr(expr);
 
-    if (!idx_type || (idx_type->base != I32 && idx_type->base != I64)) {
+    if (!idx_type || (idx_type->base != I32 && idx_type->base != I64)) 
       panic( expr->loc, SEM_INDEX_NOT_INT, NULL);
-    }
+    
 
     // 3. Move to the next dimension in the linked list
     current_idx = current_idx->next;
@@ -156,9 +148,9 @@ SA::Type *Semantic::idxHandle(ASTNode *n) {
   }
 
   // 3. Resolve the element type
-  if (!target_base) {
-      return nullptr;
-  }
+  if (!target_base) 
+    return nullptr;
+  
   n->type = target_base;
   return n->type;
 }
@@ -183,9 +175,9 @@ SA::Type* get_AST_ret(SA::Type *t, size_t depth){
   if(!t) return nullptr;
 
   if(depth > 0)
-    while(t->inner && (t->base == PTR || t->base == LIST) && depth-- > 0){
+    while(t->inner && (t->base == PTR || t->base == LIST) && depth-- > 0)
       t = t->inner;
-    }
+    
 
   return t;
 
@@ -207,9 +199,9 @@ void Semantic::idxAssign(ASTNode *&n, ASTNode *&lhs, SA::Type *&final_type) {
     // to avoid accidental shadowing by immutable locals of the same name.
     base->ismut = n->isglobal ? ctx->sym.getTopScope(base->var)->is_mutable
         : ctx->sym.isMut(base->var);
-    if (!base->ismut) {
+    if (!base->ismut) 
       panic(n->loc, SEM_ASSIGN_IMMUTABLE, base->var);
-    }
+    
   }
 
   // 3. Dimensions Check

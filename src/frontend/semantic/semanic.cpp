@@ -8,7 +8,6 @@
 #include "utils/error_handler/error.h"
 #include <cctype>
 #include <cstddef>
-#include <string>
 #include <string.h>
 
 extern ASTNode *root;
@@ -59,6 +58,7 @@ void Semantic::main(ASTNode *root) {
   ctx->sym.push();
 
   checkExpr(root);
+
   ctx->sym.pop();
   --checkDepth;
 }
@@ -123,7 +123,7 @@ SA::Type *Semantic::checkExprImpl(ASTNode *n, SA::Type *&type) {
       return nullptr;
 
     case TYPE_MISMATCH:
-      if (!emitDesugaredSource || !symbol || !symbol->isAny)
+      if (!nonStaticType || !symbol || !symbol->isAny)
         panic(n->loc, SEM_OTHER_ERROR,
               logf_msg("variable type mismatch: %s", n->var));
       else
@@ -161,8 +161,7 @@ SA::Type *Semantic::checkExprImpl(ASTNode *n, SA::Type *&type) {
   case AST_IF: {
     SA::Type *ct = checkExpr(n->ifnode.cond);
     if (ct && !ct->isPoisonTy() && ct->kind == SA::PRIMITIVE &&
-        ct->base != BOOL &&
-        !(emitDesugaredSource && ct->base == ANY)) {
+        ct->base != BOOL) {
       panic(n->loc, SEM_OTHER_ERROR, "if condition must be boolean");
       n->ifnode.cond->type = SA::Type::poison();
     }
@@ -198,13 +197,9 @@ SA::Type *Semantic::checkExprImpl(ASTNode *n, SA::Type *&type) {
         continue;
       }
 
-      if (emitDesugaredSource) {
-        initial.symbol->type = new SA::Type(ANY, nullptr);
-      } else {
-        panic(n->loc, SEM_ASSIGN_TYPE_MISMATCH,
-              "variable has different types across if branches");
-        initial.symbol->type = SA::Type::poison();
-      }
+      panic(n->loc, SEM_ASSIGN_TYPE_MISMATCH,
+            "variable has different types across if branches");
+      initial.symbol->type = SA::Type::poison();
     }
 
     return nullptr;

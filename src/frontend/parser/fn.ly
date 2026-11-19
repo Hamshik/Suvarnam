@@ -1,6 +1,6 @@
 fn_block_t:
     SEMICOLON                   { $$ = static_cast<ASTNode *>(nullptr); }
-    | block                     { $$ = $1; }
+    | expr_stmt                 { $$ = $1; }
 ;
 
 fn_def:

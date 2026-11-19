@@ -73,7 +73,7 @@ void Semantic::processDecl(ASTNode *n, SA::Type *&lhs_t, SA::Type *rhs_t) {
   const bool declaredAny =
       n->type && n->type->kind == SA::PRIMITIVE && n->type->base == ANY;
   n->isDynamic =
-      (nonStaticType || emitDesugaredSource) && n->type &&
+      nonStaticType && n->type &&
       n->type->kind == SA::PRIMITIVE &&
       n->type->base == ANY;
 
@@ -298,7 +298,7 @@ SA::Type *Semantic::assign(ASTNode *n, SA::Type *type) {
   const bool dynamicDeclaration =
       n->assign.isDec && n->isDynamic;
   const bool dynamicReassignment =
-      (nonStaticType || emitDesugaredSource) && !n->assign.isDec &&
+      nonStaticType && !n->assign.isDec &&
       n->assign.op == OP_ASSIGN && targetSymbol && targetSymbol->isAny;
 
   if (!dynamicDeclaration && !dynamicReassignment &&
