@@ -54,6 +54,19 @@ bool Semantic::typesAreEqual(SA::Type *a, SA::Type *b) {
   return true;
 }
 
+bool Semantic::typesAreCompatible(SA::Type *actual, SA::Type *expected) {
+  if (typesAreEqual(actual, expected))
+    return true;
+  if (!actual || !expected || actual->kind != expected->kind ||
+      actual->kind != SA::PRIMITIVE || actual->base != LIST ||
+      expected->base != LIST)
+    return false;
+
+  if (expected->size != 0 && actual->size != expected->size)
+    return false;
+  return typesAreCompatible(actual->inner, expected->inner);
+}
+
 void Semantic::checkErr() {
   if (isError && isWarning) {
     fprintf(stderr, SA_BOLD SA_RED "ERROR: " SA_RESET);

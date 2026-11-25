@@ -1,8 +1,24 @@
 #include "DesugaredSourceWriter.hpp"
+#include "SymbolTable/BuiltinRegistry.hpp"
 
 #include <ostream>
 
 namespace DesugaredSource {
+
+static bool getBuiltinVarargFixedCount(const char *name, size_t &fixedCount) {
+  BuiltinFunction *builtin = BuiltinRegistry::instance().lookup(name);
+  if (!builtin)
+    return false;
+
+  for (const SA::Param *param : builtin->param_types) {
+    if (!param || !param->type)
+      return false;
+    if (param->type->base == UNKNOWN)
+      return true;
+    ++fixedCount;
+  }
+  return false;
+}
 
 void Writer::writeName(const char *name) {
   if (!name)
@@ -62,11 +78,30 @@ bool Writer::writeExpression(const HIRNode *node) {
       return false;
     writeName(node->call.targetFb);
     character('(');
-    for (size_t i = 0; i < node->call.args->size(); ++i) {
-      if (i)
-        text(", ");
-      if (!writeExpression((*node->call.args)[i]))
-        return false;
+    {
+      size_t fixedParamCount = 0;
+      const bool isBuiltinVararg =
+          getBuiltinVarargFixedCount(node->call.targetFb, fixedParamCount);
+      bool firstArg = true;
+      auto writeArg = [&](const HIRNode *arg) {
+        if (!firstArg)
+          text(", ");
+        firstArg = false;
+        return writeExpression(arg);
+      };
+
+      for (size_t i = 0; i < node->call.args->size(); ++i) {
+        const HIRNode *arg = (*node->call.args)[i];
+        if (isBuiltinVararg && i == fixedParamCount && arg &&
+            arg->kind == AST_LIST && arg->element.elements) {
+          for (const HIRNode *packedArg : *arg->element.elements) {
+            if (!writeArg(packedArg))
+              return false;
+          }
+        } else if (!writeArg(arg)) {
+          return false;
+        }
+      }
     }
     character(')');
     return true;

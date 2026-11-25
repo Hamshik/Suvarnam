@@ -2,7 +2,7 @@ assignment:
     /* Explicitly list IDENTIFIER for declarations to prevent shift/reduce ambiguity */
     VAR recursive_type IDENTIFIER ASSIGN expr {
         if($2->kind == SA::PRIMITIVE && $2->base == ANY)
-            panic(@2, PARSE_SYNTAX, "Having 'any' type in immutable variable is illgal, since it never change its value nor types");
+            panic(@2, PARSE_SYNTAX, "Having 'any' type in immutable variable is illgal, since it never changes its value nor types");
         ASTNode* id = $3;
         $$ = newAssign(id, $5, $2, false, @1 + @5, OP_ASSIGN);
         $$->assign.isDec = true;
@@ -37,10 +37,10 @@ assign_op:
 ;
 
 assign_expr:
-    expr assign_op with_non_expr {
+    expr assign_op expr {
         OP_kind_t op = $2;
         if ($1->kind == AST_INDEX)
             $1->index.islhs = true;
         $$ = newAssign($1, $3, nullptr, false, @1 + @3, op);
-    }
+    }  %prec ASSIGN 
 ;

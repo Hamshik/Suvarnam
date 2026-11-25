@@ -190,7 +190,8 @@ SA::Type* Semantic::call(ASTNode *n) {
 
       SA::Type *at = checkExpr(cur, want);
       if (!at) return nullptr;
-      if (at && want && want->base != UNKNOWN && !typesAreEqual(at, want)) {
+      if (at && want && want->base != UNKNOWN &&
+          !typesAreCompatible(at, want)) {
         panic(n->loc, SEM_ARG_TYPE_MISMATCH, n->call.name);
         return nullptr;
       }
@@ -221,7 +222,8 @@ SA::Type* Semantic::call(ASTNode *n) {
       SA::Type *want_ref = want;
       at = checkExpr(cur, want_ref);
       if (!at) return nullptr;
-      if (at && want && want->base != UNKNOWN && !typesAreEqual(at, want)) {
+      if (at && want && want->base != UNKNOWN &&
+          !typesAreCompatible(at, want)) {
         panic(n->loc, SEM_ARG_TYPE_MISMATCH, n->call.name);
         return nullptr;
       }
@@ -241,7 +243,8 @@ SA::Type* Semantic::call(ASTNode *n) {
       SA::Type *want_ref = last_want;
       at = checkExpr(cur, want_ref);
       if (!at) return nullptr;
-      if (at && last_want && last_want->base != UNKNOWN && !typesAreEqual(at, last_want)) {
+      if (at && last_want && last_want->base != UNKNOWN &&
+          !typesAreCompatible(at, last_want)) {
         panic(n->loc, SEM_ARG_TYPE_MISMATCH, n->call.name);
         return nullptr;
       }
@@ -275,7 +278,8 @@ SA::Type* Semantic::call(ASTNode *n) {
         forceNumericType(cur, want->base);
       SA::Type *at = checkExpr(cur, want);
       if (!at) return nullptr;
-      if (at && want && want->base != UNKNOWN && !typesAreEqual(at, want)) {
+      if (at && want && want->base != UNKNOWN &&
+          !typesAreCompatible(at, want)) {
         panic(n->loc, SEM_ARG_TYPE_MISMATCH, n->call.name);
         return nullptr;
       }
@@ -316,7 +320,7 @@ SA::Type* Semantic::call(ASTNode *n) {
       SA::Type *at2 = checkExpr(cur, want);
       if (!at2) return nullptr;
       if (at2 && want && want->base != UNKNOWN && want->base != ANY &&
-          !typesAreEqual(at2, want)) {
+          !typesAreCompatible(at2, want)) {
         panic(n->loc, SEM_ARG_TYPE_MISMATCH, n->call.name);
         return nullptr;
       }

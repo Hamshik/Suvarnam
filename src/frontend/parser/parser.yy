@@ -22,8 +22,8 @@
 %token <node> IDENTIFIER NUMBER STRING_LITERAL BOOL_LITERAL CHAR_LITERAL
 
 %type <op> assign_op
-%type <node>  top_level_stmts block body ifStmt for_stmt for_iterable while_stmt import_stmt expr_stmts
-%type <node>  fn_def param param_tail return_stmt opt_args args list_stmt with_non_expr expr_stmt top_level_stmt index_stmt fn_block_t
+%type <node>  top_level_stmts block body ifStmt for_stmt for_iterable while_stmt whileAssign import_stmt expr_stmts
+%type <node>  fn_def param param_tail return_stmt opt_args args list_stmt expr_stmt top_level_stmt index_stmt fn_block_t
 %type <node>  assign_expr import_list expr assignment program range structs fields field opt_field_default
 %type <node>  struct_init struct_init_fields struct_init_field standAloneExpr
 %type <paramlist> opt_params params

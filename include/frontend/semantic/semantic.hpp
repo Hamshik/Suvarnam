@@ -37,6 +37,7 @@ class Semantic {
 
   void typeError(ASTNode *, const char *);
   bool typesAreEqual(SA::Type *, SA::Type *);
+  bool typesAreCompatible(SA::Type *actual, SA::Type *expected);
 
   SA::Type *unop(ASTNode *, SA::Type *type = nullptr);
   ASTNode* getBaseVar(const char*);

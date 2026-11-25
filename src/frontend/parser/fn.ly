@@ -54,35 +54,22 @@ params:
 
 param:
     VAR MUT recursive_type param_tail {
-        if ($3->kind == SA::PRIMITIVE && $3->base == ANY &&
-            !emitDesugaredSource)
+        if ($3->kind == SA::PRIMITIVE && $3->base == ANY)
             panic(@1 + @4, PARSE_SYNTAX,
-                  "any function parameters require --emit-desugared");
+                  "function parameters with 'any' type is not allowed, use generics instead");
         $4->type = $4->is_variadic ? new SA::Type(LIST, $3) : $3;
         $4->type->ismut = true;
         $4->ismut = true;
         $$ = $4;
     }
     | VAR recursive_type param_tail {
-        if ($2->kind == SA::PRIMITIVE && $2->base == ANY &&
-            !emitDesugaredSource)
+        if ($2->kind == SA::PRIMITIVE && $2->base == ANY)
             panic(@1 + @3, PARSE_SYNTAX,
-                  "any function parameters require --emit-desugared");
+                  "function parameters with 'any' type is not allowed, use generics instead");
         $3->type = $3->is_variadic ? new SA::Type(LIST, $2) : $2;
         $3->type->ismut = false;
         $3->ismut = false;
         $$ = $3;
-    }
-    | VAR param_tail {
-        if (!emitDesugaredSource)
-            panic(@1 + @2, PARSE_SYNTAX,
-                  "untyped function parameters require --emit-desugared");
-
-        $2->type = $2->is_variadic ? new SA::Type(LIST, new SA::Type(ANY, nullptr)) :
-            new SA::Type(ANY, nullptr);
-        $2->type->ismut = false;
-        $2->ismut = false;
-        $$ = $2;
     }
 ;
 
@@ -98,7 +85,7 @@ param_tail:
 ;
 
 return_stmt:
-    RETURN with_non_expr                 { $$ = newRet($2, @1 + @2); }
+    RETURN expr                 { $$ = newRet($2, @1 + @2); }
     | RETURN                    { $$ = newRet(nullptr, @1); }
 ;
 
@@ -108,6 +95,6 @@ opt_args:
 ;
 
 args:
-    with_non_expr                        { $$ = $1; }
-    | with_non_expr COMMA args           { $$ = newSeq($1, $3); }
+    expr                                 { $$ = $1; }
+    | expr COMMA args           { $$ = newSeq($1, $3); }
 ;

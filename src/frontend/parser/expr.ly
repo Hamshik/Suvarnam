@@ -1,8 +1,3 @@
-with_non_expr:
-    range                      { $$ = $1; }
-    | expr                     { $$ = $1; } %prec ASSIGN
-;
-
 expr:
     NUMBER                      { $$ = $1; }
     | IDENTIFIER                { $$ = $1; }

@@ -10,9 +10,9 @@ range:
 ;
 
 for_iterable:
-    IDENTIFIER                          { $$ = $1; } %prec FOR_ITERABLE_END
-    | list_stmt                         { $$ = $1; }
-    | range                             { $$ = $1; }
+    IDENTIFIER                           { $$ = $1; } %prec FOR_ITERABLE_END
+    | list_stmt
+    | range
     | IDENTIFIER LPAREN opt_args RPAREN
     {
         $$ = newFnCall($1->var, $3, @1 + @4);
@@ -34,13 +34,16 @@ for_stmt:
     }
 ;
 
+whileAssign:
+    standAloneExpr
+    | assign_expr
+;
+
 while_stmt:
     WHILE expr body
         { $$ = newWhilw($2, $3, NULL, @1 + @3); }
-    | WHILE expr COLON assign_expr body
+    | WHILE expr COLON whileAssign body
     {
-        if($4->assign.op == OP_ASSIGN)
-            panic(@4, PARSE_SYNTAX, "with_non_expr expects operational assignment not just plain assign");
         $$ = newWhilw($2, $5, $4, @1 + @5);
     }
 ;

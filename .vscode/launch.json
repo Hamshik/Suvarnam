@@ -15,8 +15,8 @@
                 "-o",
                 "${workspaceFolder}/output/test",
                 "--non-static-mod",
-                "--emit-ir",
-                "${workspaceFolder}/output/test.ll"
+                "--emit-desugared",
+                "${workspaceFolder}/output/test.sa"
 
             ],
             "cwd": "${workspaceFolder}",
