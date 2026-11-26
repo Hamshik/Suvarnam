@@ -1,5 +1,5 @@
 #include "codegen/codegen.hpp"
-#include <llvm-22/llvm/IR/Instructions.h>
+#include <llvm/IR/Instructions.h>
 #include "semantic/semantic.hpp"
 
 llvm::Value *IRGen::generateStructFieldPtr(HIRNode *member,
@@ -144,9 +144,6 @@ llvm::Value *IRGen::emitAssign(HIRNode *n, Codegen::Scope &locals) {
   if (valueType && valueType->kind == SA::PRIMITIVE &&
       valueType->base == STRINGS)
     result = strHelper.toI8Ptr(result);
-  else if (valueType && valueType->kind == SA::PRIMITIVE &&
-           valueType->base == LIST)
-    result = b.CreateBitCast(result, irType(LIST));
   else if (valueType && n->assign.value && n->assign.value->type &&
            valueType->kind == SA::PRIMITIVE &&
            n->assign.value->type->kind == SA::PRIMITIVE &&
@@ -220,8 +217,12 @@ void IRGen::emitGlobVar(HIRNode *n) {
                                           dataName);
         auto *ptrInit = ConstantExpr::getBitCast(dataGV,
                                                 PointerType::getUnqual(ctx));
-        new GlobalVariable(mod, PointerType::getUnqual(ctx), false, linkage,
-                           ptrInit, name);
+        llvm::Constant *lengthInit = ConstantInt::get(
+            llvm::Type::getInt64Ty(ctx), cast<llvm::ArrayType>(arrayTy)->getNumElements());
+        llvm::Constant *fields[] = {ptrInit, lengthInit};
+        auto *listInit = ConstantStruct::get(sliceType(), fields);
+        new GlobalVariable(mod, sliceType(), false, linkage, listInit,
+                           name);
         continue;
       }
 

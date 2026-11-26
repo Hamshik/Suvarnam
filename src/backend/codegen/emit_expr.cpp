@@ -1,6 +1,6 @@
 #include "SymbolTable/SymbolTableInternal.hpp"
 #include "codegen/codegen.hpp"
-#include <llvm-22/llvm/IR/Value.h>
+#include <llvm/IR/Value.h>
 #include <vector>
 
 struct LoopContext {

@@ -159,8 +159,6 @@ HIRNode *HIRGenerator::createFnDef(ASTNode *node) {
     currParams.insert(p->name);
     if (p->is_variadic && p->type && p->type->base == LIST) {
       p->type->size = 0;
-      std::string count_name = std::string(p->name) + "\003_count";
-      currParams.insert(count_name);
       fn_node->fn.params->push_back(p);
     } else {
       fn_node->fn.params->push_back(p);

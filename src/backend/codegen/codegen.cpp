@@ -3,8 +3,8 @@
 #include "shared/enums.h"
 #include "utils/colors.h"
 #include <iostream>
-#include <llvm-22/llvm/IR/LLVMContext.h>
-#include <llvm-22/llvm/IR/Module.h>
+#include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/Module.h>
 #include <string>
 #include <unordered_set>
 #include <vector>

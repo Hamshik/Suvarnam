@@ -186,6 +186,9 @@ HIRNode *HIRGenerator::generate(ASTNode *node) {
     flattenSeq(node->list.elements, elements->element.elements);
 
     elements->type = node->type;
+    if (elements->type)
+      elements->type->size = elements->element.elements->size();
+    elements->isSlice = true;
     elements->loc = node->loc;
     return elements;
   }

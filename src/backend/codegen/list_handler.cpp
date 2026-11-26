@@ -3,12 +3,37 @@
 #include "shared/enums.h"
 #include <cstddef>
 #include <iostream>
-#include <llvm-22/llvm/IR/DerivedTypes.h>
-#include <llvm-22/llvm/Support/Alignment.h>
+#include <llvm/IR/DerivedTypes.h>
+#include <llvm/Support/Alignment.h>
 
-// Forward declare the helper
-SA::Type *get_AST_ret(SA::Type *t, size_t depth);
-static size_t idx = 0;
+static llvm::Value *checkedListElementPtr(IRGen &ir, llvm::Value *data,
+                                          llvm::Value *length,
+                                          llvm::Value *index,
+                                          llvm::Type *elementType) {
+  auto &builder = ir.b;
+  auto &context = ir.ctx;
+  auto &module = ir.mod;
+
+  llvm::Value *nonnegative =
+      builder.CreateICmpSGE(index, builder.getInt64(0), "index.nonnegative");
+  llvm::Value *inRange =
+      builder.CreateICmpULT(index, length, "index.inrange");
+  llvm::Value *valid = builder.CreateAnd(nonnegative, inRange, "index.valid");
+
+  llvm::Function *function = builder.GetInsertBlock()->getParent();
+  auto *accessBlock = llvm::BasicBlock::Create(context, "list.index.ok", function);
+  auto *trapBlock = llvm::BasicBlock::Create(context, "list.index.fail", function);
+  builder.CreateCondBr(valid, accessBlock, trapBlock);
+
+  builder.SetInsertPoint(trapBlock);
+  auto trapType = llvm::FunctionType::get(builder.getVoidTy(), false);
+  auto trap = module.getOrInsertFunction("llvm.trap", trapType);
+  builder.CreateCall(trap);
+  builder.CreateUnreachable();
+
+  builder.SetInsertPoint(accessBlock);
+  return builder.CreateInBoundsGEP(elementType, data, index, "list.element");
+}
 
 FunctionCallee FnHelper::getBuiltinFn(const char *name) {
   BuiltinFunction *builtin = BuiltinRegistry::instance().lookup(name);
@@ -56,99 +81,108 @@ llvm::Value *IRGen::generateList(HIRNode *n, Codegen::Scope &locals) {
     return nullptr;
   }
 
-  llvm::Type *elemType = irType(n->type->inner->base);
+  llvm::Type *elemType = irType(n->type->inner);
 
-  if (!elemType) {
+  if (!elemType || elemType->isVoidTy()) {
     std::cerr << "Warning: invalid element type at line "
               << (size_t)n->loc.firstLn << ", col " << (size_t)n->loc.firstCol
               << std::endl;
     return nullptr;
   }
 
-  ArrayType *arrayType = ArrayType::get(elemType, n->type->size);
-  Function *currentFn = b.GetInsertBlock()->getParent();
-
-  llvm::Value *allocatedPtr = nullptr;
-  llvm::Value *typedPtr = nullptr;
-
   const size_t elementCount =
       n->element.elements ? n->element.elements->size() : 0;
+  ArrayType *arrayType = ArrayType::get(elemType, elementCount);
+  Function *currentFn = b.GetInsertBlock()->getParent();
+
+  llvm::Value *dataPtr = nullptr;
+
   if (elementCount > 0) {
     BasicBlock *entryBB = &currentFn->getEntryBlock();
     IRBuilder<> allocaBuilder(entryBB, entryBB->begin());
-    allocatedPtr =
+    llvm::Value *arrayStorage =
         allocaBuilder.CreateAlloca(arrayType, nullptr, "list_stack_alloc");
-    typedPtr = b.CreateInBoundsGEP(arrayType, allocatedPtr,
-                                   {b.getInt32(0), b.getInt32(0)});
+    dataPtr = b.CreateInBoundsGEP(arrayType, arrayStorage,
+                                  {b.getInt32(0), b.getInt32(0)});
   } else {
-    typedPtr = llvm::ConstantPointerNull::get(PointerType::getUnqual(ctx));
+    dataPtr = llvm::ConstantPointerNull::get(PointerType::getUnqual(ctx));
   }
 
   for (uint32_t index = 0; index < elementCount; ++index) {
     HIRNode *exprNode = (*n->element.elements)[index];
     llvm::Value *elementVal = emitExpr(exprNode, locals);
+    if (!elementVal)
+      return nullptr;
 
-    // Calculate element address using typedPtr
     llvm::Value *elementAddr =
-        b.CreateInBoundsGEP(elemType, typedPtr, b.getInt32(index));
+        b.CreateInBoundsGEP(elemType, dataPtr, b.getInt32(index));
     b.CreateStore(elementVal, elementAddr);
   }
 
-  if (n->isSlice) {
-    llvm::Value *slice = llvm::UndefValue::get(sliceType());
-    slice = b.CreateInsertValue(slice, typedPtr, 0, "slice.data");
-    slice = b.CreateInsertValue(slice, b.getInt64(elementCount), 1,
-                                "slice.length");
-    return slice;
-  }
-
-  // Return as generic pointer (i8*)
-  return b.CreateBitCast(typedPtr, irType(LIST));
+  llvm::Value *slice = llvm::UndefValue::get(sliceType());
+  slice = b.CreateInsertValue(slice, dataPtr, 0, "list.data");
+  slice = b.CreateInsertValue(slice, b.getInt64(elementCount), 1,
+                              "list.length");
+  return slice;
 }
 
 llvm::Value *IRGen::generateListElementPtr(HIRNode *n, Codegen::Scope &locals) {
-  llvm::Value *currentPtr = emitExpr(n->index.target, locals);
+  llvm::Value *currentValue = emitExpr(n->index.target, locals);
+  if (!currentValue)
+    return nullptr;
   SA::Type *current_type_data = n->index.target->type; // semantic type metadata
+  if (!n->index.idx)
+    return nullptr;
   std::vector<HIRNode *> &indices = *n->index.idx;
 
-  if (current_type_data && current_type_data->base == PTR) {
-    currentPtr =
-        b.CreateLoad(PointerType::getUnqual(ctx), currentPtr, "implicit_load");
+  if (current_type_data && current_type_data->kind == SA::PRIMITIVE &&
+      current_type_data->base == PTR) {
+    currentValue = b.CreateLoad(PointerType::getUnqual(ctx), currentValue,
+                                "implicit_load");
     current_type_data = current_type_data->inner;
   }
 
   for (size_t i = 0; i < indices.size(); ++i) {
     HIRNode *idx_expr_node = indices[i];
-    if (!current_type_data || current_type_data->base != LIST) {
+    if (!current_type_data || current_type_data->kind != SA::PRIMITIVE ||
+        current_type_data->base != LIST) {
       std::cerr << "Codegen Error: Attempted to index a non-list type!"
                 << std::endl;
       return nullptr;
     }
 
     llvm::Value *indexVal = emitExpr(idx_expr_node, locals);
+    indexVal = b.CreateSExtOrTrunc(indexVal, b.getInt64Ty(), "index.i64");
 
     SA::Type *inner_type = current_type_data->inner;
-    llvm::Type *llvmElemType = irType(inner_type->base);
+    if (!inner_type) {
+      std::cerr << "Codegen Error: List element type is missing.\n";
+      return nullptr;
+    }
+    llvm::Type *llvmElemType = irType(inner_type);
+    if (!llvmElemType)
+      return nullptr;
 
-    llvm::Value *typedPtr =
-        b.CreateBitCast(currentPtr, PointerType::getUnqual(ctx));
-    currentPtr =
-        b.CreateInBoundsGEP(llvmElemType, typedPtr, indexVal, "ptr_step");
+    llvm::Value *data = b.CreateExtractValue(currentValue, 0, "list.data");
+    llvm::Value *length = b.CreateExtractValue(currentValue, 1, "list.length");
+    llvm::Value *elementPtr = checkedListElementPtr(
+        *this, data, length, indexVal, llvmElemType);
 
     if (i < indices.size() - 1) {
-      if (inner_type->base != LIST) {
+      if (inner_type->kind != SA::PRIMITIVE || inner_type->base != LIST) {
         std::cerr << "Codegen Error: Too many indices for list depth."
                   << std::endl;
         return nullptr;
       }
 
-      currentPtr = b.CreateLoad(PointerType::getUnqual(ctx), currentPtr,
-                                "sub_list_load");
+      currentValue = b.CreateLoad(irType(LIST), elementPtr, "sub_list_load");
       current_type_data = inner_type;
+    } else {
+      currentValue = elementPtr;
     }
   }
 
-  return currentPtr;
+  return currentValue;
 }
 
 llvm::Value *IRGen::generateListAccess(HIRNode *n, Codegen::Scope &locals) {
@@ -156,9 +190,8 @@ llvm::Value *IRGen::generateListAccess(HIRNode *n, Codegen::Scope &locals) {
   if (!elementAddr)
     return nullptr;
 
-  llvm::Type *elementType = irType(n->type->base);
-
-  if (elementType->isVoidTy()) {
+  llvm::Type *elementType = n->type ? irType(n->type) : nullptr;
+  if (!elementType || elementType->isVoidTy()) {
     fprintf(stderr, "Error: Invalid element type at line %zu\n",
             n->loc.firstLn);
     return nullptr;

@@ -20,7 +20,6 @@ struct IterableForLoop {
   std::string arrayName;
   SA::Type *indexType;
   SA::Type *elementType;
-  bool hasParamCount;
 };
 
 struct RangeForLoop {
@@ -55,15 +54,50 @@ HIRNode *makeWhileNode(HIRGenerator &generator, ASTNode *node) {
   return whileNode;
 }
 
+HIRNode *makeAssignment(HIRGenerator &generator, HIRNode *target,
+                        HIRNode *value, bool isDeclaration,
+                        SA::Location loc) {
+  HIRNode *assignment = generator.createAssign(
+      target, value, OP_kind::OP_ASSIGN, isDeclaration);
+  assignment->loc = loc;
+  return assignment;
+}
+
 HIRNode *makeLoopStep(HIRGenerator &generator, const char *iteratorName,
                       SA::Type *iteratorType, HIRNode *step,
                       SA::Location loc) {
   HIRNode *increment = generator.createBinOp(
       OP_kind::OP_ADD, makeVar(iteratorName, iteratorType), step, iteratorType);
-  HIRNode *assignment = generator.createAssign(
-      makeVar(iteratorName, iteratorType), increment, OP_kind::OP_ASSIGN, false);
-  assignment->loc = loc;
-  return assignment;
+  return makeAssignment(generator, makeVar(iteratorName, iteratorType),
+                        increment, false, loc);
+}
+
+void appendAssignment(HIRGenerator &generator, HIRNode *block,
+                      HIRNode *target, HIRNode *value, bool isDeclaration,
+                      SA::Location loc) {
+  block->blockStmts->push_back(
+      makeAssignment(generator, target, value, isDeclaration, loc));
+}
+
+HIRNode *finishForLoop(HIRNode *rootBlock, HIRNode *whileNode,
+                       HIRNode *condition, HIRNode *body) {
+  whileNode->whileLoop.cond = condition;
+  whileNode->whileLoop.body = body;
+  rootBlock->blockStmts->push_back(whileNode);
+  return rootBlock;
+}
+
+HIRNode *makeForBody(HIRGenerator &generator, ASTNode *node,
+                     HIRNode *prelude, const char *counterName,
+                     SA::Type *counterType, HIRNode *step) {
+  HIRNode *body = makeBlock(generator, node->loc);
+  if (prelude)
+    body->blockStmts->push_back(prelude);
+  if (node->fornode.body)
+    generator.flattenSeq(node->fornode.body, body->blockStmts);
+  body->blockStmts->push_back(makeLoopStep(
+      generator, counterName, counterType, step, node->loc));
+  return body;
 }
 
 IterableForLoop makeIterableLoop(HIRGenerator &generator, ASTNode *node) {
@@ -80,52 +114,28 @@ IterableForLoop makeIterableLoop(HIRGenerator &generator, ASTNode *node) {
       .iteratorName = node->fornode.iterator_var_name,
       .indexName = "\003__idx__" + std::to_string(loopIndex),
       .arrayName = "\003__arr__" + std::to_string(loopIndex),
-      .indexType = new SA::Type(I64, nullptr),
-      .elementType = iterable->type->inner,
-      .hasParamCount = iterable->kind == AST_VAR &&
-                       generator.isParam(iterable->var) &&
-                       generator.isParam(std::string(iterable->var) +
-                                          "\003_count")};
+      .indexType = new SA::Type(I32, nullptr),
+      .elementType = iterable->type->inner};
 
   return loop;
 }
 
 void initIterableLoop(HIRGenerator &generator, IterableForLoop &loop) {
-  if (loop.hasParamCount) {
-    HIRNode *arrayCount =
-        makeVar((loop.arrayName + "\003_count").c_str(), loop.indexType);
-    HIRNode *paramCount = makeVar(
-        (std::string(loop.iterable->var) + "\003_count").c_str(), loop.indexType);
-    HIRNode *countAssign = generator.createAssign(
-        arrayCount, paramCount, OP_kind::OP_ASSIGN, true);
-    countAssign->loc = loop.node->loc;
-    loop.rootBlock->blockStmts->push_back(countAssign);
-  }
-
   HIRNode *arrayTarget = makeVar(loop.arrayName.c_str(), loop.iterableExpr->type);
-  HIRNode *arrayAssign = generator.createAssign(
-      arrayTarget, loop.iterableExpr, OP_kind::OP_ASSIGN, true);
-  arrayAssign->loc = loop.node->loc;
-  loop.rootBlock->blockStmts->push_back(arrayAssign);
+  appendAssignment(generator, loop.rootBlock, arrayTarget, loop.iterableExpr,
+                   true, loop.node->loc);
 
   HIRNode *indexTarget = makeVar(loop.indexName.c_str(), loop.indexType);
   HIRNode *zero =
       generator.createLiteral((SA::Value){0}, loop.indexType, ASTKind::AST_NUM);
-  HIRNode *indexInit = generator.createAssign(
-      indexTarget, zero, OP_kind::OP_ASSIGN, true);
-  indexInit->loc = loop.node->loc;
-  loop.rootBlock->blockStmts->push_back(indexInit);
+  appendAssignment(generator, loop.rootBlock, indexTarget, zero, true,
+                   loop.node->loc);
 }
 
 HIRNode *iterableCondition(HIRGenerator &generator, IterableForLoop &loop) {
-  HIRNode *limit;
-  if (loop.hasParamCount) {
-    limit = makeVar((loop.arrayName + "\003_count").c_str(), loop.indexType);
-  } else {
-    SA::Value length = {0};
-    length.i64 = static_cast<int64_t>(loop.iterable->type->size);
-    limit = generator.createLiteral(length, loop.indexType, ASTKind::AST_NUM);
-  }
+  auto *lenArgs = new std::vector<HIRNode *>();
+  lenArgs->push_back(makeVar(loop.arrayName.c_str(), loop.iterableExpr->type));
+  HIRNode *limit = generator.createCall("len", lenArgs, new SA::Type(I32, nullptr));
 
   return generator.createBinOp(
       OP_kind::OP_LT, makeVar(loop.indexName.c_str(), loop.indexType), limit,
@@ -133,8 +143,6 @@ HIRNode *iterableCondition(HIRGenerator &generator, IterableForLoop &loop) {
 }
 
 HIRNode *iterableBody(HIRGenerator &generator, IterableForLoop &loop) {
-  HIRNode *bodyBlock = makeBlock(generator, loop.node->loc);
-
   HIRNode *indexExpr = new HIRNode(ASTKind::AST_INDEX);
   indexExpr->type = loop.elementType;
   indexExpr->index.target = makeVar(loop.arrayName.c_str(), loop.iterable->type);
@@ -142,19 +150,14 @@ HIRNode *iterableBody(HIRGenerator &generator, IterableForLoop &loop) {
   indexExpr->index.idx->push_back(makeVar(loop.indexName.c_str(), loop.indexType));
   indexExpr->index.islhs = false;
 
-  HIRNode *iteratorUpdate = generator.createAssign(
-      makeVar(loop.iteratorName.c_str(), loop.elementType), indexExpr,
-      OP_kind::OP_ASSIGN, true);
-  iteratorUpdate->loc = loop.node->loc;
-  bodyBlock->blockStmts->push_back(iteratorUpdate);
-  generator.flattenSeq(loop.node->fornode.body, bodyBlock->blockStmts);
+  HIRNode *iteratorUpdate = makeAssignment(
+      generator, makeVar(loop.iteratorName.c_str(), loop.elementType),
+      indexExpr, true, loop.node->loc);
 
   HIRNode *step = generator.createLiteral((SA::Value){1}, loop.indexType,
                                           ASTKind::AST_NUM);
-  bodyBlock->blockStmts->push_back(
-      makeLoopStep(generator, loop.indexName.c_str(), loop.indexType, step,
-                   loop.node->loc));
-  return bodyBlock;
+  return makeForBody(generator, loop.node, iteratorUpdate,
+                     loop.indexName.c_str(), loop.indexType, step);
 }
 
 RangeForLoop makeRangeLoop(HIRGenerator &generator, ASTNode *node,
@@ -189,10 +192,8 @@ RangeForLoop makeRangeLoop(HIRGenerator &generator, ASTNode *node,
 
 void initRangeLoop(HIRGenerator &generator, RangeForLoop &loop) {
   HIRNode *iteratorTarget = makeVar(loop.iteratorName.c_str(), loop.startVal->type);
-  HIRNode *initAssign = generator.createAssign(
-      iteratorTarget, loop.startVal, OP_kind::OP_ASSIGN);
-  initAssign->loc = loop.node->loc;
-  loop.rootBlock->blockStmts->push_back(initAssign);
+  appendAssignment(generator, loop.rootBlock, iteratorTarget, loop.startVal,
+                   false, loop.node->loc);
 }
 
 HIRNode *rangeCondition(HIRGenerator &generator, RangeForLoop &loop) {
@@ -209,14 +210,9 @@ HIRNode *rangeCondition(HIRGenerator &generator, RangeForLoop &loop) {
 }
 
 HIRNode *rangeBody(HIRGenerator &generator, RangeForLoop &loop) {
-  HIRNode *bodyBlock = makeBlock(generator, loop.node->loc);
-  if (loop.node->fornode.body)
-    generator.flattenSeq(loop.node->fornode.body, bodyBlock->blockStmts);
-
-  bodyBlock->blockStmts->push_back(makeLoopStep(
-      generator, loop.iteratorName.c_str(), loop.startVal->type, loop.stepVal,
-      loop.node->loc));
-  return bodyBlock;
+  return makeForBody(generator, loop.node, nullptr,
+                     loop.iteratorName.c_str(), loop.startVal->type,
+                     loop.stepVal);
 }
 
 } // namespace
@@ -230,10 +226,8 @@ HIRNode *HIRGenerator::emitForRange(ASTNode *node) {
 
   RangeForLoop loop = makeRangeLoop(*this, node, rangeNode);
   initRangeLoop(*this, loop);
-  loop.whileNode->whileLoop.cond = rangeCondition(*this, loop);
-  loop.whileNode->whileLoop.body = rangeBody(*this, loop);
-  loop.rootBlock->blockStmts->push_back(loop.whileNode);
-  return loop.rootBlock;
+  return finishForLoop(loop.rootBlock, loop.whileNode,
+                       rangeCondition(*this, loop), rangeBody(*this, loop));
 }
 
 HIRNode *HIRGenerator::emitForLoop(ASTNode *node) {
@@ -251,10 +245,9 @@ HIRNode *HIRGenerator::emitForIterableObj(ASTNode *node) {
 
   IterableForLoop loop = makeIterableLoop(*this, node);
   initIterableLoop(*this, loop);
-  loop.whileNode->whileLoop.cond = iterableCondition(*this, loop);
-  loop.whileNode->whileLoop.body = iterableBody(*this, loop);
-  loop.rootBlock->blockStmts->push_back(loop.whileNode);
-  return loop.rootBlock;
+  return finishForLoop(loop.rootBlock, loop.whileNode,
+                       iterableCondition(*this, loop),
+                       iterableBody(*this, loop));
 }
 
 HIRNode *HIRGenerator::emitWhileLoop(ASTNode *node) {

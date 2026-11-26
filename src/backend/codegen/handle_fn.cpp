@@ -79,18 +79,10 @@ void FnHelper::emitFn(HIRNode *fn_ast) {
     const SA::Param *param = (*fn_ast->fn.params)[idx];
     const char *pname = param->name;
     if (param->is_variadic && param->type && param->type->base == LIST) {
-      llvm::Value *data = b.CreateExtractValue(&arg, 0, "slice.data");
-      llvm::Value *length = b.CreateExtractValue(&arg, 1, "slice.length");
       auto *dataStorage = entryBuilder.CreateAlloca(
           irGen.irType(param->type), nullptr, pname);
-      b.CreateStore(data, dataStorage);
+      b.CreateStore(&arg, dataStorage);
       locals[pname] = dataStorage;
-
-      const std::string countName = std::string(pname) + "\003_count";
-      auto *lengthStorage = entryBuilder.CreateAlloca(
-          llvm::Type::getInt64Ty(ctx), nullptr, countName);
-      b.CreateStore(length, lengthStorage);
-      locals[countName] = lengthStorage;
     } else {
       llvm::Type *t = arg.getType();
       AllocaInst *alloca_inst = entryBuilder.CreateAlloca(t, nullptr, pname);
@@ -169,9 +161,10 @@ llvm::Value *FnHelper::emitCall(HIRNode *n, Codegen::Scope &locals) {
   if (fname && strcmp(fname, "len") == 0) {
     if (n->call.args && !n->call.args->empty()) {
       HIRNode *arg = n->call.args->front();
-      if (arg && arg->type && arg->type->base == LIST) {
-        return ConstantInt::get(llvm::Type::getInt32Ty(ctx), arg->type->size);
-      }
+      if (arg && arg->type && arg->type->base == LIST && !args.empty())
+        return b.CreateTruncOrBitCast(
+            b.CreateExtractValue(args.front(), 1, "list.length"),
+            llvm::Type::getInt32Ty(ctx), "len");
     }
   }
 

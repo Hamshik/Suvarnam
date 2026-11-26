@@ -62,9 +62,10 @@ llvm::Type *IRGen::irType(DataTypes type) {
   case BOOL:
     return llvm::Type::getInt1Ty(ctx);
   case STRINGS:
-  case LIST:
   case PTR:
     return llvm::PointerType::getUnqual(ctx);
+  case LIST:
+    return sliceType();
   case CHARACTER:
     return llvm::Type::getInt32Ty(ctx);
   case RANGE: {
