@@ -342,6 +342,7 @@ ASTMod *SemanticSymTable::loadMod(char *requested_path,
   }
 
   Importer* parser = new Importer(source, importer->getCtx());
+  parser->updatePaths(importer->getIncludePaths());
 
   raw->ast = parser->parseFile();
   raw->parsed = !isError;

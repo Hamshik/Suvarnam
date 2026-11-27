@@ -1,0 +1,8 @@
+
+fn process(var i32[][] ls) {
+    for i in ls:
+        for mut j in i {
+            j = j + 1;
+            printf("val: ", j, "\n");
+        }
+}

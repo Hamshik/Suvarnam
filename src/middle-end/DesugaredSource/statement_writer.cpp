@@ -32,8 +32,7 @@ bool Writer::writeBlock(const HIRNode *node, size_t level,
       return false;
     }
   }
-  if (trailingStatement &&
-      !writeStatement(trailingStatement, level + 1))
+  if (trailingStatement && !writeStatement(trailingStatement, level + 1))
     return false;
   indent(level);
   character('}');
@@ -101,8 +100,6 @@ bool Writer::writeStatement(const HIRNode *node, size_t level) {
       for (const SA::Param *param : *node->fn.params) {
         if (!param || !param->name)
           return false;
-        if (std::strchr(param->name, '\003'))
-          continue;
         if (!first)
           text(", ");
         first = false;
@@ -111,16 +108,13 @@ bool Writer::writeStatement(const HIRNode *node, size_t level) {
         if (param->is_variadic && paramType && paramType->base == LIST &&
             paramType->inner)
           paramType = paramType->inner;
-        if (!paramType || paramType->base == ANY) {
-          if (param->is_variadic)
-            text("[]");
-        } else {
-          if (!writeType(out_, paramType))
-            return false;
-          if (param->is_variadic)
-            text("[]");
-          character(' ');
-        }
+
+        if (!writeType(out_, paramType))
+          return false;
+        if (param->is_variadic)
+          text("[]");
+        character(' ');
+
         writeName(param->name);
       }
     }

@@ -15,8 +15,9 @@
                 "-o",
                 "${workspaceFolder}/output/test",
                 "--non-static-mod",
-                "--emit-ir",
-                "${workspaceFolder}/output/test.ll"
+                "--emit-desugared",
+                "${workspaceFolder}/output/test.sa",
+                "-I/tmp/smarthouse/include"
 
             ],
             "cwd": "${workspaceFolder}",

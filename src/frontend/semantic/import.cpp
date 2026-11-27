@@ -34,11 +34,13 @@ std::optional<fs::path> Importer::resolve(const std::string &import_path,
     return canonical_relative;
   }
 
-  for (const auto &include_dir : *include_paths) {
-    fs::path candidate = include_dir / target;
-    auto canonical_candidate = fs::canonical(candidate, ec);
-    if (!ec) {
-      return canonical_candidate;
+  if (include_paths) {
+    for (const auto &include_dir : *include_paths) {
+      fs::path candidate = include_dir / target;
+      auto canonical_candidate = fs::canonical(candidate, ec);
+      if (!ec) {
+        return canonical_candidate;
+      }
     }
   }
 

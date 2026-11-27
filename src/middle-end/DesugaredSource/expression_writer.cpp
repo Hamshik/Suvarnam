@@ -43,6 +43,8 @@ bool Writer::writeExpression(const HIRNode *node) {
   case AST_VAR:
     if (!node->name)
       return false;
+    if(node->isglobal)
+      character('@');
     writeName(node->name);
     return true;
   case AST_BINOP: {

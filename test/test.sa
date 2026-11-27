@@ -1,14 +1,4 @@
-fn run(var i32[][] values){
-    var mut total = 0;
-    for value in values:
-        for val in value {
-            total += val;
-            printf("val: %d, total: %d\n", val, total);
-        }
-} 
-
-fn i32 main() {
-    var values = [[1, 2, 3], [10,10,10]];
-    run(values);
-    ret 0;
+import "cloudVars.sa"
+fn setup(){
+    printf("", @temperature);
 }

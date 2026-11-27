@@ -13,7 +13,7 @@ namespace fs = std::filesystem;
 
 class Importer {
 private:
-  std::vector<fs::path> *include_paths; // e.g., stdlib paths, -I flags
+  std::vector<fs::path> *include_paths = nullptr; // e.g., stdlib paths, -I flags
   SA::CompilerContext* ctx;
   std::unique_ptr<std::istringstream> content;
   FILE* f;
@@ -26,6 +26,7 @@ public:
   std::optional<fs::path> resolve(const std::string &import_path,
                                   const fs::path &current_file_path);
   void updatePaths(std::vector<fs::path> *f) { include_paths = f; }
+  std::vector<fs::path> *getIncludePaths() { return include_paths; }
   void ensureSemantic(ASTMod *);
   SA::Type *handleImport(ASTNode *);
 
